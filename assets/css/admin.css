@@ -1,0 +1,148 @@
+/**
+ * Form Runtime Engine - Admin Styles
+ *
+ * @package FormRuntimeEngine
+ */
+
+/* ==========================================================================
+   Status Badges
+   ========================================================================== */
+
+.fre-status {
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 3px;
+}
+
+.fre-status--unread {
+    background-color: #0073aa;
+    color: #fff;
+}
+
+.fre-status--read {
+    background-color: #e5e5e5;
+    color: #555;
+}
+
+.fre-status--spam {
+    background-color: #d63638;
+    color: #fff;
+}
+
+/* ==========================================================================
+   Entries List Table
+   ========================================================================== */
+
+.column-id {
+    width: 60px;
+}
+
+.column-form_id {
+    width: 120px;
+}
+
+.column-status {
+    width: 80px;
+}
+
+.column-notification {
+    width: 60px;
+    text-align: center;
+}
+
+.column-created_at {
+    width: 120px;
+}
+
+.column-summary {
+    min-width: 200px;
+}
+
+/* Row actions */
+.wp-list-table .row-actions .fre-delete-entry,
+.wp-list-table .row-actions .fre-mark-spam {
+    color: #b32d2e;
+}
+
+.wp-list-table .row-actions .fre-delete-entry:hover,
+.wp-list-table .row-actions .fre-mark-spam:hover {
+    color: #a00;
+}
+
+/* ==========================================================================
+   Entry Detail Page
+   ========================================================================== */
+
+.fre-entry-meta {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.fre-entry-meta li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.fre-entry-meta li:last-child {
+    border-bottom: none;
+}
+
+.fre-entry-meta strong {
+    display: inline-block;
+    min-width: 100px;
+}
+
+/* Entry actions */
+.fre-entry-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.fre-entry-actions .button {
+    margin: 0;
+}
+
+/* ==========================================================================
+   Export Page
+   ========================================================================== */
+
+#fre-export-form .form-table th {
+    width: 150px;
+}
+
+#fre-export-form input[type="date"] {
+    width: auto;
+}
+
+/* ==========================================================================
+   Filters
+   ========================================================================== */
+
+.tablenav .actions select {
+    max-width: 200px;
+}
+
+.tablenav .actions label {
+    margin-left: 10px;
+}
+
+/* ==========================================================================
+   Loading States
+   ========================================================================== */
+
+.fre-loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* ==========================================================================
+   Notice Customizations
+   ========================================================================== */
+
+.fre-notice {
+    margin: 10px 0;
+}

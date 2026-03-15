@@ -1,0 +1,388 @@
+/**
+ * Form Runtime Engine - Frontend Styles
+ *
+ * @package FormRuntimeEngine
+ */
+
+/* ==========================================================================
+   CSS Variables
+   ========================================================================== */
+
+:root {
+    --fre-primary-color: #0073aa;
+    --fre-primary-hover: #005a87;
+    --fre-error-color: #dc3545;
+    --fre-success-color: #28a745;
+    --fre-border-color: #ddd;
+    --fre-border-radius: 4px;
+    --fre-spacing: 1rem;
+    --fre-font-size: 16px;
+    --fre-line-height: 1.5;
+}
+
+/* ==========================================================================
+   Form Container
+   ========================================================================== */
+
+.fre-form {
+    font-size: var(--fre-font-size);
+    line-height: var(--fre-line-height);
+    max-width: 100%;
+}
+
+.fre-form__title {
+    margin: 0 0 var(--fre-spacing);
+    font-size: 1.5em;
+    font-weight: 600;
+}
+
+.fre-form__fields {
+    margin-bottom: var(--fre-spacing);
+}
+
+/* ==========================================================================
+   Messages
+   ========================================================================== */
+
+.fre-form__messages {
+    margin-bottom: var(--fre-spacing);
+}
+
+.fre-form__messages:empty {
+    display: none;
+}
+
+.fre-form__message {
+    padding: 12px 16px;
+    border-radius: var(--fre-border-radius);
+    margin-bottom: 10px;
+}
+
+.fre-form__message--success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.fre-form__message--error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+/* ==========================================================================
+   Fields
+   ========================================================================== */
+
+.fre-field {
+    margin-bottom: calc(var(--fre-spacing) * 1.25);
+}
+
+.fre-field__label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.fre-required {
+    color: var(--fre-error-color);
+    margin-left: 2px;
+}
+
+.fre-field__input,
+.fre-field__textarea,
+.fre-field__select {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    font-size: inherit;
+    font-family: inherit;
+    line-height: var(--fre-line-height);
+    color: #333;
+    background-color: #fff;
+    border: 1px solid var(--fre-border-color);
+    border-radius: var(--fre-border-radius);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    box-sizing: border-box;
+}
+
+.fre-field__input:focus,
+.fre-field__textarea:focus,
+.fre-field__select:focus {
+    outline: none;
+    border-color: var(--fre-primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.15);
+}
+
+.fre-field__input:disabled,
+.fre-field__textarea:disabled,
+.fre-field__select:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.fre-field__textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+/* Select */
+.fre-field__select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23333' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+    padding-right: 40px;
+}
+
+/* File Input */
+.fre-field__file {
+    padding: 8px;
+}
+
+.fre-field__file-info {
+    margin: 6px 0 0;
+    font-size: 0.875em;
+    color: #666;
+}
+
+/* ==========================================================================
+   Checkboxes and Radios
+   ========================================================================== */
+
+.fre-field__fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.fre-field__legend {
+    font-weight: 500;
+    margin-bottom: 8px;
+    padding: 0;
+}
+
+.fre-field__checkbox-label,
+.fre-field__radio-label {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.fre-field__checkbox,
+.fre-field__radio {
+    margin: 4px 10px 0 0;
+    flex-shrink: 0;
+}
+
+.fre-field__checkbox-text,
+.fre-field__radio-text {
+    flex: 1;
+}
+
+/* Inline layout */
+.fre-field__checkbox-group--inline,
+.fre-field__radio-group--inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.fre-field__checkbox-group--inline .fre-field__checkbox-label,
+.fre-field__radio-group--inline .fre-field__radio-label {
+    margin-bottom: 0;
+}
+
+/* Single checkbox */
+.fre-field--checkbox-single .fre-field__checkbox-label {
+    margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Description
+   ========================================================================== */
+
+.fre-field__description {
+    margin: 6px 0 0;
+    font-size: 0.875em;
+    color: #666;
+}
+
+/* ==========================================================================
+   Errors
+   ========================================================================== */
+
+.fre-field__error {
+    font-size: 0.875em;
+    color: var(--fre-error-color);
+    margin-top: 6px;
+}
+
+.fre-field__error:empty {
+    display: none;
+}
+
+.fre-field--has-error .fre-field__input,
+.fre-field--has-error .fre-field__textarea,
+.fre-field--has-error .fre-field__select {
+    border-color: var(--fre-error-color);
+}
+
+.fre-field--has-error .fre-field__input:focus,
+.fre-field--has-error .fre-field__textarea:focus,
+.fre-field--has-error .fre-field__select:focus {
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+}
+
+/* ==========================================================================
+   Message Field
+   ========================================================================== */
+
+.fre-field--message {
+    padding: 16px;
+    border-radius: var(--fre-border-radius);
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+
+.fre-field__message-heading {
+    margin: 0 0 8px;
+    font-size: 1.1em;
+}
+
+.fre-field__message-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Message variants */
+.fre-field--message-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
+.fre-field--message-warning {
+    background-color: #fff3cd;
+    border-color: #ffeeba;
+    color: #856404;
+}
+
+.fre-field--message-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.fre-field--message-error {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+/* ==========================================================================
+   Submit Button
+   ========================================================================== */
+
+.fre-form__submit {
+    margin-top: calc(var(--fre-spacing) * 1.5);
+}
+
+.fre-form__submit-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 24px;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: 500;
+    color: #fff;
+    background-color: var(--fre-primary-color);
+    border: none;
+    border-radius: var(--fre-border-radius);
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+    min-width: 120px;
+}
+
+.fre-form__submit-button:hover:not(:disabled) {
+    background-color: var(--fre-primary-hover);
+}
+
+.fre-form__submit-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.3);
+}
+
+.fre-form__submit-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.fre-form__submit-loading {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* ==========================================================================
+   Spinner
+   ========================================================================== */
+
+.fre-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: fre-spin 0.8s linear infinite;
+}
+
+@keyframes fre-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Honeypot (Hidden)
+   ========================================================================== */
+
+.fre-form__hp {
+    position: absolute;
+    left: -9999px;
+    height: 0;
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   Form Error State
+   ========================================================================== */
+
+.fre-form-error {
+    padding: 12px 16px;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: var(--fre-border-radius);
+    color: #856404;
+    margin-bottom: var(--fre-spacing);
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 600px) {
+    .fre-form__submit-button {
+        width: 100%;
+    }
+
+    .fre-field__checkbox-group--inline,
+    .fre-field__radio-group--inline {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
