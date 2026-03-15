@@ -115,6 +115,10 @@ class FRE_Migrator {
                 'version' => '1.0.0',
                 'method'  => 'migration_1_0_0',
             ),
+            array(
+                'version' => '1.1.0',
+                'method'  => 'migration_1_1_0',
+            ),
         );
 
         $pending = array();
@@ -269,8 +273,21 @@ class FRE_Migrator {
      * @return bool True on success.
      */
     public function drop_tables() {
-        foreach ( $this->tables as $table ) {
-            $this->wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+        // Define allowed table suffixes for validation.
+        $allowed_suffixes = array( 'fre_entries', 'fre_entry_meta', 'fre_entry_files' );
+
+        foreach ( $this->tables as $name => $table ) {
+            // Validate table name against known tables before dropping.
+            $expected_suffix = isset( $this->tables[ $name ] ) ? $name : null;
+            $suffix_map      = array(
+                'entries'     => 'fre_entries',
+                'entry_meta'  => 'fre_entry_meta',
+                'entry_files' => 'fre_entry_files',
+            );
+
+            if ( isset( $suffix_map[ $name ] ) && $table === $this->wpdb->prefix . $suffix_map[ $name ] ) {
+                $this->wpdb->query( "DROP TABLE IF EXISTS `{$table}`" );
+            }
         }
 
         delete_option( 'fre_db_version' );
@@ -286,5 +303,65 @@ class FRE_Migrator {
      */
     public function get_current_version() {
         return get_option( 'fre_db_version', '0.0.0' );
+    }
+
+    /**
+     * Migration for version 1.1.0 - Performance indexes.
+     *
+     * Adds composite indexes for common query patterns.
+     *
+     * @return bool True on success, false on failure.
+     */
+    private function migration_1_1_0() {
+        // Add composite indexes for better query performance.
+        $indexes = array(
+            // For entries table: Common filter combinations.
+            array(
+                'table'   => $this->tables['entries'],
+                'name'    => 'status_created',
+                'columns' => 'status, created_at',
+            ),
+            array(
+                'table'   => $this->tables['entries'],
+                'name'    => 'spam_created',
+                'columns' => 'is_spam, created_at',
+            ),
+            array(
+                'table'   => $this->tables['entries'],
+                'name'    => 'form_spam_status',
+                'columns' => 'form_id, is_spam, status',
+            ),
+            // For entry_meta table: Search/filter by field value.
+            array(
+                'table'   => $this->tables['entry_meta'],
+                'name'    => 'field_value_prefix',
+                'columns' => 'field_key, field_value(50)',
+            ),
+        );
+
+        foreach ( $indexes as $index ) {
+            // Check if index already exists.
+            $exists = $this->wpdb->get_var( $this->wpdb->prepare(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                 AND TABLE_NAME = %s
+                 AND INDEX_NAME = %s",
+                $index['table'],
+                $index['name']
+            ) );
+
+            if ( ! $exists ) {
+                $result = $this->wpdb->query(
+                    "ALTER TABLE {$index['table']} ADD INDEX {$index['name']} ({$index['columns']})"
+                );
+
+                if ( $result === false ) {
+                    error_log( "FRE: Failed to create index {$index['name']} on {$index['table']}: " . $this->wpdb->last_error );
+                    // Continue with other indexes even if one fails.
+                }
+            }
+        }
+
+        return true;
     }
 }

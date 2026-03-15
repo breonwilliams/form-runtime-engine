@@ -32,7 +32,7 @@ define( 'FRE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'FRE_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 // Database version.
-define( 'FRE_DB_VERSION', '1.0.0' );
+define( 'FRE_DB_VERSION', '1.1.0' );
 
 // Upload directory name.
 define( 'FRE_UPLOAD_DIR', 'fre-uploads' );
@@ -149,6 +149,9 @@ final class Form_Runtime_Engine {
         // Initialize components.
         $this->registry           = new FRE_Registry();
         $this->submission_handler = new FRE_Submission_Handler();
+
+        // Fix #1: Initialize email retry queue hooks.
+        FRE_Email_Notification::init_hooks();
 
         // Initialize shortcode.
         new FRE_Shortcode();

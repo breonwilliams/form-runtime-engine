@@ -16,6 +16,90 @@ if ( ! defined( 'ABSPATH' ) ) {
 class FRE_Mime_Validator {
 
     /**
+     * Magic bytes for file type verification (Fix #6: Polyglot detection).
+     *
+     * @var array
+     */
+    private const MAGIC_BYTES = array(
+        // Images.
+        'jpg'  => array( array( 0xFF, 0xD8, 0xFF ) ),
+        'jpeg' => array( array( 0xFF, 0xD8, 0xFF ) ),
+        'png'  => array( array( 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A ) ),
+        'gif'  => array( array( 0x47, 0x49, 0x46, 0x38 ) ),
+        'webp' => array( array( 0x52, 0x49, 0x46, 0x46 ) ), // RIFF header.
+        'bmp'  => array( array( 0x42, 0x4D ) ),
+
+        // Fix #6: Add magic bytes for document formats.
+        'pdf'  => array( array( 0x25, 0x50, 0x44, 0x46 ) ),                    // %PDF
+        'doc'  => array( array( 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 ) ), // OLE Compound Document
+        'xls'  => array( array( 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 ) ), // OLE Compound Document
+        'ppt'  => array( array( 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 ) ), // OLE Compound Document
+        'docx' => array( array( 0x50, 0x4B, 0x03, 0x04 ) ),                    // ZIP (OOXML)
+        'xlsx' => array( array( 0x50, 0x4B, 0x03, 0x04 ) ),                    // ZIP (OOXML)
+        'pptx' => array( array( 0x50, 0x4B, 0x03, 0x04 ) ),                    // ZIP (OOXML)
+        'odt'  => array( array( 0x50, 0x4B, 0x03, 0x04 ) ),                    // ZIP (ODF)
+        'ods'  => array( array( 0x50, 0x4B, 0x03, 0x04 ) ),                    // ZIP (ODF)
+        'zip'  => array( array( 0x50, 0x4B, 0x03, 0x04 ), array( 0x50, 0x4B, 0x05, 0x06 ) ),
+        'rar'  => array( array( 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07 ) ),        // Rar!
+
+        // Audio/Video.
+        'mp3'  => array(
+            array( 0x49, 0x44, 0x33 ),                                          // ID3
+            array( 0xFF, 0xFB ),                                                // MP3 frame sync
+            array( 0xFF, 0xFA ),                                                // MP3 frame sync
+        ),
+        'mp4'  => array( array( 0x00, 0x00, 0x00 ) ),                          // ftyp at offset 4
+        'wav'  => array( array( 0x52, 0x49, 0x46, 0x46 ) ),                    // RIFF
+    );
+
+    /**
+     * Dangerous patterns to scan for in files (Fix #6 & #12: Polyglot detection).
+     *
+     * @var array
+     */
+    private const DANGEROUS_PATTERNS = array(
+        // PHP opening tags.
+        '<?php',
+        '<?=',
+        '<? ',
+        '<%',
+
+        // HTML/JavaScript.
+        '<script',
+
+        // PHP dangerous functions.
+        '__halt_compiler',
+        'eval(',
+        'exec(',
+        'system(',
+        'passthru(',
+        'shell_exec(',
+        'popen(',
+        'proc_open(',
+        'base64_decode(',
+        'assert(',
+        'create_function(',
+        'call_user_func',
+
+        // Fix #12: Additional dangerous patterns.
+        '$$',                    // Variable variables - can be used for code injection.
+        'extract(',              // Can overwrite variables.
+        'parse_str(',            // Can overwrite variables without second param.
+        'include(',
+        'include_once(',
+        'require(',
+        'require_once(',
+        'file_get_contents(',
+        'file_put_contents(',
+        'fwrite(',
+        'fputs(',
+        'fopen(',
+        'curl_exec(',
+        'ReflectionFunction',
+        'preg_replace_callback(',
+    );
+
+    /**
      * Extension to MIME type mapping.
      *
      * @var array
@@ -200,5 +284,214 @@ class FRE_Mime_Validator {
      */
     public function get_supported_extensions() {
         return array_keys( $this->mime_map );
+    }
+
+    /**
+     * Dangerous SVG patterns for validation.
+     *
+     * @var array
+     */
+    private const SVG_DANGEROUS_PATTERNS = array(
+        '/<script/i',
+        '/on\w+\s*=/i',          // Event handlers (onclick, onload, etc.).
+        '/javascript\s*:/i',      // JavaScript URLs.
+        '/<foreignObject/i',      // Foreign object can embed HTML.
+        '/<embed/i',
+        '/<object/i',
+        '/<iframe/i',
+        '/<\?/i',                 // PHP tags.
+        '/<%/i',                  // ASP tags.
+        '/<!ENTITY/i',            // XXE attacks.
+        '/xlink:href\s*=\s*["\']?\s*(javascript|data):/i',
+        '/href\s*=\s*["\']?\s*(javascript|data):/i',
+        '/data\s*:\s*text\/html/i',
+        '/set\s*=.*javascript/i',
+        '/animate\s*.*on/i',
+    );
+
+    /**
+     * Validate SVG content for dangerous elements (Fix #4: SVG Content Validation).
+     *
+     * Performance fix: Uses chunked reading instead of loading entire file into memory.
+     * This prevents memory spikes for large SVG files.
+     *
+     * @param string $file_path Path to SVG file.
+     * @return bool|WP_Error True if safe, WP_Error if dangerous content detected.
+     */
+    public function validate_svg( $file_path ) {
+        if ( ! file_exists( $file_path ) ) {
+            return new WP_Error( 'file_not_found', __( 'File not found.', 'form-runtime-engine' ) );
+        }
+
+        $handle = fopen( $file_path, 'rb' );
+        if ( ! $handle ) {
+            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'form-runtime-engine' ) );
+        }
+
+        // Use overlapping chunks to catch patterns split across chunk boundaries.
+        // SVG patterns can be up to ~50 characters, so 100 byte overlap is safe.
+        $chunk_size   = 8192;
+        $overlap_size = 100;
+        $prev_chunk   = '';
+
+        while ( ! feof( $handle ) ) {
+            $new_data = fread( $handle, $chunk_size );
+            if ( $new_data === false ) {
+                break;
+            }
+
+            // Combine overlap from previous chunk with new data.
+            $chunk = $prev_chunk . $new_data;
+
+            // Check for dangerous patterns.
+            foreach ( self::SVG_DANGEROUS_PATTERNS as $pattern ) {
+                if ( preg_match( $pattern, $chunk ) ) {
+                    fclose( $handle );
+                    return new WP_Error( 'svg_malicious', __( 'SVG contains dangerous content.', 'form-runtime-engine' ) );
+                }
+            }
+
+            // Keep last N bytes for overlap with next chunk.
+            $prev_chunk = strlen( $chunk ) > $overlap_size
+                ? substr( $chunk, -$overlap_size )
+                : $chunk;
+        }
+
+        fclose( $handle );
+        return true;
+    }
+
+    /**
+     * Scan file for dangerous patterns (Fix #6 & #12: Polyglot detection with overlapping chunks).
+     *
+     * @param string $file_path Path to file.
+     * @return bool|WP_Error True if safe, WP_Error if dangerous patterns found.
+     */
+    public function scan_for_dangerous_patterns( $file_path ) {
+        if ( ! file_exists( $file_path ) ) {
+            return new WP_Error( 'file_not_found', __( 'File not found.', 'form-runtime-engine' ) );
+        }
+
+        $handle = fopen( $file_path, 'rb' );
+        if ( ! $handle ) {
+            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'form-runtime-engine' ) );
+        }
+
+        // Fix #12: Use overlapping chunks to catch patterns split across chunk boundaries.
+        // Keep last 100 bytes of previous chunk to prepend to next chunk.
+        $overlap_size = 100;
+        $prev_chunk = '';
+
+        // Read file in chunks to handle large files.
+        while ( ! feof( $handle ) ) {
+            $new_data = fread( $handle, 8192 );
+            if ( $new_data === false ) {
+                break;
+            }
+
+            // Combine overlap from previous chunk with new data.
+            $chunk = $prev_chunk . $new_data;
+
+            // Check for dangerous patterns.
+            foreach ( self::DANGEROUS_PATTERNS as $pattern ) {
+                // Use case-insensitive search for most patterns.
+                if ( stripos( $chunk, $pattern ) !== false ) {
+                    fclose( $handle );
+                    return new WP_Error(
+                        'dangerous_content',
+                        __( 'File contains potentially dangerous content.', 'form-runtime-engine' )
+                    );
+                }
+            }
+
+            // Check for regex patterns - preg_replace with /e modifier.
+            if ( preg_match( '/preg_replace\s*\([^)]*\/[^\/]*e[^\/]*\//i', $chunk ) ) {
+                fclose( $handle );
+                return new WP_Error(
+                    'dangerous_content',
+                    __( 'File contains potentially dangerous content.', 'form-runtime-engine' )
+                );
+            }
+
+            // Fix #12: Check for mb_ereg_replace with 'e' modifier.
+            if ( preg_match( '/mb_ereg_replace\s*\([^)]*[\'"]e[\'"]/i', $chunk ) ) {
+                fclose( $handle );
+                return new WP_Error(
+                    'dangerous_content',
+                    __( 'File contains potentially dangerous content.', 'form-runtime-engine' )
+                );
+            }
+
+            // Fix #12: Check for encoded payloads (base64 of common patterns).
+            // PD9waHA= is base64 for "<?php"
+            if ( stripos( $chunk, 'PD9waHA' ) !== false ) {
+                fclose( $handle );
+                return new WP_Error(
+                    'dangerous_content',
+                    __( 'File contains potentially dangerous encoded content.', 'form-runtime-engine' )
+                );
+            }
+
+            // Keep last N bytes for overlap with next chunk.
+            $prev_chunk = strlen( $chunk ) > $overlap_size
+                ? substr( $chunk, -$overlap_size )
+                : $chunk;
+        }
+
+        fclose( $handle );
+        return true;
+    }
+
+    /**
+     * Verify file magic bytes match expected format (Fix #6: Polyglot detection).
+     *
+     * @param string $file_path Path to file.
+     * @param string $extension Expected file extension.
+     * @return bool|WP_Error True if valid, WP_Error if mismatch.
+     */
+    public function verify_magic_bytes( $file_path, $extension ) {
+        $extension = strtolower( $extension );
+
+        // Skip if we don't have magic bytes for this extension.
+        if ( ! isset( self::MAGIC_BYTES[ $extension ] ) ) {
+            return true;
+        }
+
+        $handle = fopen( $file_path, 'rb' );
+        if ( ! $handle ) {
+            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'form-runtime-engine' ) );
+        }
+
+        // Read first 8 bytes (max magic byte length).
+        $header = fread( $handle, 8 );
+        fclose( $handle );
+
+        if ( $header === false || strlen( $header ) < 2 ) {
+            return new WP_Error( 'invalid_file', __( 'Invalid file format.', 'form-runtime-engine' ) );
+        }
+
+        // Convert header to byte array.
+        $header_bytes = array_values( unpack( 'C*', $header ) );
+
+        // Check against known magic bytes.
+        $valid_signatures = self::MAGIC_BYTES[ $extension ];
+        foreach ( $valid_signatures as $signature ) {
+            $match = true;
+            for ( $i = 0; $i < count( $signature ); $i++ ) {
+                if ( ! isset( $header_bytes[ $i ] ) || $header_bytes[ $i ] !== $signature[ $i ] ) {
+                    $match = false;
+                    break;
+                }
+            }
+
+            if ( $match ) {
+                return true;
+            }
+        }
+
+        return new WP_Error(
+            'magic_bytes_mismatch',
+            __( 'File content does not match expected format.', 'form-runtime-engine' )
+        );
     }
 }

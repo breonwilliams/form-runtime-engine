@@ -168,7 +168,7 @@ class FRE_Entry_Detail {
     }
 
     /**
-     * Render a field value safely.
+     * Render a field value safely (Fix #7: Stored XSS protection).
      *
      * @param string     $key    Field key.
      * @param mixed      $value  Field value.
@@ -186,7 +186,8 @@ class FRE_Entry_Detail {
         $field_class = FRE_Autoloader::get_field_class( $type );
         if ( $field_class && class_exists( $field_class ) ) {
             $field_instance = new $field_class();
-            return $field_instance->format_value( $value, $config ?? array() );
+            // Fix #7: Apply wp_kses_post to sanitize output from field formatters.
+            return wp_kses_post( $field_instance->format_value( $value, $config ?? array() ) );
         }
 
         // Fallback formatting.

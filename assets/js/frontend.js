@@ -8,6 +8,19 @@
     'use strict';
 
     /**
+     * Generate a UUID v4.
+     *
+     * @returns {string} UUID v4 string.
+     */
+    function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    /**
      * Form handler class.
      */
     class FREForm {
@@ -23,6 +36,9 @@
             this.storageKey = `fre_form_${this.formId}`;
             this.renderTime = Date.now();
             this.isSubmitting = false;
+
+            // Fix #4: Track submission UUID to prevent duplicate submissions on retry.
+            this.currentSubmissionId = null;
 
             this.init();
         }
@@ -183,9 +199,15 @@
             if (submitText) submitText.style.display = 'none';
             if (submitLoading) submitLoading.style.display = 'inline-flex';
 
+            // Fix #4: Generate submission UUID for idempotency (reuse if retrying).
+            if (!this.currentSubmissionId) {
+                this.currentSubmissionId = generateUUID();
+            }
+
             // Prepare form data.
             const formData = new FormData(this.form);
             formData.append('action', 'fre_submit_form');
+            formData.append('_fre_submission_id', this.currentSubmissionId);
 
             try {
                 const response = await fetch(freAjax.url, {
@@ -199,6 +221,9 @@
                 if (result.success) {
                     // Clear saved data.
                     this.clearSavedData();
+
+                    // Fix #4: Clear submission ID on success for next submission.
+                    this.currentSubmissionId = null;
 
                     // Show success message.
                     this.showMessage('success', result.data.message);

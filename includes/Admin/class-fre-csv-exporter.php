@@ -12,6 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * CSV export handler with streaming output.
+ *
+ * Fix #12: Improved memory efficiency by using batched database queries
+ * and streaming pagination instead of loading all entries at once.
  */
 class FRE_CSV_Exporter {
 
@@ -21,6 +24,13 @@ class FRE_CSV_Exporter {
      * @var FRE_Entry_Query
      */
     private $query;
+
+    /**
+     * WordPress database instance.
+     *
+     * @var wpdb
+     */
+    private $wpdb;
 
     /**
      * Field type instances.
@@ -33,6 +43,8 @@ class FRE_CSV_Exporter {
      * Constructor.
      */
     public function __construct() {
+        global $wpdb;
+        $this->wpdb  = $wpdb;
         $this->query = new FRE_Entry_Query();
     }
 
@@ -73,18 +85,23 @@ class FRE_CSV_Exporter {
 
         $this->query->order_by( 'created_at', 'DESC' );
 
-        // Generate filename.
+        // Generate filename (Fix #27: Sanitize for header injection).
         $filename = 'form-entries';
         if ( ! empty( $args['form_id'] ) ) {
             $filename .= '-' . sanitize_file_name( $args['form_id'] );
         }
-        $filename .= '-' . date( 'Y-m-d' ) . '.csv';
+        $filename .= '-' . gmdate( 'Y-m-d' ) . '.csv';
+
+        // Fix #27: Strict filename sanitization to prevent header injection.
+        $filename = preg_replace( '/[^\w\-.]/', '', $filename );
 
         // Set headers for download.
         header( 'Content-Type: text/csv; charset=utf-8' );
-        header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+        // Fix #27: Use RFC 5987 encoding for filename with both fallback and UTF-8 versions.
+        header( 'Content-Disposition: attachment; filename="' . $filename . '"; filename*=UTF-8\'\'' . rawurlencode( $filename ) );
         header( 'Pragma: no-cache' );
         header( 'Expires: 0' );
+        header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
 
         // Open output stream.
         $output = fopen( 'php://output', 'w' );
@@ -96,28 +113,48 @@ class FRE_CSV_Exporter {
         $headers = $this->get_column_headers( $args['form_id'] );
         fputcsv( $output, $headers );
 
-        // Stream entries in chunks.
+        // Fix #12: Stream entries in chunks with batched meta loading.
+        // This prevents memory exhaustion on large datasets by:
+        // 1. Loading only IDs first
+        // 2. Fetching metadata in batches
+        // 3. Streaming output directly
         $page     = 1;
         $per_page = 100;
 
         do {
-            $entries = $this->query->page( $page, $per_page )->get( true );
+            // Get entries without metadata (faster initial query).
+            $entries = $this->query->page( $page, $per_page )->get( false );
+
+            if ( empty( $entries ) ) {
+                break;
+            }
+
+            // Fix #12: Batch load metadata for all entries in this chunk.
+            $entry_ids = array_column( $entries, 'id' );
+            $meta_data = $this->batch_get_meta( $entry_ids );
+            $files_data = $this->batch_get_files( $entry_ids );
 
             foreach ( $entries as $entry ) {
+                $entry_id = $entry['id'];
+                $entry['fields'] = isset( $meta_data[ $entry_id ] ) ? $meta_data[ $entry_id ] : array();
+                $entry['files'] = isset( $files_data[ $entry_id ] ) ? $files_data[ $entry_id ] : array();
+
                 $row = $this->format_entry_row( $entry, $args['form_id'] );
                 fputcsv( $output, $row );
             }
 
-            // Flush output periodically.
-            if ( $page % 10 === 0 ) {
-                if ( ob_get_level() > 0 ) {
-                    ob_flush();
-                }
-                flush();
+            // Flush output every page (100 entries) to reduce peak memory usage.
+            // This prevents memory accumulation between flushes.
+            if ( ob_get_level() > 0 ) {
+                ob_flush();
             }
+            flush();
+
+            // Fix #12: Clear arrays to free memory before next iteration.
+            unset( $entries, $meta_data, $files_data, $entry_ids );
 
             $page++;
-        } while ( count( $entries ) === $per_page );
+        } while ( true ); // Loop exits via empty($entries) check
 
         fclose( $output );
         exit;
@@ -229,6 +266,8 @@ class FRE_CSV_Exporter {
     /**
      * Format value for CSV output.
      *
+     * Fix #1: Escape CSV formula injection characters.
+     *
      * @param mixed $value Field value.
      * @param array $field Field configuration.
      * @return string
@@ -242,15 +281,95 @@ class FRE_CSV_Exporter {
             if ( ! isset( $this->field_instances[ $type ] ) ) {
                 $this->field_instances[ $type ] = new $field_class();
             }
-            return $this->field_instances[ $type ]->format_csv_value( $value, $field );
+            $value = $this->field_instances[ $type ]->format_csv_value( $value, $field );
+        } elseif ( is_array( $value ) ) {
+            // Fallback for arrays.
+            $value = implode( ', ', $value );
         }
 
-        // Fallback.
-        if ( is_array( $value ) ) {
-            return implode( ', ', $value );
+        $value = (string) $value;
+
+        // Fix #1: Escape CSV formula injection.
+        // Values starting with =, +, -, or @ can be executed as formulas in Excel.
+        if ( strlen( $value ) > 0 && in_array( $value[0], array( '=', '+', '-', '@' ), true ) ) {
+            $value = "'" . $value;
         }
 
-        return (string) $value;
+        return $value;
+    }
+
+    /**
+     * Batch load metadata for multiple entries (Fix #12).
+     *
+     * Single query instead of N queries for N entries.
+     *
+     * @param array $entry_ids Array of entry IDs.
+     * @return array Associative array keyed by entry_id => field_key => value.
+     */
+    private function batch_get_meta( array $entry_ids ) {
+        if ( empty( $entry_ids ) ) {
+            return array();
+        }
+
+        $table = $this->wpdb->prefix . 'fre_entry_meta';
+        $placeholders = implode( ',', array_fill( 0, count( $entry_ids ), '%d' ) );
+
+        $results = $this->wpdb->get_results(
+            $this->wpdb->prepare(
+                "SELECT entry_id, field_key, field_value FROM {$table}
+                 WHERE entry_id IN ({$placeholders})",
+                ...$entry_ids
+            ),
+            ARRAY_A
+        );
+
+        $meta = array();
+        foreach ( $results as $row ) {
+            $entry_id  = $row['entry_id'];
+            $field_key = $row['field_key'];
+            $value     = maybe_unserialize( $row['field_value'] );
+
+            if ( ! isset( $meta[ $entry_id ] ) ) {
+                $meta[ $entry_id ] = array();
+            }
+            $meta[ $entry_id ][ $field_key ] = $value;
+        }
+
+        return $meta;
+    }
+
+    /**
+     * Batch load files for multiple entries (Fix #12).
+     *
+     * @param array $entry_ids Array of entry IDs.
+     * @return array Associative array keyed by entry_id => array of files.
+     */
+    private function batch_get_files( array $entry_ids ) {
+        if ( empty( $entry_ids ) ) {
+            return array();
+        }
+
+        $table = $this->wpdb->prefix . 'fre_entry_files';
+        $placeholders = implode( ',', array_fill( 0, count( $entry_ids ), '%d' ) );
+
+        $results = $this->wpdb->get_results(
+            $this->wpdb->prepare(
+                "SELECT * FROM {$table} WHERE entry_id IN ({$placeholders})",
+                ...$entry_ids
+            ),
+            ARRAY_A
+        );
+
+        $files = array();
+        foreach ( $results as $row ) {
+            $entry_id = $row['entry_id'];
+            if ( ! isset( $files[ $entry_id ] ) ) {
+                $files[ $entry_id ] = array();
+            }
+            $files[ $entry_id ][] = $row;
+        }
+
+        return $files;
     }
 
     /**

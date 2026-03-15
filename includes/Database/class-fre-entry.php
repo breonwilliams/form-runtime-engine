@@ -48,6 +48,9 @@ class FRE_Entry {
     /**
      * Create a new entry.
      *
+     * Fix #2: Wrapped in transaction to ensure entry and metadata are atomic.
+     * If metadata insertion fails, the entry is rolled back to prevent orphaned entries.
+     *
      * @param string $form_id Form ID.
      * @param array  $data    Entry data (sanitized field values).
      * @param array  $meta    Additional metadata.
@@ -68,35 +71,54 @@ class FRE_Entry {
             'updated_at' => current_time( 'mysql' ),
         );
 
-        // Insert entry.
-        $result = $this->wpdb->insert(
-            $this->tables['entries'],
-            $entry_data,
-            array( '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s' )
-        );
+        // Fix #2: Start transaction for atomic entry + metadata creation.
+        $this->wpdb->query( 'START TRANSACTION' );
 
-        if ( $result === false ) {
-            error_log( 'FRE DB Error: ' . $this->wpdb->last_error );
-            throw new Exception( 'Database error' );
+        try {
+            // Insert entry.
+            $result = $this->wpdb->insert(
+                $this->tables['entries'],
+                $entry_data,
+                array( '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s' )
+            );
+
+            if ( $result === false ) {
+                $this->wpdb->query( 'ROLLBACK' );
+                // Fix #29: Sanitize error logs - don't expose raw MySQL errors.
+                error_log( 'FRE DB Error: Entry creation failed for form ' . sanitize_key( $form_id ) );
+                throw new Exception( 'Database error' );
+            }
+
+            $entry_id = $this->wpdb->insert_id;
+
+            // Insert field values as meta.
+            foreach ( $data as $field_key => $value ) {
+                $meta_result = $this->add_meta( $entry_id, $field_key, $value );
+                if ( $meta_result === false ) {
+                    $this->wpdb->query( 'ROLLBACK' );
+                    error_log( 'FRE DB Error: Entry metadata creation failed for form ' . sanitize_key( $form_id ) . ', field ' . sanitize_key( $field_key ) );
+                    throw new Exception( 'Database error' );
+                }
+            }
+
+            // Commit the transaction.
+            $this->wpdb->query( 'COMMIT' );
+
+            /**
+             * Fires after an entry is created.
+             *
+             * @param int    $entry_id Entry ID.
+             * @param string $form_id  Form ID.
+             * @param array  $data     Entry field data.
+             */
+            do_action( 'fre_entry_created', $entry_id, $form_id, $data );
+
+            return $entry_id;
+
+        } catch ( Exception $e ) {
+            $this->wpdb->query( 'ROLLBACK' );
+            throw $e;
         }
-
-        $entry_id = $this->wpdb->insert_id;
-
-        // Insert field values as meta.
-        foreach ( $data as $field_key => $value ) {
-            $this->add_meta( $entry_id, $field_key, $value );
-        }
-
-        /**
-         * Fires after an entry is created.
-         *
-         * @param int    $entry_id Entry ID.
-         * @param string $form_id  Form ID.
-         * @param array  $data     Entry field data.
-         */
-        do_action( 'fre_entry_created', $entry_id, $form_id, $data );
-
-        return $entry_id;
     }
 
     /**
@@ -406,22 +428,101 @@ class FRE_Entry {
     /**
      * Check if duplicate submission within time window.
      *
+     * Fix #8: Atomic timeout handling to prevent orphaned records.
+     * Fix #11: Uses atomic INSERT IGNORE for race condition protection.
+     * Fix #20: Uses SHA-256 instead of MD5.
+     *
      * @param string $form_id Form ID.
      * @param array  $data    Submission data.
      * @param int    $window  Time window in seconds (default: 60).
      * @return bool True if duplicate.
      */
     public function is_duplicate( $form_id, array $data, $window = 60 ) {
-        // Create content hash.
-        $hash = md5( $form_id . serialize( $data ) );
-        $key  = 'fre_submission_' . $hash;
+        global $wpdb;
 
-        if ( get_transient( $key ) ) {
-            return true;
+        // Fix #20: Use SHA-256 instead of MD5.
+        $hash        = hash( 'sha256', $form_id . wp_json_encode( $data ) );
+        $key         = 'fre_submission_' . $hash;
+        $option_name = '_transient_' . $key;
+        $timeout_key = '_transient_timeout_' . $key;
+        $expiry_time = time() + $window;
+
+        // Fix #8: Insert both the transient and timeout atomically in a single transaction.
+        // This prevents orphaned transients if the process crashes between operations.
+        $wpdb->query( 'START TRANSACTION' );
+
+        try {
+            // Fix #11: Use INSERT IGNORE for atomic duplicate checking.
+            // If the row already exists, INSERT IGNORE returns 0 affected rows.
+            $result = $wpdb->query( $wpdb->prepare(
+                "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload)
+                 VALUES (%s, %d, 'no')",
+                $option_name,
+                $expiry_time  // Store expiry time as value for self-documenting records.
+            ) );
+
+            if ( $result === 0 ) {
+                // Row already exists - check if it's expired.
+                $existing_expiry = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+                    $option_name
+                ) );
+
+                if ( $existing_expiry !== null && (int) $existing_expiry < time() ) {
+                    // Expired - update it and allow submission.
+                    $wpdb->query( $wpdb->prepare(
+                        "UPDATE {$wpdb->options} SET option_value = %d WHERE option_name = %s",
+                        $expiry_time,
+                        $option_name
+                    ) );
+                    $wpdb->query( 'COMMIT' );
+                    return false;
+                }
+
+                // Not expired - this is a duplicate.
+                $wpdb->query( 'COMMIT' );
+                return true;
+            }
+
+            // Successfully inserted new record.
+            // Fix #8: Also insert timeout in same transaction for compatibility with WP transient cleanup.
+            $wpdb->query( $wpdb->prepare(
+                "INSERT INTO {$wpdb->options} (option_name, option_value, autoload)
+                 VALUES (%s, %d, 'no')
+                 ON DUPLICATE KEY UPDATE option_value = %d",
+                $timeout_key,
+                $expiry_time,
+                $expiry_time
+            ) );
+
+            $wpdb->query( 'COMMIT' );
+            return false;
+
+        } catch ( Exception $e ) {
+            $wpdb->query( 'ROLLBACK' );
+            error_log( 'FRE Duplicate Check Error: ' . $e->getMessage() );
+            return false; // Fail open on error.
         }
+    }
 
-        set_transient( $key, true, $window );
+    /**
+     * Clean up expired duplicate detection transients.
+     *
+     * This should be called periodically via WP Cron.
+     *
+     * @return int Number of expired records cleaned.
+     */
+    public function cleanup_expired_duplicates() {
+        global $wpdb;
 
-        return false;
+        $result = $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$wpdb->options}
+             WHERE option_name LIKE %s
+             AND CAST(option_value AS UNSIGNED) < %d",
+            '_transient_fre_submission_%',
+            time()
+        ) );
+
+        return $result !== false ? $result : 0;
     }
 }

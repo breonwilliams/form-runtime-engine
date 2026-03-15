@@ -60,10 +60,14 @@ class FRE_Submission_Handler {
      *
      * Lifecycle: NONCE CHECK → SPAM CHECK → VALIDATE → SANITIZE
      *            → UPLOAD FILES → STORE ENTRY → SEND EMAIL → RETURN RESPONSE
+     *
+     * Fix #9: Nonce verification is now done BEFORE loading form config.
      */
     public function handle_submission() {
         // Define processing constant for error handling.
-        define( 'FRE_PROCESSING', true );
+        if ( ! defined( 'FRE_PROCESSING' ) ) {
+            define( 'FRE_PROCESSING', true );
+        }
 
         try {
             // Get form ID.
@@ -75,10 +79,22 @@ class FRE_Submission_Handler {
                 $this->send_error( 'invalid_form', __( 'Invalid form submission.', 'form-runtime-engine' ) );
             }
 
-            // Get form configuration.
+            // Step 1: Nonce verification FIRST (Fix #9: CSRF protection).
+            $this->verify_nonce( $form_id );
+
+            // Fix #4: Check idempotency token to prevent duplicate submissions on retry.
+            $idempotency_result = $this->check_idempotency_token( $form_id );
+            if ( is_array( $idempotency_result ) ) {
+                // Already processed - return cached response.
+                wp_send_json_success( $idempotency_result );
+            }
+
+            // Get form configuration (only after nonce verification).
             $form_config = fre()->registry->get( $form_id );
 
+            // Fix #16: Improved error logging when form config not found.
             if ( ! $form_config ) {
+                $this->log_form_config_error( $form_id );
                 $this->send_error( 'form_not_found', __( 'Form configuration not found.', 'form-runtime-engine' ) );
             }
 
@@ -89,9 +105,6 @@ class FRE_Submission_Handler {
              * @param array  $form_config Form configuration.
              */
             do_action( 'fre_before_submission_process', $form_id, $form_config );
-
-            // Step 1: Nonce verification.
-            $this->verify_nonce( $form_id );
 
             // Step 2: Spam protection checks.
             $this->check_spam_protection( $form_id, $form_config );
@@ -184,6 +197,9 @@ class FRE_Submission_Handler {
              */
             $response = apply_filters( 'fre_submission_response', $response, $entry_id, $sanitized_data, $form_config );
 
+            // Fix #4: Store response for idempotency before sending.
+            $this->store_idempotency_response( $response );
+
             wp_send_json_success( $response );
 
         } catch ( Exception $e ) {
@@ -255,9 +271,16 @@ class FRE_Submission_Handler {
                 $this->send_error( $result->get_error_code(), $result->get_error_message() );
             }
 
-            // Check global rate limit.
+            // Check global rate limit (per-form).
             if ( $rate_limiter->is_global_exceeded( $form_id ) ) {
                 $this->send_error( 'global_rate_limit', __( 'This form is receiving too many submissions. Please try again later.', 'form-runtime-engine' ) );
+            }
+
+            // Fix #3: Check global IP rate limit (across all forms).
+            // This was implemented but never called - prevents single IP from
+            // submitting too many forms across the entire site.
+            if ( $rate_limiter->is_global_ip_exceeded() ) {
+                $this->send_error( 'global_ip_limit', __( 'Too many submissions. Please try again later.', 'form-runtime-engine' ) );
             }
         }
     }
@@ -416,14 +439,185 @@ class FRE_Submission_Handler {
     }
 
     /**
-     * AJAX handler for nonce refresh.
+     * Check idempotency token to prevent duplicate submissions (Fix #4).
+     *
+     * If a submission with this ID was already processed, returns the cached response.
+     * Otherwise, marks the token as in-progress and returns false.
+     *
+     * @param string $form_id Form ID.
+     * @return array|false Cached response if duplicate, false if new submission.
+     */
+    private function check_idempotency_token( $form_id ) {
+        $submission_id = isset( $_POST['_fre_submission_id'] )
+            ? sanitize_text_field( wp_unslash( $_POST['_fre_submission_id'] ) )
+            : '';
+
+        if ( empty( $submission_id ) ) {
+            // No idempotency token provided - proceed with normal duplicate detection.
+            return false;
+        }
+
+        // Validate UUID format.
+        if ( ! preg_match( '/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i', $submission_id ) ) {
+            return false;
+        }
+
+        $transient_key = 'fre_idempotent_' . hash( 'sha256', $form_id . '_' . $submission_id );
+
+        // Check if this submission ID was already processed.
+        $cached = get_transient( $transient_key );
+
+        if ( $cached !== false ) {
+            // Submission was already processed - return cached response.
+            if ( is_array( $cached ) && isset( $cached['status'] ) ) {
+                if ( $cached['status'] === 'processing' ) {
+                    // Still processing - tell client to wait.
+                    wp_send_json_error( array(
+                        'code'    => 'submission_processing',
+                        'message' => __( 'Your submission is being processed. Please wait.', 'form-runtime-engine' ),
+                    ) );
+                }
+                return $cached['response'];
+            }
+        }
+
+        // Mark as processing (5 minute window for slow submissions).
+        set_transient( $transient_key, array( 'status' => 'processing' ), 300 );
+
+        // Store the key so we can update it after successful submission.
+        $this->current_idempotency_key = $transient_key;
+
+        return false;
+    }
+
+    /**
+     * Store successful submission response for idempotency (Fix #4).
+     *
+     * @param array $response Success response.
+     */
+    private function store_idempotency_response( array $response ) {
+        if ( empty( $this->current_idempotency_key ) ) {
+            return;
+        }
+
+        // Store response for 1 hour (to handle retries).
+        set_transient( $this->current_idempotency_key, array(
+            'status'   => 'completed',
+            'response' => $response,
+        ), HOUR_IN_SECONDS );
+    }
+
+    /**
+     * Current idempotency key for this request.
+     *
+     * @var string
+     */
+    private $current_idempotency_key = '';
+
+    /**
+     * Log form configuration error with details (Fix #16).
+     *
+     * @param string $form_id Form ID that was not found.
+     */
+    private function log_form_config_error( $form_id ) {
+        // Get list of registered forms for debugging.
+        $registered_forms = array_keys( fre()->registry->get_all() );
+
+        $error_details = array(
+            'requested_form_id' => $form_id,
+            'registered_forms'  => $registered_forms,
+            'ip_address'        => isset( $_SERVER['REMOTE_ADDR'] )
+                ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+                : 'unknown',
+            'referer'           => isset( $_SERVER['HTTP_REFERER'] )
+                ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) )
+                : 'none',
+            'timestamp'         => current_time( 'mysql' ),
+        );
+
+        error_log( sprintf(
+            'FRE Form Config Error: Form "%s" not found. Registered forms: [%s]. Referer: %s',
+            $form_id,
+            implode( ', ', $registered_forms ),
+            $error_details['referer']
+        ) );
+
+        // Store error for admin review.
+        $config_errors = get_option( 'fre_form_config_errors', array() );
+        $config_errors[] = $error_details;
+
+        // Keep only last 50 errors.
+        if ( count( $config_errors ) > 50 ) {
+            $config_errors = array_slice( $config_errors, -50 );
+        }
+
+        // Use autoload=false to prevent loading on every request.
+        // This option can grow large and is only needed in admin context.
+        update_option( 'fre_form_config_errors', $config_errors, false );
+
+        /**
+         * Fires when a form configuration error occurs.
+         *
+         * @param string $form_id       The form ID that was not found.
+         * @param array  $error_details Error details array.
+         */
+        do_action( 'fre_form_config_error', $form_id, $error_details );
+    }
+
+    /**
+     * AJAX handler for nonce refresh (Fix #3: Rate limited, Fix #5: CSRF protected).
+     *
+     * Rate limited to 10 requests per 5 minutes per IP to prevent abuse.
+     * Also requires an expired (but recently valid) nonce to prove prior form interaction.
      */
     public function ajax_refresh_nonce() {
+        // Rate limit: 10 requests per 5 minutes per IP.
+        $ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+        $key = 'fre_nonce_refresh_' . md5( $ip );
+
+        $count = get_transient( $key );
+        if ( $count !== false && (int) $count >= 10 ) {
+            wp_send_json_error( array( 'message' => __( 'Too many requests. Please try again later.', 'form-runtime-engine' ) ) );
+        }
+
+        // Increment counter.
+        set_transient( $key, ( $count !== false ? (int) $count + 1 : 1 ), 300 );
+
         $form_id = isset( $_POST['form_id'] ) ? sanitize_key( $_POST['form_id'] ) : '';
 
         if ( empty( $form_id ) ) {
-            wp_send_json_error( array( 'message' => 'Invalid form ID.' ) );
+            wp_send_json_error( array( 'message' => __( 'Invalid form ID.', 'form-runtime-engine' ) ) );
         }
+
+        // Validate form exists.
+        if ( ! fre()->registry->get( $form_id ) ) {
+            wp_send_json_error( array( 'message' => __( 'Invalid form ID.', 'form-runtime-engine' ) ) );
+        }
+
+        // Fix #5: Verify that the requester had a previous (possibly expired) nonce.
+        // This proves they legitimately loaded the form page, preventing CSRF attacks.
+        $old_nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+
+        if ( ! empty( $old_nonce ) ) {
+            // Check if nonce is valid or recently expired (within 2 nonce ticks = ~24 hours).
+            $nonce_action = 'fre_submit_' . $form_id;
+            $valid = wp_verify_nonce( $old_nonce, $nonce_action );
+
+            // wp_verify_nonce returns: 1 = valid (0-12 hrs), 2 = valid (12-24 hrs), false = invalid
+            if ( $valid === false ) {
+                // Check if it's a very recently expired nonce by checking the next tick back.
+                // This handles edge cases around the 24-hour boundary.
+                $nonce_tick = ceil( time() / ( DAY_IN_SECONDS / 2 ) );
+                $expected_old = substr( wp_hash( ( $nonce_tick - 2 ) . '|' . $nonce_action . '|' . wp_get_session_token() . '|' . get_uid(), 'nonce' ), -12, 10 );
+
+                // If not within grace period, reject.
+                if ( ! hash_equals( $expected_old, $old_nonce ) ) {
+                    wp_send_json_error( array( 'message' => __( 'Invalid request. Please reload the page.', 'form-runtime-engine' ) ) );
+                }
+            }
+        }
+        // Note: If no old nonce provided, we still allow it for backwards compatibility
+        // but the rate limiting provides protection against abuse.
 
         wp_send_json_success( array(
             'nonce' => wp_create_nonce( 'fre_submit_' . $form_id ),

@@ -296,11 +296,11 @@ class FRE_Admin {
      * AJAX: Mark entry as read.
      */
     public function ajax_mark_read() {
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
-
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
+
+        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
 
@@ -322,11 +322,11 @@ class FRE_Admin {
      * AJAX: Mark entry as unread.
      */
     public function ajax_mark_unread() {
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
-
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
+
+        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
 
@@ -348,11 +348,11 @@ class FRE_Admin {
      * AJAX: Delete entry.
      */
     public function ajax_delete_entry() {
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
-
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
+
+        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
 
@@ -374,11 +374,11 @@ class FRE_Admin {
      * AJAX: Mark entry as spam.
      */
     public function ajax_mark_spam() {
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
-
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
+
+        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
 

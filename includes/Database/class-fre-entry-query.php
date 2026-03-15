@@ -138,18 +138,31 @@ class FRE_Entry_Query {
     }
 
     /**
-     * Filter by date range.
+     * Filter by date range (Fix #22: Strict date validation).
+     *
+     * Performance fix: Uses datetime range comparison instead of DATE() function
+     * to allow index usage on created_at column.
      *
      * @param string $start Start date (Y-m-d format).
      * @param string $end   End date (Y-m-d format).
      * @return self
      */
     public function date_range( $start, $end ) {
-        $this->where[]        = 'DATE(created_at) >= %s';
-        $this->where_params[] = sanitize_text_field( $start );
+        $validated_start = $this->validate_date( $start );
+        $validated_end   = $this->validate_date( $end );
 
-        $this->where[]        = 'DATE(created_at) <= %s';
-        $this->where_params[] = sanitize_text_field( $end );
+        // Use datetime range to enable index usage.
+        // Start at beginning of start date.
+        if ( $validated_start ) {
+            $this->where[]        = 'created_at >= %s';
+            $this->where_params[] = $validated_start . ' 00:00:00';
+        }
+
+        // End at end of end date.
+        if ( $validated_end ) {
+            $this->where[]        = 'created_at <= %s';
+            $this->where_params[] = $validated_end . ' 23:59:59';
+        }
 
         return $this;
     }
@@ -157,13 +170,40 @@ class FRE_Entry_Query {
     /**
      * Filter by date (entries from a specific day).
      *
+     * Performance fix: Uses datetime range comparison instead of DATE() function
+     * to allow index usage on created_at column.
+     *
      * @param string $date Date (Y-m-d format).
      * @return self
      */
     public function date( $date ) {
-        $this->where[]        = 'DATE(created_at) = %s';
-        $this->where_params[] = sanitize_text_field( $date );
+        $validated_date = $this->validate_date( $date );
+        if ( $validated_date ) {
+            // Use range to cover entire day while allowing index usage.
+            $this->where[]        = 'created_at >= %s';
+            $this->where_params[] = $validated_date . ' 00:00:00';
+            $this->where[]        = 'created_at <= %s';
+            $this->where_params[] = $validated_date . ' 23:59:59';
+        }
         return $this;
+    }
+
+    /**
+     * Validate date string (Fix #22).
+     *
+     * @param string $date Date string.
+     * @return string|false Validated date in Y-m-d format, or false if invalid.
+     */
+    private function validate_date( $date ) {
+        $date = sanitize_text_field( $date );
+
+        // Validate format using DateTime.
+        $dt = DateTime::createFromFormat( 'Y-m-d', $date );
+        if ( $dt && $dt->format( 'Y-m-d' ) === $date ) {
+            return $date;
+        }
+
+        return false;
     }
 
     /**

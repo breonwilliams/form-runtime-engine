@@ -25,25 +25,54 @@ class FRE_Timing_Check {
     private $default_min_time = 3;
 
     /**
-     * Check if submission was too fast.
+     * Check if submission was too fast (Fix #16: Signed timestamp tokens).
+     *
+     * Uses HMAC-signed tokens to prevent timestamp manipulation.
      *
      * @param string $form_id Form ID.
      * @param array  $settings Form spam protection settings.
      * @return bool True if submission was too fast (likely bot).
      */
     public function is_too_fast( $form_id, array $settings = array() ) {
-        $timestamp = isset( $_POST['_fre_timestamp'] ) ? (int) $_POST['_fre_timestamp'] : 0;
+        $token = isset( $_POST['_fre_timing_token'] ) ? sanitize_text_field( $_POST['_fre_timing_token'] ) : '';
 
-        if ( empty( $timestamp ) ) {
-            // No timestamp provided, can't validate timing.
+        // Fallback: Check for legacy timestamp (for backwards compatibility).
+        if ( empty( $token ) ) {
+            $timestamp = isset( $_POST['_fre_timestamp'] ) ? (int) $_POST['_fre_timestamp'] : 0;
+
+            if ( empty( $timestamp ) ) {
+                // No timestamp provided, fail closed for security.
+                $this->log_spam_attempt( $form_id, 'no_timing_token', 0 );
+                return true;
+            }
+
+            $min_time = isset( $settings['min_submission_time'] )
+                ? (int) $settings['min_submission_time']
+                : $this->default_min_time;
+
+            $elapsed = time() - $timestamp;
+
+            if ( $elapsed < $min_time ) {
+                $this->log_spam_attempt( $form_id, 'timing', $elapsed );
+                return true;
+            }
+
             return false;
         }
 
-        $min_time    = isset( $settings['min_submission_time'] )
+        // Fix #16: Validate signed timing token.
+        $validation = $this->validate_timing_token( $token, $form_id );
+        if ( is_wp_error( $validation ) ) {
+            $this->log_spam_attempt( $form_id, 'invalid_timing_token', 0 );
+            return true;
+        }
+
+        $timestamp = $validation;
+        $min_time  = isset( $settings['min_submission_time'] )
             ? (int) $settings['min_submission_time']
             : $this->default_min_time;
 
-        $elapsed     = time() - $timestamp;
+        $elapsed = time() - $timestamp;
 
         // If submitted faster than minimum time, likely a bot.
         if ( $elapsed < $min_time ) {
@@ -52,6 +81,54 @@ class FRE_Timing_Check {
         }
 
         return false;
+    }
+
+    /**
+     * Generate a signed timing token (Fix #16).
+     *
+     * @param string $form_id Form ID.
+     * @return string Signed timing token.
+     */
+    public static function generate_timing_token( $form_id ) {
+        $timestamp = time();
+        $signature = hash_hmac( 'sha256', $timestamp . '|' . $form_id, wp_salt( 'auth' ) );
+        return base64_encode( $timestamp . '|' . $signature );
+    }
+
+    /**
+     * Validate a signed timing token (Fix #16).
+     *
+     * @param string $token   The timing token.
+     * @param string $form_id Form ID.
+     * @return int|WP_Error Timestamp on success, WP_Error on failure.
+     */
+    private function validate_timing_token( $token, $form_id ) {
+        $decoded = base64_decode( $token, true );
+        if ( $decoded === false ) {
+            return new WP_Error( 'invalid_token', 'Invalid timing token.' );
+        }
+
+        $parts = explode( '|', $decoded, 2 );
+        if ( count( $parts ) !== 2 ) {
+            return new WP_Error( 'invalid_token', 'Malformed timing token.' );
+        }
+
+        list( $timestamp, $signature ) = $parts;
+        $timestamp = (int) $timestamp;
+
+        // Validate signature.
+        $expected = hash_hmac( 'sha256', $timestamp . '|' . $form_id, wp_salt( 'auth' ) );
+        if ( ! hash_equals( $expected, $signature ) ) {
+            return new WP_Error( 'invalid_signature', 'Invalid timing token signature.' );
+        }
+
+        // Check token age (max 24 hours).
+        $age = time() - $timestamp;
+        if ( $age > 86400 ) {
+            return new WP_Error( 'token_expired', 'Timing token expired.' );
+        }
+
+        return $timestamp;
     }
 
     /**

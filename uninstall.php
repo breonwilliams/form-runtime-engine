@@ -28,14 +28,18 @@ function fre_uninstall_cleanup() {
     global $wpdb;
 
     // Delete database tables.
-    $tables = array(
-        $wpdb->prefix . 'fre_entries',
-        $wpdb->prefix . 'fre_entry_meta',
-        $wpdb->prefix . 'fre_entry_files',
+    // Define allowed table names for validation.
+    $allowed_tables = array(
+        'fre_entries'     => $wpdb->prefix . 'fre_entries',
+        'fre_entry_meta'  => $wpdb->prefix . 'fre_entry_meta',
+        'fre_entry_files' => $wpdb->prefix . 'fre_entry_files',
     );
 
-    foreach ( $tables as $table ) {
-        $wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+    foreach ( $allowed_tables as $key => $table ) {
+        // Validate table name matches expected pattern before dropping.
+        if ( $table === $wpdb->prefix . $key ) {
+            $wpdb->query( "DROP TABLE IF EXISTS `{$table}`" );
+        }
     }
 
     // Delete options.

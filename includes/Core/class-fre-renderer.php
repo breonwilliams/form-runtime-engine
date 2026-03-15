@@ -103,11 +103,12 @@ class FRE_Renderer {
             esc_attr( $form_id )
         );
 
-        // Timestamp for timing check.
+        // Signed timing token for timing check (Fix #16: Prevents bypass).
         if ( ! empty( $settings['spam_protection']['timing_check'] ) ) {
+            $timing_token = FRE_Timing_Check::generate_timing_token( $form_id );
             $html .= sprintf(
-                '<input type="hidden" name="_fre_timestamp" value="%s" />',
-                esc_attr( time() )
+                '<input type="hidden" name="_fre_timing_token" value="%s" />',
+                esc_attr( $timing_token )
             );
         }
 
@@ -215,14 +216,15 @@ class FRE_Renderer {
     }
 
     /**
-     * Render honeypot field.
+     * Render honeypot field (Fix #26: Uses unpredictable field names).
      *
      * @param string $form_id Form ID.
      * @return string
      */
     private function render_honeypot( $form_id ) {
-        // Use a realistic but obscure field name.
-        $field_name = '_fre_website_url_' . substr( md5( $form_id ), 0, 8 );
+        // Fix #26: Use the honeypot class to generate unpredictable field names.
+        $honeypot   = new FRE_Honeypot();
+        $field_name = $honeypot->get_field_name( $form_id );
 
         // Hidden via CSS, not hidden input type (bots might skip hidden inputs).
         return sprintf(

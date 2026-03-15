@@ -28,6 +28,13 @@ class FRE_Entries_List_Table extends WP_List_Table {
     private $query;
 
     /**
+     * Preloaded metadata for visible entries.
+     *
+     * @var array
+     */
+    private $preloaded_meta = array();
+
+    /**
      * Constructor.
      */
     public function __construct() {
@@ -163,12 +170,16 @@ class FRE_Entries_List_Table extends WP_List_Table {
     /**
      * Summary column - show first few field values.
      *
+     * Performance fix: Uses preloaded metadata instead of per-row queries.
+     *
      * @param array $item Entry data.
      * @return string
      */
     public function column_summary( $item ) {
-        $entry_repo = new FRE_Entry();
-        $fields     = $entry_repo->get_all_meta( $item['id'] );
+        // Use preloaded metadata to avoid N+1 query problem.
+        $fields = isset( $this->preloaded_meta[ $item['id'] ] )
+            ? $this->preloaded_meta[ $item['id'] ]
+            : array();
 
         if ( empty( $fields ) ) {
             return '<em>' . esc_html__( 'No data', 'form-runtime-engine' ) . '</em>';
@@ -182,8 +193,11 @@ class FRE_Entries_List_Table extends WP_List_Table {
                 break;
             }
 
+            // Fix #15: Properly escape array values before imploding.
             if ( is_array( $value ) ) {
-                $value = implode( ', ', $value );
+                $value = implode( ', ', array_map( 'esc_html', array_map( 'strval', $value ) ) );
+            } else {
+                $value = (string) $value;
             }
 
             // Truncate long values.
@@ -280,22 +294,26 @@ class FRE_Entries_List_Table extends WP_List_Table {
     }
 
     /**
-     * Process bulk actions.
+     * Process bulk actions (Fix #8: CSRF protection - nonce check first).
      */
     public function process_bulk_action() {
         if ( ! current_user_can( 'manage_options' ) ) {
             return;
         }
 
-        $action    = $this->current_action();
-        $entry_ids = isset( $_REQUEST['entry_ids'] ) ? array_map( 'intval', $_REQUEST['entry_ids'] ) : array();
-
-        if ( empty( $action ) || empty( $entry_ids ) ) {
+        $action = $this->current_action();
+        if ( empty( $action ) ) {
             return;
         }
 
-        // Verify nonce.
+        // Fix #8: Verify nonce BEFORE extracting entry_ids.
         check_admin_referer( 'bulk-entries' );
+
+        $entry_ids = isset( $_REQUEST['entry_ids'] ) ? array_map( 'intval', $_REQUEST['entry_ids'] ) : array();
+
+        if ( empty( $entry_ids ) ) {
+            return;
+        }
 
         $entry_repo = new FRE_Entry();
 
@@ -413,6 +431,9 @@ class FRE_Entries_List_Table extends WP_List_Table {
         // Get items.
         $this->items = $this->query->get();
 
+        // Preload metadata for all visible entries to avoid N+1 queries.
+        $this->preload_metadata();
+
         // Set up pagination.
         $this->set_pagination_args( array(
             'total_items' => $total_items,
@@ -433,5 +454,49 @@ class FRE_Entries_List_Table extends WP_List_Table {
      */
     public function no_items() {
         esc_html_e( 'No entries found.', 'form-runtime-engine' );
+    }
+
+    /**
+     * Preload metadata for all visible entries.
+     *
+     * Performance optimization: Single batch query instead of N queries.
+     */
+    private function preload_metadata() {
+        if ( empty( $this->items ) ) {
+            return;
+        }
+
+        global $wpdb;
+
+        $entry_ids = array_column( $this->items, 'id' );
+
+        if ( empty( $entry_ids ) ) {
+            return;
+        }
+
+        $table        = $wpdb->prefix . 'fre_entry_meta';
+        $placeholders = implode( ',', array_fill( 0, count( $entry_ids ), '%d' ) );
+
+        $results = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT entry_id, field_key, field_value FROM {$table}
+                 WHERE entry_id IN ({$placeholders})",
+                ...$entry_ids
+            ),
+            ARRAY_A
+        );
+
+        // Organize by entry_id.
+        $this->preloaded_meta = array();
+        foreach ( $results as $row ) {
+            $entry_id  = $row['entry_id'];
+            $field_key = $row['field_key'];
+            $value     = maybe_unserialize( $row['field_value'] );
+
+            if ( ! isset( $this->preloaded_meta[ $entry_id ] ) ) {
+                $this->preloaded_meta[ $entry_id ] = array();
+            }
+            $this->preloaded_meta[ $entry_id ][ $field_key ] = $value;
+        }
     }
 }
