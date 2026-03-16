@@ -24,11 +24,15 @@ class FRE_Admin {
         add_action( 'admin_notices', array( $this, 'admin_notices' ) );
         add_action( 'admin_init', array( $this, 'handle_actions' ) );
 
-        // AJAX handlers.
+        // AJAX handlers for entries.
         add_action( 'wp_ajax_fre_mark_read', array( $this, 'ajax_mark_read' ) );
         add_action( 'wp_ajax_fre_mark_unread', array( $this, 'ajax_mark_unread' ) );
         add_action( 'wp_ajax_fre_delete_entry', array( $this, 'ajax_delete_entry' ) );
         add_action( 'wp_ajax_fre_mark_spam', array( $this, 'ajax_mark_spam' ) );
+
+        // AJAX handlers for forms management.
+        add_action( 'wp_ajax_fre_save_form', array( 'FRE_Forms_Manager', 'ajax_save_form' ) );
+        add_action( 'wp_ajax_fre_delete_form', array( 'FRE_Forms_Manager', 'ajax_delete_form' ) );
     }
 
     /**
@@ -65,6 +69,16 @@ class FRE_Admin {
             'fre-export',
             array( $this, 'render_export_page' )
         );
+
+        // Forms management page.
+        add_submenu_page(
+            'fre-entries',
+            __( 'Manage Forms', 'form-runtime-engine' ),
+            __( 'Forms', 'form-runtime-engine' ),
+            'manage_options',
+            'fre-forms',
+            array( 'FRE_Forms_Manager', 'render_page' )
+        );
     }
 
     /**
@@ -97,8 +111,17 @@ class FRE_Admin {
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
             'nonce'   => wp_create_nonce( 'fre_admin_nonce' ),
             'strings' => array(
-                'confirmDelete' => __( 'Are you sure you want to delete this entry? This cannot be undone.', 'form-runtime-engine' ),
-                'confirmSpam'   => __( 'Mark this entry as spam?', 'form-runtime-engine' ),
+                // Entry management strings.
+                'confirmDelete'      => __( 'Are you sure you want to delete this entry? This cannot be undone.', 'form-runtime-engine' ),
+                'confirmSpam'        => __( 'Mark this entry as spam?', 'form-runtime-engine' ),
+                // Forms management strings.
+                'confirmDeleteForm'  => __( 'Are you sure you want to delete this form? This cannot be undone.', 'form-runtime-engine' ),
+                'copied'             => __( 'Shortcode copied to clipboard!', 'form-runtime-engine' ),
+                'copyFailed'         => __( 'Failed to copy. Please select and copy manually.', 'form-runtime-engine' ),
+                'saving'             => __( 'Saving...', 'form-runtime-engine' ),
+                'deleting'           => __( 'Deleting...', 'form-runtime-engine' ),
+                'formIdRequired'     => __( 'Form ID is required.', 'form-runtime-engine' ),
+                'configRequired'     => __( 'Configuration is required.', 'form-runtime-engine' ),
             ),
         ) );
     }

@@ -146,3 +146,186 @@
 .fre-notice {
     margin: 10px 0;
 }
+
+/* ==========================================================================
+   Forms Manager Page
+   ========================================================================== */
+
+/* Empty state */
+.fre-forms-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    margin-top: 20px;
+}
+
+.fre-forms-empty-state h2 {
+    margin: 0 0 10px;
+    font-size: 1.5em;
+    color: #1d2327;
+}
+
+.fre-forms-empty-state p {
+    color: #646970;
+    margin: 0 0 20px;
+}
+
+/* Table styles */
+.fre-forms-table .column-id {
+    width: 15%;
+}
+
+.fre-forms-table .column-title {
+    width: 20%;
+}
+
+.fre-forms-table .column-shortcode {
+    width: 30%;
+}
+
+.fre-forms-table .column-modified {
+    width: 15%;
+}
+
+.fre-forms-table .column-actions {
+    width: 20%;
+}
+
+.fre-forms-shortcode {
+    background: #f0f0f1;
+    padding: 4px 8px;
+    font-size: 12px;
+    user-select: all;
+}
+
+.fre-forms-copy-btn {
+    vertical-align: middle;
+    margin-left: 4px;
+    cursor: pointer;
+    color: #2271b1;
+}
+
+.fre-forms-copy-btn:hover {
+    color: #135e96;
+}
+
+.fre-forms-copy-btn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    vertical-align: text-top;
+}
+
+.fre-forms-delete-btn {
+    color: #b32d2e !important;
+}
+
+.fre-forms-delete-btn:hover {
+    color: #a00 !important;
+    border-color: #a00 !important;
+}
+
+.fre-forms-table .column-actions .button-small {
+    margin-right: 5px;
+}
+
+.fre-forms-table .column-actions .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    vertical-align: text-top;
+    margin-right: 2px;
+}
+
+/* Form styles */
+.fre-forms-form .required {
+    color: #d63638;
+}
+
+.fre-forms-form textarea#fre-form-config {
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    tab-size: 2;
+}
+
+.fre-forms-form input[readonly] {
+    background-color: #f0f0f1;
+    cursor: not-allowed;
+}
+
+/* Spinner */
+#fre-forms-spinner {
+    float: none;
+    margin-top: 4px;
+    visibility: hidden;
+}
+
+#fre-forms-spinner.is-active {
+    visibility: visible;
+}
+
+/* Info boxes */
+.fre-forms-info-box {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-left-width: 4px;
+    border-left-color: #72aee6;
+    padding: 12px 16px;
+    margin: 20px 0;
+    max-width: 800px;
+}
+
+.fre-forms-info-box h4 {
+    margin: 0 0 8px;
+    color: #1d2327;
+}
+
+.fre-forms-info-box p {
+    margin: 0;
+    color: #646970;
+}
+
+.fre-forms-info-box code {
+    background: #f0f0f1;
+    padding: 2px 6px;
+}
+
+.fre-forms-example {
+    background: #f6f7f7;
+    padding: 12px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.6;
+    margin: 8px 0 0;
+    border: 1px solid #dcdcde;
+}
+
+/* Notices */
+#fre-forms-notices .notice {
+    margin: 15px 0;
+}
+
+/* Copy success tooltip */
+.fre-forms-copy-tooltip {
+    position: absolute;
+    background: #1d2327;
+    color: #fff;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 3px;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.fre-forms-copy-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #1d2327;
+}

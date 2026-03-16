@@ -21,6 +21,69 @@ add_action( 'fre_init', function() {
 
 Display with shortcode: `[fre_form id="contact"]` or `[client_form id="contact"]`
 
+## Form Registration Methods
+
+There are **two ways** to create forms with this plugin:
+
+### Option 1: Admin Dashboard (JSON)
+Use the built-in Forms Manager in the WordPress admin:
+1. Go to WordPress Admin → Form Entries → Forms → Add New
+2. Enter a Form ID and optional Title
+3. Paste **JSON configuration** (not PHP code)
+4. Save and use shortcode: `[fre_form id="your-form-id"]`
+
+**JSON Format Example:**
+```json
+{
+  "title": "Contact Us",
+  "fields": [
+    {"key": "name", "type": "text", "label": "Name", "required": true},
+    {"key": "email", "type": "email", "label": "Email", "required": true},
+    {"key": "message", "type": "textarea", "label": "Message", "required": true}
+  ],
+  "settings": {
+    "submit_button_text": "Send",
+    "success_message": "Thank you for your submission."
+  }
+}
+```
+
+### Option 2: PHP Code
+If creating forms via code (theme functions.php, custom plugin, or `fre_init` hook):
+1. Hook into `fre_init` action
+2. Use `fre_register_form()` with a PHP array
+3. The form registers automatically on page load
+
+**PHP Format Example:**
+```php
+<?php
+fre_register_form( 'contact', array(
+    'title'  => 'Contact Us',
+    'fields' => array(
+        array( 'key' => 'name', 'type' => 'text', 'label' => 'Name', 'required' => true ),
+        array( 'key' => 'email', 'type' => 'email', 'label' => 'Email', 'required' => true ),
+        array( 'key' => 'message', 'type' => 'textarea', 'label' => 'Message', 'required' => true ),
+    ),
+    'settings' => array(
+        'submit_button_text' => 'Send',
+        'success_message'    => 'Thank you for your submission.',
+    ),
+));
+```
+
+### Which Method to Use?
+
+| Scenario | Use |
+|----------|-----|
+| Adding form via WordPress admin | **JSON** |
+| Creating form files for deployment | **PHP** |
+| Need version control | **PHP** |
+| Quick testing | **JSON** |
+| AI-generated forms → admin UI | **JSON** |
+| AI-generated forms → code files | **PHP** |
+
+> **Note for AI:** When a user asks to generate a form, ask which method they prefer OR check context clues (e.g., if they mention "admin", "dashboard", or "paste into", use JSON; if they mention "file", "code", or "functions.php", use PHP).
+
 ## Field Types
 
 ### text
@@ -285,10 +348,10 @@ $body = apply_filters( 'fre_notification_body', $body, $form_config, $entry_data
 ## API Functions
 
 ```php
-// Register a form
+// Register a form (runtime)
 fre_register_form( $form_id, $config );
 
-// Get form configuration
+// Get form configuration (from registry)
 $config = fre_get_form( $form_id );
 
 // Render form HTML
@@ -298,6 +361,12 @@ $html = fre_render_form( $form_id, $args );
 $plugin = fre();
 $plugin->registry->get_all();          // All registered forms
 $plugin->registry->exists( $form_id ); // Check if form exists
+
+// Database-stored forms (admin UI)
+fre_get_db_forms();                              // Get all stored forms
+fre_get_db_form( $form_id );                     // Get single stored form
+fre_save_db_form( $form_id, $title, $json );     // Save form to database
+fre_delete_db_form( $form_id );                  // Delete form from database
 ```
 
 ## Shortcode Attributes
@@ -318,17 +387,19 @@ $plugin->registry->exists( $form_id ); // Check if form exists
 
 ```
 form-runtime-engine/
-  form-runtime-engine.php     # Main plugin file
+  form-runtime-engine.php         # Main plugin file
   includes/
     Core/
-      class-fre-registry.php  # Form registration
-      class-fre-renderer.php  # HTML rendering
-      class-fre-shortcode.php # Shortcode handler
-    Fields/                   # Field type classes
-    Notifications/            # Email handling
-    Security/                 # Spam protection
-    Database/                 # Entry storage
-    Admin/                    # Admin interface
+      class-fre-registry.php      # Form registration
+      class-fre-renderer.php      # HTML rendering
+      class-fre-shortcode.php     # Shortcode handler
+    Fields/                       # Field type classes
+    Notifications/                # Email handling
+    Security/                     # Spam protection
+    Database/                     # Entry storage
+    Admin/
+      class-fre-admin.php         # Admin interface
+      class-fre-forms-manager.php # Forms CRUD (JSON admin UI)
 ```
 
 ## Common Patterns
@@ -564,141 +635,35 @@ array(
 
 ---
 
-## Companion Plugin Architecture
+## Claude Code Workflow
 
-For production sites, store form configurations in a separate companion plugin rather than in theme files or code snippet plugins. This approach keeps client-specific forms separate from the core engine.
+When generating forms with Claude Code:
 
-### Why Use a Companion Plugin
+1. **Clarify the target:** Ask if the form will be:
+   - Pasted into the **admin UI** → Provide JSON
+   - Added via **code/hook** → Provide PHP code
 
-- **Separation of concerns** - Core engine stays clean; client forms live separately
-- **Version control friendly** - Commit form configs without modifying the core plugin
-- **Portable** - Move forms between environments by copying one plugin folder
-- **Organized** - One file per form makes maintenance straightforward
-- **Safe updates** - Core plugin updates won't overwrite your form definitions
+2. **Generate appropriate format:**
+   - **Admin UI:** JSON object starting with `{`
+   - **PHP code:** Full PHP with `fre_register_form()` call wrapped in `fre_init` hook
 
-### Directory Structure
+3. **Provide shortcode:** `[fre_form id="form-id"]`
 
-```
-/wp-content/plugins/fre-client-forms/
-    fre-client-forms.php           # Main bootstrap with dependency check
-    forms/
-        contact.php                # One file per form
-        quote-request.php
-        newsletter-signup.php
-```
+**Context clues for format selection:**
+- User mentions "admin", "dashboard", "paste" → JSON
+- User mentions "file", "code", "functions.php", "plugin" → PHP
+- Ambiguous → Ask the user which method they prefer
 
-### Main Plugin File Template
+---
 
-Create `fre-client-forms.php`:
-
-```php
-<?php
-/**
- * Plugin Name: FRE Client Forms
- * Description: Form configurations for this site
- * Version: 1.0.0
- * Requires Plugins: form-runtime-engine
- */
-
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
-define( 'FRE_CLIENT_VERSION', '1.0.0' );
-define( 'FRE_CLIENT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-
-/**
- * Check if Form Runtime Engine is available.
- */
-function fre_client_check_dependencies() {
-    if ( ! function_exists( 'fre_register_form' ) ) {
-        add_action( 'admin_notices', function() {
-            echo '<div class="notice notice-error"><p>';
-            echo '<strong>FRE Client Forms:</strong> Form Runtime Engine plugin must be activated.';
-            echo '</p></div>';
-        });
-        return false;
-    }
-    return true;
-}
-
-/**
- * Register all forms from the forms/ directory.
- */
-function fre_client_init_forms( $fre_instance ) {
-    if ( ! fre_client_check_dependencies() ) {
-        return;
-    }
-
-    // Auto-load all form files
-    $forms_dir = FRE_CLIENT_PLUGIN_DIR . 'forms/';
-    if ( is_dir( $forms_dir ) ) {
-        foreach ( glob( $forms_dir . '*.php' ) as $form_file ) {
-            require_once $form_file;
-        }
-    }
-}
-
-add_action( 'fre_init', 'fre_client_init_forms' );
-add_action( 'admin_init', 'fre_client_check_dependencies' );
-```
-
-### Individual Form File Template
-
-Create files in the `forms/` directory. Example `forms/contact.php`:
-
-```php
-<?php
-/**
- * Contact Form
- */
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
-fre_register_form( 'contact', array(
-    'title'   => 'Contact Us',
-    'version' => '1.0.0',
-    'fields'  => array(
-        array( 'key' => 'name', 'type' => 'text', 'label' => 'Name', 'required' => true ),
-        array( 'key' => 'email', 'type' => 'email', 'label' => 'Email', 'required' => true ),
-        array( 'key' => 'phone', 'type' => 'tel', 'label' => 'Phone' ),
-        array( 'key' => 'message', 'type' => 'textarea', 'label' => 'Message', 'required' => true, 'rows' => 6 ),
-    ),
-    'settings' => array(
-        'submit_button_text' => 'Send Message',
-        'success_message'    => 'Thank you! We\'ll respond within 24 hours.',
-        'notification'       => array(
-            'subject'  => 'New Contact Form Submission',
-            'reply_to' => '{field:email}',
-        ),
-    ),
-));
-```
-
-### Best Practices
-
-1. **Always use the `fre_init` hook** - The main plugin handles this automatically when loading form files
-
-2. **One form per file** - Easier to maintain, review, and debug
-
-3. **Use unique form IDs** - Prefix with client/project name if deploying multiple sites: `acme_contact`, `acme_quote`
-
-4. **Include version numbers** - Helps track which config version is deployed
-
-5. **Test with WP_DEBUG enabled** - Registration errors are logged when debug mode is on
-
-6. **Keep field keys unique within a form** - Duplicate keys cause registration to fail silently
-
-### Debugging Registration Issues
+## Debugging Tips
 
 If a form doesn't appear:
 
 1. Enable `WP_DEBUG` and `WP_DEBUG_LOG` in `wp-config.php`
 2. Check `wp-content/debug.log` for registration errors
-3. Verify the core plugin is activated (check for admin notice)
-4. Confirm you're using `fre_init` hook (not `init` or `plugins_loaded`)
-5. Check for duplicate field keys in your config
+3. Confirm you're using `fre_init` hook (not `init` or `plugins_loaded`)
+4. Check for duplicate field keys in your config
 
 ```php
 // Quick debug: verify form is registered
@@ -709,14 +674,3 @@ add_action( 'wp_footer', function() {
     }
 });
 ```
-
-### Claude Code Workflow
-
-When generating forms with Claude Code:
-
-1. **Describe the form** - Explain fields, validation, and notification requirements
-2. **Claude generates the config** - A complete form definition array
-3. **Save to forms/ directory** - Create a new file like `forms/my-form.php`
-4. **Add shortcode to page** - Use `[fre_form id="my-form"]`
-
-No manual hook wiring or shortcode registration needed—the companion plugin handles it automatically.

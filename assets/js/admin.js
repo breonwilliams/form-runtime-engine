@@ -172,4 +172,270 @@
         FREAdmin.init();
     });
 
+    /**
+     * Forms Manager handler.
+     */
+    const FREFormsManager = {
+        /**
+         * Initialize.
+         */
+        init: function() {
+            this.bindEvents();
+        },
+
+        /**
+         * Bind event handlers.
+         */
+        bindEvents: function() {
+            // Form submission.
+            $('#fre-forms-form').on('submit', this.handleFormSubmit.bind(this));
+
+            // Delete button.
+            $(document).on('click', '.fre-forms-delete-btn', this.handleDelete.bind(this));
+
+            // Copy shortcode button.
+            $(document).on('click', '.fre-forms-copy-btn', this.handleCopy.bind(this));
+        },
+
+        /**
+         * Handle form submission.
+         *
+         * @param {Event} e
+         */
+        handleFormSubmit: function(e) {
+            e.preventDefault();
+
+            var $form = $(e.target);
+            var $submitBtn = $('#fre-forms-save-btn');
+            var $spinner = $('#fre-forms-spinner');
+            var $notices = $('#fre-forms-notices');
+
+            // Get form data.
+            var formId = $('#fre-form-id').val().trim();
+            var title = $('#fre-form-title').val().trim();
+            var config = $('#fre-form-config').val().trim();
+
+            // Client-side validation.
+            if (!formId) {
+                this.showNotice($notices, 'error', freAdmin.strings.formIdRequired);
+                return;
+            }
+
+            if (!config) {
+                this.showNotice($notices, 'error', freAdmin.strings.configRequired);
+                return;
+            }
+
+            // Validate JSON syntax client-side.
+            try {
+                JSON.parse(config);
+            } catch (err) {
+                this.showNotice($notices, 'error', 'Invalid JSON syntax: ' + err.message);
+                return;
+            }
+
+            // Show loading state.
+            $submitBtn.prop('disabled', true).text(freAdmin.strings.saving);
+            $spinner.addClass('is-active');
+            $notices.empty();
+
+            // Send AJAX request.
+            $.ajax({
+                url: freAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'fre_save_form',
+                    nonce: freAdmin.nonce,
+                    form_id: formId,
+                    title: title,
+                    config: config
+                },
+                success: function(response) {
+                    if (response.success) {
+                        FREFormsManager.showNotice($notices, 'success', response.data.message);
+
+                        // If adding new form, redirect to edit view.
+                        if (!$('#fre-form-id').prop('readonly')) {
+                            window.location.href = freAdmin.ajaxUrl.replace('admin-ajax.php', 'admin.php?page=fre-forms&action=edit&form=' + formId + '&saved=1');
+                        }
+                    } else {
+                        FREFormsManager.showNotice($notices, 'error', response.data.message);
+                    }
+                },
+                error: function() {
+                    FREFormsManager.showNotice($notices, 'error', 'An error occurred. Please try again.');
+                },
+                complete: function() {
+                    $submitBtn.prop('disabled', false).text('Save Form');
+                    $spinner.removeClass('is-active');
+                }
+            });
+        },
+
+        /**
+         * Handle delete button click.
+         *
+         * @param {Event} e
+         */
+        handleDelete: function(e) {
+            e.preventDefault();
+
+            var $btn = $(e.currentTarget);
+            var formId = $btn.data('form-id');
+
+            if (!confirm(freAdmin.strings.confirmDeleteForm)) {
+                return;
+            }
+
+            var originalText = $btn.text();
+            $btn.prop('disabled', true).text(freAdmin.strings.deleting);
+
+            $.ajax({
+                url: freAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'fre_delete_form',
+                    nonce: freAdmin.nonce,
+                    form_id: formId
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Remove row from table.
+                        $btn.closest('tr').fadeOut(300, function() {
+                            $(this).remove();
+
+                            // Check if table is now empty.
+                            if ($('.fre-forms-table tbody tr').length === 0) {
+                                window.location.reload();
+                            }
+                        });
+                    } else {
+                        alert(response.data.message);
+                        $btn.prop('disabled', false).text(originalText);
+                    }
+                },
+                error: function() {
+                    alert('An error occurred. Please try again.');
+                    $btn.prop('disabled', false).text(originalText);
+                }
+            });
+        },
+
+        /**
+         * Handle copy shortcode button click.
+         *
+         * @param {Event} e
+         */
+        handleCopy: function(e) {
+            e.preventDefault();
+
+            var $btn = $(e.currentTarget);
+            var shortcode = $btn.data('shortcode');
+
+            // Copy to clipboard.
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shortcode).then(function() {
+                    FREFormsManager.showCopyTooltip($btn, freAdmin.strings.copied);
+                }).catch(function() {
+                    FREFormsManager.fallbackCopy(shortcode, $btn);
+                });
+            } else {
+                this.fallbackCopy(shortcode, $btn);
+            }
+        },
+
+        /**
+         * Fallback copy method for older browsers.
+         *
+         * @param {string} text
+         * @param {jQuery} $btn
+         */
+        fallbackCopy: function(text, $btn) {
+            var $temp = $('<textarea>');
+            $('body').append($temp);
+            $temp.val(text).select();
+
+            try {
+                var success = document.execCommand('copy');
+                if (success) {
+                    this.showCopyTooltip($btn, freAdmin.strings.copied);
+                } else {
+                    this.showCopyTooltip($btn, freAdmin.strings.copyFailed);
+                }
+            } catch (err) {
+                this.showCopyTooltip($btn, freAdmin.strings.copyFailed);
+            }
+
+            $temp.remove();
+        },
+
+        /**
+         * Show copy tooltip.
+         *
+         * @param {jQuery} $btn
+         * @param {string} message
+         */
+        showCopyTooltip: function($btn, message) {
+            var $tooltip = $('<div class="fre-forms-copy-tooltip">' + message + '</div>');
+            var offset = $btn.offset();
+
+            $tooltip.css({
+                top: offset.top - 30,
+                left: offset.left - ($tooltip.outerWidth() / 2) + ($btn.outerWidth() / 2)
+            });
+
+            $('body').append($tooltip);
+
+            // Position after adding to DOM (to get accurate width).
+            $tooltip.css('left', offset.left - ($tooltip.outerWidth() / 2) + ($btn.outerWidth() / 2));
+
+            setTimeout(function() {
+                $tooltip.fadeOut(200, function() {
+                    $(this).remove();
+                });
+            }, 1500);
+        },
+
+        /**
+         * Show admin notice.
+         *
+         * @param {jQuery} $container
+         * @param {string} type
+         * @param {string} message
+         */
+        showNotice: function($container, type, message) {
+            var noticeClass = 'notice-' + type;
+            var $notice = $('<div class="notice ' + noticeClass + ' is-dismissible"><p>' + this.escapeHtml(message) + '</p></div>');
+
+            $container.html($notice);
+
+            // Scroll to notice.
+            $('html, body').animate({
+                scrollTop: $container.offset().top - 50
+            }, 300);
+
+            // Make dismissible work.
+            if (typeof wp !== 'undefined' && wp.notices && wp.notices.removeDismissible) {
+                wp.notices.removeDismissible($notice);
+            }
+        },
+
+        /**
+         * Escape HTML entities.
+         *
+         * @param {string} text
+         * @return {string}
+         */
+        escapeHtml: function(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    };
+
+    // Initialize Forms Manager on document ready.
+    $(document).ready(function() {
+        FREFormsManager.init();
+    });
+
 })(jQuery);

@@ -167,6 +167,9 @@ final class Form_Runtime_Engine {
         // Enqueue scripts and styles.
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
 
+        // Register database-stored forms.
+        FRE_Forms_Manager::register_db_forms();
+
         /**
          * Fires after the Form Runtime Engine is fully initialized.
          *
@@ -364,6 +367,47 @@ function fre_get_form( $form_id ) {
 function fre_render_form( $form_id, array $args = array() ) {
     $renderer = new FRE_Renderer();
     return $renderer->render( $form_id, $args );
+}
+
+/**
+ * Get all database-stored forms.
+ *
+ * @return array Array of form data keyed by form ID.
+ */
+function fre_get_db_forms() {
+    return FRE_Forms_Manager::get_forms();
+}
+
+/**
+ * Get a single database-stored form.
+ *
+ * @param string $form_id Form identifier.
+ * @return array|null Form data or null if not found.
+ */
+function fre_get_db_form( $form_id ) {
+    return FRE_Forms_Manager::get_form( $form_id );
+}
+
+/**
+ * Save a form to the database.
+ *
+ * @param string $form_id     Form identifier.
+ * @param string $title       Form title.
+ * @param string $json_config JSON configuration string.
+ * @return array|WP_Error Form data on success, WP_Error on failure.
+ */
+function fre_save_db_form( $form_id, $title, $json_config ) {
+    return FRE_Forms_Manager::save_form( $form_id, $title, $json_config );
+}
+
+/**
+ * Delete a form from the database.
+ *
+ * @param string $form_id Form identifier.
+ * @return bool True on success, false if form not found.
+ */
+function fre_delete_db_form( $form_id ) {
+    return FRE_Forms_Manager::delete_form( $form_id );
 }
 
 // Initialize the plugin.

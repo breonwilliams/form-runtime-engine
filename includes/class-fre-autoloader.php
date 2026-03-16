@@ -66,6 +66,7 @@ class FRE_Autoloader {
         'FRE_Entries_List_Table'  => 'Admin/class-fre-entries-list-table.php',
         'FRE_Entry_Detail'        => 'Admin/class-fre-entry-detail.php',
         'FRE_CSV_Exporter'        => 'Admin/class-fre-csv-exporter.php',
+        'FRE_Forms_Manager'       => 'Admin/class-fre-forms-manager.php',
     );
 
     /**
