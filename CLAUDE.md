@@ -84,6 +84,45 @@ fre_register_form( 'contact', array(
 
 > **Note for AI:** When a user asks to generate a form, ask which method they prefer OR check context clues (e.g., if they mention "admin", "dashboard", or "paste into", use JSON; if they mention "file", "code", or "functions.php", use PHP).
 
+## JSON Structure Reference
+
+Every JSON form follows this structure:
+
+```json
+{
+  "title": "Form Name",
+  "version": "1.0.0",
+  "steps": [
+    {"key": "step1", "title": "Step 1 Title"},
+    {"key": "step2", "title": "Step 2 Title"}
+  ],
+  "fields": [
+    {"key": "field_key", "type": "text", "label": "Field Label"}
+  ],
+  "settings": {
+    "submit_button_text": "Submit",
+    "success_message": "Thank you!"
+  }
+}
+```
+
+**Top-Level Keys:**
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `title` | No | Form name for admin reference (not displayed by default) |
+| `version` | No | Version string for tracking changes |
+| `steps` | No | Array of step objects (only for multi-step forms) |
+| `fields` | **Yes** | Array of field objects |
+| `settings` | No | Form settings object (all have sensible defaults) |
+
+**Key Rules:**
+- `fields` is the only required key; everything else is optional
+- Each field must have a unique `key`
+- For multi-step forms: define `steps` array, then add `"step": "step_key"` to each field
+- For sections: define section field first, then add `"section": "section_key"` to grouped fields
+- Columns, sections, and conditions can all be combined within multi-step forms
+
 ## Field Types
 
 ### text
@@ -262,6 +301,28 @@ Fields belong to a section via the `section` attribute (see Advanced Layout Feat
 
 ## Form Settings
 
+### Settings Defaults Quick Reference
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `show_title` | `false` | Display form title above form |
+| `submit_button_text` | `"Submit"` | Text on submit button |
+| `success_message` | `"Thank you for your submission."` | Message after successful submission |
+| `redirect_url` | `null` | URL to redirect after submission (null = no redirect) |
+| `store_entries` | `true` | Save submissions to database |
+| `css_class` | `""` | Additional CSS class on form element |
+| `notification.enabled` | `true` | Send email notifications |
+| `notification.to` | `"{admin_email}"` | Recipient email(s) |
+| `notification.subject` | `"New Form Submission"` | Email subject line |
+| `spam_protection.honeypot` | `true` | Enable honeypot field |
+| `spam_protection.timing_check` | `true` | Reject fast submissions |
+| `spam_protection.min_submission_time` | `3` | Minimum seconds before submission |
+| `multistep.show_progress` | `true` | Show progress indicator |
+| `multistep.progress_style` | `"steps"` | Progress style: `steps`, `bar`, or `dots` |
+| `multistep.validate_on_next` | `true` | Validate fields before next step |
+
+### Full Settings Structure
+
 ```php
 fre_register_form( 'contact', array(
     'title'    => 'Contact Form',
@@ -403,7 +464,267 @@ form-runtime-engine/
       class-fre-forms-manager.php # Forms CRUD (JSON admin UI)
 ```
 
-## Common Patterns
+## Common Patterns (JSON)
+
+These JSON examples are ready to paste into the admin UI.
+
+### Simple Contact Form
+```json
+{
+  "title": "Contact Us",
+  "fields": [
+    {"key": "name", "type": "text", "label": "Name", "required": true},
+    {"key": "email", "type": "email", "label": "Email", "required": true},
+    {"key": "phone", "type": "tel", "label": "Phone"},
+    {"key": "message", "type": "textarea", "label": "Message", "required": true, "rows": 5}
+  ],
+  "settings": {
+    "submit_button_text": "Send Message",
+    "success_message": "Thanks! We'll be in touch soon.",
+    "notification": {
+      "reply_to": "{field:email}"
+    }
+  }
+}
+```
+
+### Form with Columns and Sections
+```json
+{
+  "title": "Registration Form",
+  "fields": [
+    {"key": "personal_info", "type": "section", "label": "Personal Information"},
+    {"key": "first_name", "type": "text", "label": "First Name", "required": true, "section": "personal_info", "column": "1/2"},
+    {"key": "last_name", "type": "text", "label": "Last Name", "required": true, "section": "personal_info", "column": "1/2"},
+    {"key": "email", "type": "email", "label": "Email", "required": true, "section": "personal_info"},
+
+    {"key": "address_info", "type": "section", "label": "Address"},
+    {"key": "street", "type": "text", "label": "Street Address", "section": "address_info"},
+    {"key": "city", "type": "text", "label": "City", "section": "address_info", "column": "1/2"},
+    {"key": "zip", "type": "text", "label": "ZIP Code", "section": "address_info", "column": "1/2"}
+  ]
+}
+```
+
+### Form with Conditional Logic
+```json
+{
+  "title": "Support Request",
+  "fields": [
+    {"key": "name", "type": "text", "label": "Name", "required": true},
+    {"key": "email", "type": "email", "label": "Email", "required": true},
+    {
+      "key": "issue_type",
+      "type": "select",
+      "label": "Issue Type",
+      "required": true,
+      "placeholder": "Select an issue type",
+      "options": [
+        {"value": "billing", "label": "Billing Question"},
+        {"value": "technical", "label": "Technical Issue"},
+        {"value": "other", "label": "Other"}
+      ]
+    },
+    {
+      "key": "order_number",
+      "type": "text",
+      "label": "Order Number",
+      "conditions": {
+        "rules": [
+          {"field": "issue_type", "operator": "equals", "value": "billing"}
+        ]
+      }
+    },
+    {
+      "key": "browser",
+      "type": "select",
+      "label": "Browser",
+      "options": [
+        {"value": "chrome", "label": "Chrome"},
+        {"value": "firefox", "label": "Firefox"},
+        {"value": "safari", "label": "Safari"},
+        {"value": "other", "label": "Other"}
+      ],
+      "conditions": {
+        "rules": [
+          {"field": "issue_type", "operator": "equals", "value": "technical"}
+        ]
+      }
+    },
+    {
+      "key": "other_details",
+      "type": "text",
+      "label": "Please specify",
+      "conditions": {
+        "rules": [
+          {"field": "issue_type", "operator": "equals", "value": "other"}
+        ]
+      }
+    },
+    {"key": "message", "type": "textarea", "label": "Describe your issue", "required": true, "rows": 5}
+  ],
+  "settings": {
+    "submit_button_text": "Submit Request"
+  }
+}
+```
+
+### Complete Multi-Step Form (All Features)
+
+This example demonstrates steps, sections, columns, and conditional logic working together:
+
+```json
+{
+  "title": "Project Quote Request",
+  "version": "1.0.0",
+  "steps": [
+    {"key": "contact", "title": "Your Information"},
+    {"key": "project", "title": "Project Details"},
+    {"key": "budget", "title": "Budget & Timeline"}
+  ],
+  "fields": [
+    {"key": "contact_section", "type": "section", "label": "Contact Details", "step": "contact"},
+    {"key": "first_name", "type": "text", "label": "First Name", "required": true, "step": "contact", "section": "contact_section", "column": "1/2"},
+    {"key": "last_name", "type": "text", "label": "Last Name", "required": true, "step": "contact", "section": "contact_section", "column": "1/2"},
+    {"key": "email", "type": "email", "label": "Email", "required": true, "step": "contact", "section": "contact_section"},
+    {"key": "phone", "type": "tel", "label": "Phone", "step": "contact", "section": "contact_section"},
+    {"key": "company", "type": "text", "label": "Company Name", "step": "contact"},
+
+    {"key": "project_section", "type": "section", "label": "Tell Us About Your Project", "step": "project"},
+    {
+      "key": "service_type",
+      "type": "select",
+      "label": "Service Needed",
+      "required": true,
+      "step": "project",
+      "section": "project_section",
+      "placeholder": "Select a service",
+      "options": [
+        {"value": "website", "label": "Website Design"},
+        {"value": "app", "label": "Mobile App"},
+        {"value": "branding", "label": "Branding"},
+        {"value": "other", "label": "Other"}
+      ]
+    },
+    {
+      "key": "other_service",
+      "type": "text",
+      "label": "Please describe the service",
+      "step": "project",
+      "section": "project_section",
+      "conditions": {
+        "rules": [
+          {"field": "service_type", "operator": "equals", "value": "other"}
+        ]
+      }
+    },
+    {
+      "key": "has_existing_site",
+      "type": "radio",
+      "label": "Do you have an existing website?",
+      "step": "project",
+      "section": "project_section",
+      "inline": true,
+      "options": [
+        {"value": "yes", "label": "Yes"},
+        {"value": "no", "label": "No"}
+      ],
+      "conditions": {
+        "rules": [
+          {"field": "service_type", "operator": "in", "value": ["website", "branding"]}
+        ]
+      }
+    },
+    {
+      "key": "existing_url",
+      "type": "text",
+      "label": "Current Website URL",
+      "step": "project",
+      "section": "project_section",
+      "placeholder": "https://",
+      "conditions": {
+        "rules": [
+          {"field": "has_existing_site", "operator": "equals", "value": "yes"}
+        ]
+      }
+    },
+    {"key": "description", "type": "textarea", "label": "Project Description", "step": "project", "rows": 5},
+    {"key": "files", "type": "file", "label": "Upload Reference Files", "step": "project", "multiple": true, "allowed_types": ["pdf", "doc", "docx", "jpg", "png"]},
+
+    {"key": "budget_section", "type": "section", "label": "Budget & Timeline", "step": "budget"},
+    {
+      "key": "budget_range",
+      "type": "radio",
+      "label": "Budget Range",
+      "required": true,
+      "step": "budget",
+      "section": "budget_section",
+      "options": [
+        {"value": "under5k", "label": "Under $5,000"},
+        {"value": "5k-10k", "label": "$5,000 - $10,000"},
+        {"value": "10k-25k", "label": "$10,000 - $25,000"},
+        {"value": "over25k", "label": "Over $25,000"}
+      ]
+    },
+    {
+      "key": "timeline",
+      "type": "select",
+      "label": "Desired Timeline",
+      "step": "budget",
+      "section": "budget_section",
+      "placeholder": "Select timeline",
+      "options": [
+        {"value": "asap", "label": "ASAP"},
+        {"value": "1month", "label": "Within 1 month"},
+        {"value": "3months", "label": "Within 3 months"},
+        {"value": "flexible", "label": "Flexible"}
+      ]
+    },
+    {
+      "key": "how_heard",
+      "type": "select",
+      "label": "How did you hear about us?",
+      "step": "budget",
+      "placeholder": "Select an option",
+      "options": [
+        {"value": "google", "label": "Google Search"},
+        {"value": "referral", "label": "Referral"},
+        {"value": "social", "label": "Social Media"},
+        {"value": "other", "label": "Other"}
+      ]
+    },
+    {
+      "key": "referral_name",
+      "type": "text",
+      "label": "Who referred you?",
+      "step": "budget",
+      "conditions": {
+        "rules": [
+          {"field": "how_heard", "operator": "equals", "value": "referral"}
+        ]
+      }
+    },
+    {"key": "additional_notes", "type": "textarea", "label": "Additional Notes", "step": "budget", "rows": 4}
+  ],
+  "settings": {
+    "submit_button_text": "Submit Quote Request",
+    "success_message": "Thank you! We'll review your project and get back to you within 24 hours.",
+    "multistep": {
+      "show_progress": true,
+      "progress_style": "steps",
+      "validate_on_next": true
+    },
+    "notification": {
+      "subject": "New Quote Request: {field:service_type}",
+      "reply_to": "{field:email}"
+    }
+  }
+}
+```
+
+## Common Patterns (PHP)
+
+For forms registered via code.
 
 ### Contact Form
 ```php
@@ -747,6 +1068,31 @@ When generating forms with Claude Code:
 - User mentions "admin", "dashboard", "paste" → JSON
 - User mentions "file", "code", "functions.php", "plugin" → PHP
 - Ambiguous → Ask the user which method they prefer
+
+### AI Generation Checklist
+
+Before outputting a form, verify:
+
+- [ ] Every field has a unique `key` (no duplicates)
+- [ ] Every field has a `type` (valid: text, email, tel, textarea, select, radio, checkbox, file, hidden, message, section)
+- [ ] Select, radio, and checkbox-group fields have an `options` array
+- [ ] Multi-step forms have a `steps` array at the top level
+- [ ] Each field in a multi-step form has `"step": "step_key"` matching a defined step
+- [ ] Sections are defined (type: section) before fields reference them with `"section": "section_key"`
+- [ ] Conditional logic references existing field keys in the `"field"` property
+- [ ] Column values are valid fractions: `1/2`, `1/3`, `2/3`, `1/4`, `3/4`
+- [ ] `show_title` is only set to `true` if the title should display above the form
+- [ ] JSON syntax is valid (no trailing commas, proper quotes)
+
+### Common Mistakes to Avoid
+
+1. **Wrong hook (PHP):** Use `fre_init`, not `init` or `plugins_loaded`
+2. **Duplicate field keys:** Every `key` must be unique across the entire form
+3. **Missing options:** Select/radio/checkbox-group require `options` array
+4. **Orphan step references:** Don't set `"step": "foo"` without defining `{"key": "foo", "title": "..."}` in `steps`
+5. **Orphan section references:** Don't set `"section": "bar"` without a field `{"key": "bar", "type": "section"}`
+6. **Condition referencing non-existent field:** The `"field"` in a condition rule must match an existing field key
+7. **JSON trailing commas:** Unlike PHP arrays, JSON doesn't allow trailing commas
 
 ---
 
