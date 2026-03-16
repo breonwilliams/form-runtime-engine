@@ -263,10 +263,29 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
             $classes[] = esc_attr( $field['css_class'] );
         }
 
+        // Column layout class.
+        if ( ! empty( $field['column'] ) ) {
+            $column_class = $this->get_column_class( $field['column'] );
+            if ( $column_class ) {
+                $classes[] = $column_class;
+            }
+        }
+
+        // Build data attributes.
+        $data_attrs = sprintf( 'data-field-key="%s"', esc_attr( $field['key'] ) );
+
+        // Conditional logic data attribute.
+        if ( ! empty( $field['conditions'] ) ) {
+            $data_attrs .= sprintf(
+                ' data-conditions="%s"',
+                esc_attr( wp_json_encode( $field['conditions'] ) )
+            );
+        }
+
         $html = sprintf(
-            '<div class="%s" data-field-key="%s">',
+            '<div class="%s" %s>',
             implode( ' ', $classes ),
-            esc_attr( $field['key'] )
+            $data_attrs
         );
 
         // Label.
@@ -291,6 +310,24 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
         $html .= '</div>';
 
         return $html;
+    }
+
+    /**
+     * Get CSS class for column width.
+     *
+     * @param string $column Column specification (e.g., '1/2', '1/3', '2/3').
+     * @return string|null CSS class or null if invalid.
+     */
+    protected function get_column_class( $column ) {
+        $valid_columns = array(
+            '1/2' => 'fre-col--1-2',
+            '1/3' => 'fre-col--1-3',
+            '2/3' => 'fre-col--2-3',
+            '1/4' => 'fre-col--1-4',
+            '3/4' => 'fre-col--3-4',
+        );
+
+        return isset( $valid_columns[ $column ] ) ? $valid_columns[ $column ] : null;
     }
 
     /**

@@ -47,6 +47,7 @@ class FRE_Autoloader {
         'FRE_Field_File'          => 'Fields/class-fre-field-file.php',
         'FRE_Field_Hidden'        => 'Fields/class-fre-field-hidden.php',
         'FRE_Field_Message'       => 'Fields/class-fre-field-message.php',
+        'FRE_Field_Section'       => 'Fields/class-fre-field-section.php',
 
         // Security classes.
         'FRE_Honeypot'            => 'Security/class-fre-honeypot.php',

@@ -375,6 +375,329 @@
    Responsive
    ========================================================================== */
 
+/* ==========================================================================
+   Column Layout
+   ========================================================================== */
+
+.fre-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: calc(var(--fre-spacing) * -0.5);
+    margin-right: calc(var(--fre-spacing) * -0.5);
+}
+
+.fre-row > .fre-field {
+    padding-left: calc(var(--fre-spacing) * 0.5);
+    padding-right: calc(var(--fre-spacing) * 0.5);
+    box-sizing: border-box;
+}
+
+/* Column widths */
+.fre-col--1-2 {
+    width: 50%;
+}
+
+.fre-col--1-3 {
+    width: 33.333333%;
+}
+
+.fre-col--2-3 {
+    width: 66.666667%;
+}
+
+.fre-col--1-4 {
+    width: 25%;
+}
+
+.fre-col--3-4 {
+    width: 75%;
+}
+
+/* ==========================================================================
+   Sections
+   ========================================================================== */
+
+.fre-section {
+    margin-bottom: calc(var(--fre-spacing) * 1.5);
+    padding: var(--fre-spacing);
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: var(--fre-border-radius);
+}
+
+.fre-section__title {
+    margin: 0 0 calc(var(--fre-spacing) * 0.5);
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #333;
+}
+
+.fre-section__description {
+    margin: 0 0 var(--fre-spacing);
+    font-size: 0.9em;
+    color: #666;
+}
+
+.fre-section__fields {
+    /* Reset background for nested fields */
+}
+
+.fre-section__fields > .fre-field:last-child {
+    margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Conditional Logic
+   ========================================================================== */
+
+.fre-field--hidden,
+.fre-section--hidden {
+    display: none !important;
+}
+
+/* Transition for show/hide (when not using display:none) */
+.fre-field--conditional {
+    transition: opacity 0.2s ease-in-out, max-height 0.3s ease-in-out;
+}
+
+/* ==========================================================================
+   Multi-Step Forms
+   ========================================================================== */
+
+.fre-form--multistep {
+    /* Container for multi-step form */
+}
+
+/* Progress Indicators */
+.fre-progress {
+    margin-bottom: calc(var(--fre-spacing) * 1.5);
+    padding-bottom: calc(var(--fre-spacing) * 0.5);
+}
+
+/* Steps style progress */
+.fre-progress--steps .fre-progress__steps {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.fre-progress__step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.fre-progress__number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    color: #666;
+    font-weight: 600;
+    font-size: 0.875em;
+    transition: all 0.2s ease;
+}
+
+.fre-progress__step--active .fre-progress__number,
+.fre-progress__step--completed .fre-progress__number {
+    background-color: var(--fre-primary-color);
+    color: #fff;
+}
+
+.fre-progress__step--completed .fre-progress__number::after {
+    content: '\2713';
+}
+
+.fre-progress__label {
+    margin-top: 6px;
+    font-size: 0.8em;
+    color: #666;
+    text-align: center;
+    max-width: 100px;
+}
+
+.fre-progress__step--active .fre-progress__label {
+    color: var(--fre-primary-color);
+    font-weight: 500;
+}
+
+.fre-progress__connector {
+    flex: 1;
+    height: 2px;
+    background-color: #e9ecef;
+    margin: 15px 8px 0;
+    transition: background-color 0.2s ease;
+}
+
+.fre-progress__step--completed + .fre-progress__connector {
+    background-color: var(--fre-primary-color);
+}
+
+/* Dots style progress */
+.fre-progress--dots .fre-progress__steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.fre-progress--dots .fre-progress__step {
+    flex-direction: row;
+}
+
+.fre-progress__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.fre-progress--dots .fre-progress__step--active .fre-progress__dot {
+    background-color: var(--fre-primary-color);
+    transform: scale(1.2);
+}
+
+.fre-progress--dots .fre-progress__step--completed .fre-progress__dot {
+    background-color: var(--fre-primary-color);
+}
+
+.fre-progress--dots .fre-progress__connector {
+    width: 20px;
+    margin: 0;
+}
+
+/* Bar style progress */
+.fre-progress--bar {
+    text-align: center;
+}
+
+.fre-progress__bar {
+    height: 6px;
+    background-color: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.fre-progress__fill {
+    height: 100%;
+    background-color: var(--fre-primary-color);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.fre-progress__text {
+    font-size: 0.875em;
+    color: #666;
+}
+
+.fre-progress__current {
+    font-weight: 600;
+    color: var(--fre-primary-color);
+}
+
+/* Steps */
+.fre-step {
+    display: none;
+}
+
+.fre-step--active {
+    display: block;
+}
+
+.fre-step__title {
+    margin: 0 0 var(--fre-spacing);
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.fre-step__fields {
+    margin-bottom: var(--fre-spacing);
+}
+
+.fre-step__nav {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--fre-spacing);
+    margin-top: calc(var(--fre-spacing) * 1.5);
+    padding-top: var(--fre-spacing);
+    border-top: 1px solid var(--fre-border-color);
+}
+
+.fre-step__nav:has(.fre-step__prev):not(:has(.fre-step__next)):not(:has(.fre-step__submit)) {
+    justify-content: flex-start;
+}
+
+.fre-step__nav:not(:has(.fre-step__prev)):has(.fre-step__next),
+.fre-step__nav:not(:has(.fre-step__prev)):has(.fre-step__submit) {
+    justify-content: flex-end;
+}
+
+/* Step navigation buttons */
+.fre-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: 500;
+    border: none;
+    border-radius: var(--fre-border-radius);
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    min-width: 100px;
+}
+
+.fre-btn--primary {
+    background-color: var(--fre-primary-color);
+    color: #fff;
+}
+
+.fre-btn--primary:hover:not(:disabled) {
+    background-color: var(--fre-primary-hover);
+}
+
+.fre-btn--secondary {
+    background-color: #e9ecef;
+    color: #333;
+}
+
+.fre-btn--secondary:hover:not(:disabled) {
+    background-color: #dee2e6;
+}
+
+.fre-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.fre-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.3);
+}
+
+/* Step validation error state */
+.fre-step--has-errors {
+    /* Visual indicator that step has errors */
+}
+
+.fre-progress__step--error .fre-progress__number {
+    background-color: var(--fre-error-color);
+    color: #fff;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
 @media (max-width: 600px) {
     .fre-form__submit-button {
         width: 100%;
@@ -384,5 +707,36 @@
     .fre-field__radio-group--inline {
         flex-direction: column;
         gap: 8px;
+    }
+
+    /* Stack columns on mobile */
+    .fre-row {
+        flex-direction: column;
+    }
+
+    .fre-col--1-2,
+    .fre-col--1-3,
+    .fre-col--2-3,
+    .fre-col--1-4,
+    .fre-col--3-4 {
+        width: 100%;
+    }
+
+    /* Progress adjustments */
+    .fre-progress--steps .fre-progress__label {
+        display: none;
+    }
+
+    .fre-progress__connector {
+        margin: 15px 4px 0;
+    }
+
+    /* Step nav stacking */
+    .fre-step__nav {
+        flex-direction: column-reverse;
+    }
+
+    .fre-step__nav .fre-btn {
+        width: 100%;
     }
 }

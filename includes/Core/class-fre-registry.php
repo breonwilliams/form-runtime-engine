@@ -270,6 +270,7 @@ class FRE_Registry {
             'file',
             'hidden',
             'message',
+            'section',
         );
 
         /**

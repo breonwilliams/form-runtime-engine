@@ -71,6 +71,7 @@ class FRE_Renderer {
     private function build_form( array $form, array $args ) {
         $form_id  = $form['id'];
         $settings = $form['settings'];
+        $is_multistep = ! empty( $form['steps'] );
 
         // Build form classes.
         $classes = array( 'fre-form' );
@@ -80,18 +81,33 @@ class FRE_Renderer {
         if ( ! empty( $args['css_class'] ) ) {
             $classes[] = esc_attr( $args['css_class'] );
         }
+        if ( $is_multistep ) {
+            $classes[] = 'fre-form--multistep';
+        }
 
         // Check for file fields to set enctype.
         $has_file_field = $this->has_file_field( $form );
 
+        // Build data attributes.
+        $data_attrs = sprintf( 'data-form-id="%s"', esc_attr( $form_id ) );
+        if ( $args['ajax'] ) {
+            $data_attrs .= ' data-ajax="true"';
+        }
+        if ( $is_multistep ) {
+            $data_attrs .= sprintf( ' data-steps="%d"', count( $form['steps'] ) );
+            $multistep_settings = isset( $settings['multistep'] ) ? $settings['multistep'] : array();
+            if ( ! empty( $multistep_settings['validate_on_next'] ) ) {
+                $data_attrs .= ' data-validate-steps="true"';
+            }
+        }
+
         // Start form.
         $html = sprintf(
-            '<form id="fre-form-%s" class="%s" method="post" data-form-id="%s"%s%s>',
+            '<form id="fre-form-%s" class="%s" method="post" %s%s>',
             esc_attr( $form_id ),
             implode( ' ', $classes ),
-            esc_attr( $form_id ),
-            $has_file_field ? ' enctype="multipart/form-data"' : '',
-            $args['ajax'] ? ' data-ajax="true"' : ''
+            $data_attrs,
+            $has_file_field ? ' enctype="multipart/form-data"' : ''
         );
 
         // Nonce field.
@@ -128,21 +144,26 @@ class FRE_Renderer {
         // Messages container.
         $html .= '<div class="fre-form__messages" role="alert" aria-live="polite"></div>';
 
+        // Multi-step progress indicator.
+        if ( $is_multistep ) {
+            $html .= $this->render_progress_indicator( $form['steps'], $settings );
+        }
+
         // Fields container.
         $html .= '<div class="fre-form__fields">';
 
-        foreach ( $form['fields'] as $field ) {
-            $value = isset( $args['values'][ $field['key'] ] )
-                ? $args['values'][ $field['key'] ]
-                : ( isset( $field['default'] ) ? $field['default'] : '' );
-
-            $html .= $this->render_field( $field, $value, $form );
+        if ( $is_multistep ) {
+            $html .= $this->render_multistep_fields( $form, $args );
+        } else {
+            $html .= $this->render_fields_with_layout( $form, $args );
         }
 
         $html .= '</div>';
 
-        // Submit button.
-        $html .= $this->render_submit_button( $settings );
+        // Submit button (for non-multistep forms).
+        if ( ! $is_multistep ) {
+            $html .= $this->render_submit_button( $settings );
+        }
 
         // Close form.
         $html .= '</form>';
@@ -156,6 +177,539 @@ class FRE_Renderer {
          * @param array  $args    Render arguments.
          */
         return apply_filters( 'fre_rendered_form', $html, $form_id, $form, $args );
+    }
+
+    /**
+     * Render fields with column and section layout support.
+     *
+     * @param array $form Form configuration.
+     * @param array $args Render arguments.
+     * @return string
+     */
+    private function render_fields_with_layout( array $form, array $args ) {
+        $html = '';
+        $fields = $form['fields'];
+        $total = count( $fields );
+        $i = 0;
+
+        while ( $i < $total ) {
+            $field = $fields[ $i ];
+
+            // Handle section fields.
+            if ( isset( $field['type'] ) && $field['type'] === 'section' ) {
+                $html .= $this->render_section_with_fields( $form, $args, $fields, $i );
+                continue;
+            }
+
+            // Check if this field starts a column row.
+            if ( ! empty( $field['column'] ) ) {
+                $html .= $this->render_column_row( $form, $args, $fields, $i );
+                continue;
+            }
+
+            // Regular field.
+            $value = $this->get_field_value( $field, $args );
+            $html .= $this->render_field( $field, $value, $form );
+            $i++;
+        }
+
+        return $html;
+    }
+
+    /**
+     * Render a row of column fields.
+     *
+     * @param array $form   Form configuration.
+     * @param array $args   Render arguments.
+     * @param array $fields All fields.
+     * @param int   &$index Current index (modified by reference).
+     * @return string
+     */
+    private function render_column_row( array $form, array $args, array $fields, &$index ) {
+        $html = '<div class="fre-row">';
+        $total = count( $fields );
+
+        // Collect consecutive column fields.
+        while ( $index < $total && ! empty( $fields[ $index ]['column'] ) ) {
+            $field = $fields[ $index ];
+
+            // Skip section fields in column detection.
+            if ( isset( $field['type'] ) && $field['type'] === 'section' ) {
+                break;
+            }
+
+            $value = $this->get_field_value( $field, $args );
+            $html .= $this->render_field( $field, $value, $form );
+            $index++;
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Render a section with its grouped fields.
+     *
+     * @param array $form   Form configuration.
+     * @param array $args   Render arguments.
+     * @param array $fields All fields.
+     * @param int   &$index Current index (modified by reference).
+     * @return string
+     */
+    private function render_section_with_fields( array $form, array $args, array $fields, &$index ) {
+        $section = $fields[ $index ];
+        $section_key = $section['key'];
+        $index++;
+
+        $classes = array( 'fre-section' );
+        if ( ! empty( $section['css_class'] ) ) {
+            $classes[] = esc_attr( $section['css_class'] );
+        }
+
+        // Check for conditions on the section itself.
+        $data_attrs = sprintf( 'data-section-key="%s"', esc_attr( $section_key ) );
+        if ( ! empty( $section['conditions'] ) ) {
+            $data_attrs .= sprintf(
+                ' data-conditions="%s"',
+                esc_attr( wp_json_encode( $section['conditions'] ) )
+            );
+        }
+
+        $html = sprintf( '<div class="%s" %s>', implode( ' ', $classes ), $data_attrs );
+
+        // Section title.
+        if ( ! empty( $section['label'] ) ) {
+            $html .= sprintf(
+                '<h4 class="fre-section__title">%s</h4>',
+                esc_html( $section['label'] )
+            );
+        }
+
+        // Section description.
+        if ( ! empty( $section['description'] ) ) {
+            $html .= sprintf(
+                '<p class="fre-section__description">%s</p>',
+                esc_html( $section['description'] )
+            );
+        }
+
+        $html .= '<div class="fre-section__fields">';
+
+        // Render fields that belong to this section.
+        $total = count( $fields );
+        while ( $index < $total ) {
+            $field = $fields[ $index ];
+
+            // Stop if we hit another section or a field not in this section.
+            if ( isset( $field['type'] ) && $field['type'] === 'section' ) {
+                break;
+            }
+
+            // Only include fields that explicitly belong to this section.
+            if ( ! isset( $field['section'] ) || $field['section'] !== $section_key ) {
+                // If field has no section, it doesn't belong here.
+                // If field has a different section, stop.
+                if ( isset( $field['section'] ) ) {
+                    break;
+                }
+                // No section specified - this field is outside sections.
+                break;
+            }
+
+            // Check if this field starts a column row within the section.
+            if ( ! empty( $field['column'] ) ) {
+                $html .= $this->render_column_row_in_section( $form, $args, $fields, $index, $section_key );
+                continue;
+            }
+
+            $value = $this->get_field_value( $field, $args );
+            $html .= $this->render_field( $field, $value, $form );
+            $index++;
+        }
+
+        $html .= '</div></div>';
+
+        return $html;
+    }
+
+    /**
+     * Render a row of column fields within a section.
+     *
+     * @param array  $form        Form configuration.
+     * @param array  $args        Render arguments.
+     * @param array  $fields      All fields.
+     * @param int    &$index      Current index (modified by reference).
+     * @param string $section_key Section key to check.
+     * @return string
+     */
+    private function render_column_row_in_section( array $form, array $args, array $fields, &$index, $section_key ) {
+        $html = '<div class="fre-row">';
+        $total = count( $fields );
+
+        while ( $index < $total && ! empty( $fields[ $index ]['column'] ) ) {
+            $field = $fields[ $index ];
+
+            // Stop if we leave the section.
+            if ( ! isset( $field['section'] ) || $field['section'] !== $section_key ) {
+                break;
+            }
+
+            // Skip section fields.
+            if ( isset( $field['type'] ) && $field['type'] === 'section' ) {
+                break;
+            }
+
+            $value = $this->get_field_value( $field, $args );
+            $html .= $this->render_field( $field, $value, $form );
+            $index++;
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Render multi-step form fields.
+     *
+     * @param array $form Form configuration.
+     * @param array $args Render arguments.
+     * @return string
+     */
+    private function render_multistep_fields( array $form, array $args ) {
+        $html = '';
+        $steps = $form['steps'];
+        $fields = $form['fields'];
+        $settings = $form['settings'];
+        $total_steps = count( $steps );
+
+        foreach ( $steps as $step_index => $step ) {
+            $step_key = $step['key'];
+            $is_first = $step_index === 0;
+            $is_last = $step_index === $total_steps - 1;
+
+            $step_classes = array( 'fre-step' );
+            if ( $is_first ) {
+                $step_classes[] = 'fre-step--active';
+            }
+
+            $html .= sprintf(
+                '<div class="%s" data-step="%d" data-step-key="%s">',
+                implode( ' ', $step_classes ),
+                $step_index + 1,
+                esc_attr( $step_key )
+            );
+
+            // Step title (optional).
+            if ( ! empty( $step['title'] ) && ! empty( $settings['multistep']['show_step_titles'] ) ) {
+                $html .= sprintf(
+                    '<h4 class="fre-step__title">%s</h4>',
+                    esc_html( $step['title'] )
+                );
+            }
+
+            // Collect fields for this step.
+            $step_fields = array_filter( $fields, function( $field ) use ( $step_key ) {
+                return isset( $field['step'] ) && $field['step'] === $step_key;
+            });
+
+            // Re-index for processing.
+            $step_fields = array_values( $step_fields );
+
+            // Render step fields with layout support.
+            $html .= '<div class="fre-step__fields">';
+            $html .= $this->render_step_fields_with_layout( $form, $args, $step_fields );
+            $html .= '</div>';
+
+            // Step navigation.
+            $html .= '<div class="fre-step__nav">';
+
+            if ( ! $is_first ) {
+                $html .= sprintf(
+                    '<button type="button" class="fre-step__prev fre-btn fre-btn--secondary">%s</button>',
+                    esc_html__( 'Previous', 'form-runtime-engine' )
+                );
+            }
+
+            if ( $is_last ) {
+                $html .= $this->render_submit_button( $settings, 'fre-step__submit' );
+            } else {
+                $html .= sprintf(
+                    '<button type="button" class="fre-step__next fre-btn fre-btn--primary">%s</button>',
+                    esc_html__( 'Next', 'form-runtime-engine' )
+                );
+            }
+
+            $html .= '</div>';
+
+            $html .= '</div>';
+        }
+
+        return $html;
+    }
+
+    /**
+     * Render step fields with layout support.
+     *
+     * @param array $form        Form configuration.
+     * @param array $args        Render arguments.
+     * @param array $step_fields Fields for this step.
+     * @return string
+     */
+    private function render_step_fields_with_layout( array $form, array $args, array $step_fields ) {
+        $html = '';
+        $total = count( $step_fields );
+        $i = 0;
+
+        while ( $i < $total ) {
+            $field = $step_fields[ $i ];
+
+            // Handle section fields within a step.
+            if ( isset( $field['type'] ) && $field['type'] === 'section' ) {
+                $html .= $this->render_section_in_step( $form, $args, $step_fields, $i );
+                continue;
+            }
+
+            // Check if this field starts a column row.
+            if ( ! empty( $field['column'] ) ) {
+                $html .= $this->render_column_row_simple( $form, $args, $step_fields, $i );
+                continue;
+            }
+
+            // Regular field.
+            $value = $this->get_field_value( $field, $args );
+            $html .= $this->render_field( $field, $value, $form );
+            $i++;
+        }
+
+        return $html;
+    }
+
+    /**
+     * Render a simple column row (no section context).
+     *
+     * @param array $form   Form configuration.
+     * @param array $args   Render arguments.
+     * @param array $fields Fields array.
+     * @param int   &$index Current index (modified by reference).
+     * @return string
+     */
+    private function render_column_row_simple( array $form, array $args, array $fields, &$index ) {
+        $html = '<div class="fre-row">';
+        $total = count( $fields );
+
+        while ( $index < $total && ! empty( $fields[ $index ]['column'] ) ) {
+            $field = $fields[ $index ];
+
+            if ( isset( $field['type'] ) && $field['type'] === 'section' ) {
+                break;
+            }
+
+            $value = $this->get_field_value( $field, $args );
+            $html .= $this->render_field( $field, $value, $form );
+            $index++;
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Render a section within a step.
+     *
+     * @param array $form        Form configuration.
+     * @param array $args        Render arguments.
+     * @param array $step_fields Step fields.
+     * @param int   &$index      Current index.
+     * @return string
+     */
+    private function render_section_in_step( array $form, array $args, array $step_fields, &$index ) {
+        $section = $step_fields[ $index ];
+        $section_key = $section['key'];
+        $index++;
+
+        $classes = array( 'fre-section' );
+        if ( ! empty( $section['css_class'] ) ) {
+            $classes[] = esc_attr( $section['css_class'] );
+        }
+
+        $data_attrs = sprintf( 'data-section-key="%s"', esc_attr( $section_key ) );
+        if ( ! empty( $section['conditions'] ) ) {
+            $data_attrs .= sprintf(
+                ' data-conditions="%s"',
+                esc_attr( wp_json_encode( $section['conditions'] ) )
+            );
+        }
+
+        $html = sprintf( '<div class="%s" %s>', implode( ' ', $classes ), $data_attrs );
+
+        if ( ! empty( $section['label'] ) ) {
+            $html .= sprintf(
+                '<h4 class="fre-section__title">%s</h4>',
+                esc_html( $section['label'] )
+            );
+        }
+
+        if ( ! empty( $section['description'] ) ) {
+            $html .= sprintf(
+                '<p class="fre-section__description">%s</p>',
+                esc_html( $section['description'] )
+            );
+        }
+
+        $html .= '<div class="fre-section__fields">';
+
+        $total = count( $step_fields );
+        while ( $index < $total ) {
+            $field = $step_fields[ $index ];
+
+            if ( isset( $field['type'] ) && $field['type'] === 'section' ) {
+                break;
+            }
+
+            if ( ! isset( $field['section'] ) || $field['section'] !== $section_key ) {
+                break;
+            }
+
+            if ( ! empty( $field['column'] ) ) {
+                $html .= $this->render_column_row_in_section_step( $form, $args, $step_fields, $index, $section_key );
+                continue;
+            }
+
+            $value = $this->get_field_value( $field, $args );
+            $html .= $this->render_field( $field, $value, $form );
+            $index++;
+        }
+
+        $html .= '</div></div>';
+
+        return $html;
+    }
+
+    /**
+     * Render column row within a section in a step.
+     *
+     * @param array  $form        Form configuration.
+     * @param array  $args        Render arguments.
+     * @param array  $step_fields Step fields.
+     * @param int    &$index      Current index.
+     * @param string $section_key Section key.
+     * @return string
+     */
+    private function render_column_row_in_section_step( array $form, array $args, array $step_fields, &$index, $section_key ) {
+        $html = '<div class="fre-row">';
+        $total = count( $step_fields );
+
+        while ( $index < $total && ! empty( $step_fields[ $index ]['column'] ) ) {
+            $field = $step_fields[ $index ];
+
+            if ( ! isset( $field['section'] ) || $field['section'] !== $section_key ) {
+                break;
+            }
+
+            if ( isset( $field['type'] ) && $field['type'] === 'section' ) {
+                break;
+            }
+
+            $value = $this->get_field_value( $field, $args );
+            $html .= $this->render_field( $field, $value, $form );
+            $index++;
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Render progress indicator for multi-step forms.
+     *
+     * @param array $steps    Steps configuration.
+     * @param array $settings Form settings.
+     * @return string
+     */
+    private function render_progress_indicator( array $steps, array $settings ) {
+        $multistep_settings = isset( $settings['multistep'] ) ? $settings['multistep'] : array();
+        $show_progress = isset( $multistep_settings['show_progress'] ) ? $multistep_settings['show_progress'] : true;
+
+        if ( ! $show_progress ) {
+            return '';
+        }
+
+        $style = isset( $multistep_settings['progress_style'] ) ? $multistep_settings['progress_style'] : 'steps';
+        $total_steps = count( $steps );
+
+        $html = sprintf(
+            '<div class="fre-progress fre-progress--%s" data-total-steps="%d">',
+            esc_attr( $style ),
+            $total_steps
+        );
+
+        if ( $style === 'bar' ) {
+            $html .= '<div class="fre-progress__bar">';
+            $html .= '<div class="fre-progress__fill" style="width: ' . ( 100 / $total_steps ) . '%;"></div>';
+            $html .= '</div>';
+            $html .= sprintf(
+                '<div class="fre-progress__text"><span class="fre-progress__current">1</span> / %d</div>',
+                $total_steps
+            );
+        } else {
+            // Steps or dots style.
+            $html .= '<div class="fre-progress__steps">';
+            foreach ( $steps as $index => $step ) {
+                $step_classes = array( 'fre-progress__step' );
+                if ( $index === 0 ) {
+                    $step_classes[] = 'fre-progress__step--active';
+                }
+
+                $html .= sprintf(
+                    '<div class="%s" data-step="%d">',
+                    implode( ' ', $step_classes ),
+                    $index + 1
+                );
+
+                if ( $style === 'steps' ) {
+                    $html .= sprintf( '<span class="fre-progress__number">%d</span>', $index + 1 );
+                    if ( ! empty( $step['title'] ) ) {
+                        $html .= sprintf(
+                            '<span class="fre-progress__label">%s</span>',
+                            esc_html( $step['title'] )
+                        );
+                    }
+                } else {
+                    // Dots style.
+                    $html .= '<span class="fre-progress__dot"></span>';
+                }
+
+                $html .= '</div>';
+
+                // Connector between steps.
+                if ( $index < $total_steps - 1 ) {
+                    $html .= '<div class="fre-progress__connector"></div>';
+                }
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Get field value from args.
+     *
+     * @param array $field Field configuration.
+     * @param array $args  Render arguments.
+     * @return mixed
+     */
+    private function get_field_value( array $field, array $args ) {
+        if ( isset( $args['values'][ $field['key'] ] ) ) {
+            return $args['values'][ $field['key'] ];
+        }
+        return isset( $field['default'] ) ? $field['default'] : '';
     }
 
     /**
@@ -239,15 +793,21 @@ class FRE_Renderer {
     /**
      * Render submit button.
      *
-     * @param array $settings Form settings.
+     * @param array  $settings       Form settings.
+     * @param string $extra_class    Additional CSS class for the wrapper.
      * @return string
      */
-    private function render_submit_button( array $settings ) {
+    private function render_submit_button( array $settings, $extra_class = '' ) {
         $text = ! empty( $settings['submit_button_text'] )
             ? $settings['submit_button_text']
             : __( 'Submit', 'form-runtime-engine' );
 
-        $html = '<div class="fre-form__submit">';
+        $wrapper_classes = array( 'fre-form__submit' );
+        if ( ! empty( $extra_class ) ) {
+            $wrapper_classes[] = esc_attr( $extra_class );
+        }
+
+        $html = sprintf( '<div class="%s">', implode( ' ', $wrapper_classes ) );
         $html .= sprintf(
             '<button type="submit" class="fre-form__submit-button">
                 <span class="fre-form__submit-text">%s</span>
