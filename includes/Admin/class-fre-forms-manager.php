@@ -48,9 +48,10 @@ class FRE_Forms_Manager {
      * @param string $form_id     Form ID.
      * @param string $title       Form title.
      * @param string $json_config JSON configuration.
+     * @param string $custom_css  Custom CSS for the form.
      * @return array|WP_Error
      */
-    public static function save_form( $form_id, $title, $json_config ) {
+    public static function save_form( $form_id, $title, $json_config, $custom_css = '' ) {
         // Validate form ID.
         if ( empty( $form_id ) ) {
             return new WP_Error( 'empty_id', __( 'Form ID is required.', 'form-runtime-engine' ) );
@@ -67,35 +68,28 @@ class FRE_Forms_Manager {
             return new WP_Error( 'invalid_json', __( 'Invalid JSON syntax: ', 'form-runtime-engine' ) . json_last_error_msg() );
         }
 
-        // Validate structure.
-        if ( ! isset( $config['fields'] ) || ! is_array( $config['fields'] ) ) {
-            return new WP_Error( 'missing_fields', __( 'Configuration must have a "fields" array.', 'form-runtime-engine' ) );
+        // JSON Schema Validation (comprehensive validation).
+        $schema_result = FRE_JSON_Schema_Validator::validate( $config );
+        if ( ! $schema_result['valid'] ) {
+            return new WP_Error( 'schema_error', implode( ' ', $schema_result['errors'] ) );
         }
 
-        // Validate each field has key and type.
-        foreach ( $config['fields'] as $index => $field ) {
-            if ( empty( $field['key'] ) ) {
-                return new WP_Error(
-                    'missing_field_key',
-                    sprintf( __( 'Field at index %d is missing required "key" property.', 'form-runtime-engine' ), $index )
-                );
-            }
-            if ( empty( $field['type'] ) ) {
-                return new WP_Error(
-                    'missing_field_type',
-                    sprintf( __( 'Field "%s" is missing required "type" property.', 'form-runtime-engine' ), $field['key'] )
-                );
+        // Log warnings (non-fatal issues) if WP_DEBUG is enabled.
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG && ! empty( $schema_result['warnings'] ) ) {
+            foreach ( $schema_result['warnings'] as $warning ) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+                error_log( 'FRE Form Schema Warning [' . $form_id . ']: ' . $warning );
             }
         }
 
-        // Check for duplicate field keys.
-        $keys       = array_column( $config['fields'], 'key' );
-        $duplicates = array_diff_assoc( $keys, array_unique( $keys ) );
-        if ( ! empty( $duplicates ) ) {
-            return new WP_Error(
-                'duplicate_keys',
-                sprintf( __( 'Duplicate field keys found: %s', 'form-runtime-engine' ), implode( ', ', array_unique( $duplicates ) ) )
-            );
+        // CSS Validation (if provided).
+        if ( ! empty( $custom_css ) ) {
+            $css_result = FRE_CSS_Validator::validate( $custom_css );
+            if ( is_wp_error( $css_result ) ) {
+                return $css_result;
+            }
+            // Sanitize CSS.
+            $custom_css = FRE_CSS_Validator::sanitize( $custom_css );
         }
 
         // Get existing forms.
@@ -107,13 +101,14 @@ class FRE_Forms_Manager {
             $title = $config['title'];
         }
 
-        // Save form.
+        // Save form (CSS is already sanitized by FRE_CSS_Validator).
         $forms[ $form_id ] = array(
-            'id'       => $form_id,
-            'title'    => sanitize_text_field( $title ),
-            'config'   => $json_config,
-            'created'  => $is_new ? time() : ( $forms[ $form_id ]['created'] ?? time() ),
-            'modified' => time(),
+            'id'         => $form_id,
+            'title'      => sanitize_text_field( $title ),
+            'config'     => $json_config,
+            'custom_css' => $custom_css,
+            'created'    => $is_new ? time() : ( $forms[ $form_id ]['created'] ?? time() ),
+            'modified'   => time(),
         );
 
         update_option( self::OPTION_KEY, $forms );
@@ -271,6 +266,23 @@ class FRE_Forms_Manager {
                     <table class="form-table">
                         <tr>
                             <th scope="row">
+                                <label for="fre-form-title"><?php esc_html_e( 'Form Title', 'form-runtime-engine' ); ?></label>
+                            </th>
+                            <td>
+                                <input
+                                    type="text"
+                                    id="fre-form-title"
+                                    name="title"
+                                    class="regular-text"
+                                    value="<?php echo esc_attr( $edit_form['title'] ?? '' ); ?>"
+                                >
+                                <p class="description">
+                                    <?php esc_html_e( 'For display in admin. Can also be set in JSON config.', 'form-runtime-engine' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
                                 <label for="fre-form-id"><?php esc_html_e( 'Form ID', 'form-runtime-engine' ); ?> <span class="required">*</span></label>
                             </th>
                             <td>
@@ -285,24 +297,13 @@ class FRE_Forms_Manager {
                                     required
                                 >
                                 <p class="description">
-                                    <?php esc_html_e( 'Lowercase letters, numbers, dashes and underscores only.', 'form-runtime-engine' ); ?>
-                                </p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">
-                                <label for="fre-form-title"><?php esc_html_e( 'Form Title', 'form-runtime-engine' ); ?></label>
-                            </th>
-                            <td>
-                                <input
-                                    type="text"
-                                    id="fre-form-title"
-                                    name="title"
-                                    class="regular-text"
-                                    value="<?php echo esc_attr( $edit_form['title'] ?? '' ); ?>"
-                                >
-                                <p class="description">
-                                    <?php esc_html_e( 'Optional. For display in admin. Can also be set in JSON config.', 'form-runtime-engine' ); ?>
+                                    <?php
+                                    if ( $is_edit_view ) {
+                                        esc_html_e( 'Form ID cannot be changed after creation.', 'form-runtime-engine' );
+                                    } else {
+                                        esc_html_e( 'Auto-generated from title. Lowercase letters, numbers, dashes and underscores only.', 'form-runtime-engine' );
+                                    }
+                                    ?>
                                 </p>
                             </td>
                         </tr>
@@ -326,6 +327,29 @@ class FRE_Forms_Manager {
                                 ?></textarea>
                                 <p class="description">
                                     <?php esc_html_e( 'Paste the JSON configuration. Must include a "fields" array.', 'form-runtime-engine' ); ?>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="fre-form-custom-css"><?php esc_html_e( 'Custom CSS (Optional)', 'form-runtime-engine' ); ?></label>
+                            </th>
+                            <td>
+                                <textarea
+                                    id="fre-form-custom-css"
+                                    name="custom_css"
+                                    class="large-text code"
+                                    rows="10"
+                                ><?php echo esc_textarea( $edit_form['custom_css'] ?? '' ); ?></textarea>
+                                <p class="description">
+                                    <?php
+                                    printf(
+                                        /* translators: %1$s: form-specific selector example, %2$s: general form selector */
+                                        esc_html__( 'Styles for this form only. Use %1$s to target this specific form, or %2$s for general styles.', 'form-runtime-engine' ),
+                                        $editing_id ? '<code>#fre-form-' . esc_html( $editing_id ) . '</code>' : '<code>#fre-form-{id}</code>',
+                                        '<code>.fre-form</code>'
+                                    );
+                                    ?>
                                 </p>
                             </td>
                         </tr>
@@ -393,11 +417,12 @@ class FRE_Forms_Manager {
 
         check_ajax_referer( 'fre_admin_nonce', 'nonce' );
 
-        $form_id = isset( $_POST['form_id'] ) ? sanitize_key( $_POST['form_id'] ) : '';
-        $title   = isset( $_POST['title'] ) ? sanitize_text_field( $_POST['title'] ) : '';
-        $config  = isset( $_POST['config'] ) ? wp_unslash( $_POST['config'] ) : '';
+        $form_id    = isset( $_POST['form_id'] ) ? sanitize_key( $_POST['form_id'] ) : '';
+        $title      = isset( $_POST['title'] ) ? sanitize_text_field( $_POST['title'] ) : '';
+        $config     = isset( $_POST['config'] ) ? wp_unslash( $_POST['config'] ) : '';
+        $custom_css = isset( $_POST['custom_css'] ) ? wp_unslash( $_POST['custom_css'] ) : '';
 
-        $result = self::save_form( $form_id, $title, $config );
+        $result = self::save_form( $form_id, $title, $config, $custom_css );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( array( 'message' => $result->get_error_message() ) );

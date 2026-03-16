@@ -50,9 +50,11 @@ class FRE_Autoloader {
         'FRE_Field_Section'       => 'Fields/class-fre-field-section.php',
 
         // Security classes.
-        'FRE_Honeypot'            => 'Security/class-fre-honeypot.php',
-        'FRE_Timing_Check'        => 'Security/class-fre-timing-check.php',
-        'FRE_Rate_Limiter'        => 'Security/class-fre-rate-limiter.php',
+        'FRE_Honeypot'               => 'Security/class-fre-honeypot.php',
+        'FRE_Timing_Check'           => 'Security/class-fre-timing-check.php',
+        'FRE_Rate_Limiter'           => 'Security/class-fre-rate-limiter.php',
+        'FRE_CSS_Validator'          => 'Security/class-fre-css-validator.php',
+        'FRE_JSON_Schema_Validator'  => 'Security/class-fre-json-schema-validator.php',
 
         // Upload classes.
         'FRE_Upload_Handler'      => 'Uploads/class-fre-upload-handler.php',

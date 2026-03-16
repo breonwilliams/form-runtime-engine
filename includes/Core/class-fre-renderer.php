@@ -58,7 +58,39 @@ class FRE_Renderer {
         $this->enqueue_assets();
 
         // Build form HTML.
-        return $this->build_form( $form, $args );
+        $html = $this->build_form( $form, $args );
+
+        // Prepend custom CSS if form has it (database-stored forms only).
+        $html = $this->prepend_custom_css( $form_id, $html );
+
+        return $html;
+    }
+
+    /**
+     * Prepend custom CSS for database-stored forms.
+     *
+     * @param string $form_id Form ID.
+     * @param string $html    Form HTML.
+     * @return string HTML with custom CSS prepended.
+     */
+    private function prepend_custom_css( $form_id, $html ) {
+        // Check if FRE_Forms_Manager class exists (it should for DB forms).
+        if ( ! class_exists( 'FRE_Forms_Manager' ) ) {
+            return $html;
+        }
+
+        $db_form = FRE_Forms_Manager::get_form( $form_id );
+
+        if ( $db_form && ! empty( $db_form['custom_css'] ) ) {
+            $css_html = sprintf(
+                '<style id="fre-custom-css-%s">%s</style>',
+                esc_attr( $form_id ),
+                wp_strip_all_tags( $db_form['custom_css'] )
+            );
+            $html = $css_html . $html;
+        }
+
+        return $html;
     }
 
     /**
@@ -133,8 +165,9 @@ class FRE_Renderer {
             $html .= $this->render_honeypot( $form_id );
         }
 
-        // Form title.
-        if ( ! empty( $form['title'] ) ) {
+        // Form title (only if show_title setting is true).
+        $show_title = isset( $settings['show_title'] ) ? $settings['show_title'] : false;
+        if ( $show_title && ! empty( $form['title'] ) ) {
             $html .= sprintf(
                 '<h3 class="fre-form__title">%s</h3>',
                 esc_html( $form['title'] )

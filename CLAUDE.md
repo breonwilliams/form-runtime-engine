@@ -271,6 +271,7 @@ fre_register_form( 'contact', array(
         'submit_button_text' => 'Submit',           // Default: 'Submit'
         'success_message'    => 'Thank you!',       // Default: 'Thank you for your submission.'
         'redirect_url'       => null,               // URL to redirect after submission
+        'show_title'         => false,              // Display form title (default: false)
         'css_class'          => '',                 // Form CSS class
         'store_entries'      => true,               // Save to database
 
@@ -632,6 +633,99 @@ array(
 4. **File uploads** - Files are stored in `wp-content/uploads/fre-uploads/` with PHP execution disabled.
 
 5. **Email failures** - Failed emails retry automatically (5min, 30min, 2hr) up to 3 times.
+
+## Security Features
+
+### CSS Validation
+
+Custom CSS is validated and sanitized to prevent malicious code injection. The following patterns are **blocked**:
+
+| Pattern | Reason |
+|---------|--------|
+| `expression()` | IE JavaScript execution via CSS expressions |
+| `behavior:` | IE HTC files (HTML Components) |
+| `-moz-binding:` | Firefox XBL bindings |
+| `javascript:` | JavaScript URLs in CSS |
+| `@import` | External stylesheet loading (data exfiltration risk) |
+| `data:` | Data URIs (can contain embedded scripts) |
+| `vbscript:` | VBScript URLs |
+| `base64` | Base64 encoded content (often hides malicious code) |
+
+**Syntax Validation:**
+- Balanced braces `{ }` are required
+- Balanced parentheses `( )` are required
+- URLs with dangerous protocols are blocked
+
+**Example Errors:**
+```
+"CSS contains potentially unsafe pattern: expression()"
+"CSS contains potentially unsafe pattern: @import"
+"Invalid CSS syntax: unbalanced braces. Check that all { have matching }."
+```
+
+### JSON Schema Validation
+
+Form configurations are validated for structure and field types. This prevents invalid configurations and catches common errors early.
+
+**Validated:**
+- `fields` array is present and non-empty
+- Each field has required `key` and `type` properties
+- Field types are valid (text, email, tel, textarea, select, radio, checkbox, file, hidden, message, section)
+- No duplicate field keys
+- Select/radio fields have `options` array
+- Steps configuration (if multi-step form)
+
+**Warnings (non-fatal):**
+- Unknown field properties (logged but allowed for flexibility)
+- Unknown settings properties
+- Invalid condition rule structure
+- Fields referencing non-existent steps
+
+**Example Errors:**
+```
+"Field at index 2 is missing required 'key' property."
+"Invalid field type 'dropdown' for field 'country'. Valid types: text, email, tel, ..."
+"Duplicate field keys found: email, name"
+"Field 'service' requires an 'options' array."
+```
+
+### Allowed HTML in Message Fields
+
+The `message` field type supports HTML content for display. The HTML is sanitized using WordPress's `wp_kses_post()` which allows safe tags:
+
+**Allowed Tags:**
+- Headings: `<h1>` - `<h6>`
+- Paragraphs: `<p>`
+- Lists: `<ul>`, `<ol>`, `<li>`
+- Inline: `<strong>`, `<em>`, `<a>`, `<span>`, `<br>`
+- Structural: `<div>`, `<blockquote>`
+
+**Stripped:**
+- `<script>`, `<style>`, `<iframe>` tags
+- Event attributes (`onclick`, `onerror`, etc.)
+- JavaScript URLs in `href`
+
+### Spam Protection
+
+Built-in spam protection (enabled by default):
+- **Honeypot field** - Hidden field that bots fill out
+- **Timing check** - Rejects submissions faster than 3 seconds
+- **Rate limiting** - Max 5 submissions per hour per IP
+
+Configure in form settings:
+```php
+'settings' => array(
+    'spam_protection' => array(
+        'honeypot'            => true,
+        'timing_check'        => true,
+        'min_submission_time' => 3,
+        'rate_limit'          => array(
+            'max'    => 5,
+            'window' => 3600,
+        ),
+    ),
+),
+```
 
 ---
 

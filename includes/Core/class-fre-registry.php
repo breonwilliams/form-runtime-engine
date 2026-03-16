@@ -40,6 +40,7 @@ class FRE_Registry {
         'submit_button_text' => 'Submit',
         'success_message'    => 'Thank you for your submission.',
         'redirect_url'       => null,
+        'show_title'         => false,
         'notification'       => array(
             'enabled'   => true,
             'to'        => '{admin_email}',
