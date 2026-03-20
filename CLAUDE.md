@@ -369,6 +369,8 @@ array(
 | `multistep.show_progress` | `true` | Show progress indicator |
 | `multistep.progress_style` | `"steps"` | Progress style: `steps`, `bar`, or `dots` |
 | `multistep.validate_on_next` | `true` | Validate fields before next step |
+| `webhook_enabled` | `false` | Enable webhook for form submissions |
+| `webhook_url` | `null` | URL to send form data (Zapier, Make, etc.) |
 
 ### Full Settings Structure
 
@@ -410,9 +412,70 @@ fre_register_form( 'contact', array(
             'validate_on_next'  => true,            // Validate before proceeding
             'show_step_titles'  => false,           // Show step title in content
         ),
+
+        // Webhook Integration (Zapier, Make, etc.)
+        'webhook_enabled' => false,                 // Enable webhook dispatch
+        'webhook_url'     => '',                    // Endpoint URL (validated)
     ),
 ));
 ```
+
+### Webhook Configuration
+
+Enable webhooks to send form submissions to external services like Zapier, Make, or custom endpoints.
+
+**Admin UI:** Configure webhooks in the Forms Manager (Form Entries → Forms → Edit).
+
+**JSON Configuration:**
+```json
+{
+  "title": "Contact Form",
+  "fields": [...],
+  "settings": {
+    "webhook_enabled": true,
+    "webhook_url": "https://hooks.zapier.com/hooks/catch/..."
+  }
+}
+```
+
+**Webhook Payload Structure:**
+```json
+{
+  "event": "form_submission",
+  "timestamp": "2024-01-15T10:30:00+00:00",
+  "form": {
+    "id": "contact",
+    "title": "Contact Us"
+  },
+  "entry": {
+    "id": 123,
+    "submitted_at": "2024-01-15T10:30:00+00:00"
+  },
+  "data": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "message": "Hello..."
+  },
+  "files": [
+    {
+      "field_key": "resume",
+      "file_name": "resume.pdf",
+      "file_size": 12345,
+      "mime_type": "application/pdf"
+    }
+  ],
+  "site": {
+    "name": "My Website",
+    "url": "https://example.com"
+  }
+}
+```
+
+**Security Features:**
+- SSRF protection (blocks private IP ranges)
+- URL validation at save and dispatch time
+- Honeypot/timing fields filtered from payload
+- Non-blocking async dispatch
 
 ## Template Variables
 
@@ -438,6 +501,9 @@ do_action( 'fre_init', $plugin_instance );
 
 // After form registered
 do_action( 'fre_form_registered', $form_id, $config );
+
+// After form entry created (webhook dispatcher listens here)
+do_action( 'fre_entry_created', $entry_id, $form_id, $data );
 
 // After notification sent
 do_action( 'fre_notification_sent', $sent, $entry_id, $form_config, $entry_data );
@@ -602,6 +668,61 @@ These JSON examples are ready to paste into the admin UI.
     "success_message": "Your appointment request has been submitted. We'll confirm within 24 hours.",
     "notification": {
       "subject": "New Appointment Request for {field:appointment_date}",
+      "reply_to": "{field:email}"
+    }
+  }
+}
+```
+
+### Home Services Quote with Webhook
+This example shows webhook integration for routing leads to Zapier/Make:
+```json
+{
+  "title": "Request Service Quote",
+  "fields": [
+    {"key": "name", "type": "text", "label": "Name", "required": true},
+    {"key": "email", "type": "email", "label": "Email", "required": true},
+    {"key": "phone", "type": "tel", "label": "Phone", "required": true},
+    {
+      "key": "service",
+      "type": "select",
+      "label": "Service Needed",
+      "required": true,
+      "placeholder": "Select a service",
+      "options": [
+        {"value": "plumbing", "label": "Plumbing"},
+        {"value": "electrical", "label": "Electrical"},
+        {"value": "hvac", "label": "HVAC"},
+        {"value": "general", "label": "General Handyman"}
+      ]
+    },
+    {
+      "key": "urgency",
+      "type": "radio",
+      "label": "Urgency",
+      "inline": true,
+      "options": [
+        {"value": "emergency", "label": "Emergency (Today)"},
+        {"value": "soon", "label": "This Week"},
+        {"value": "flexible", "label": "Flexible"}
+      ]
+    },
+    {
+      "key": "address",
+      "type": "address",
+      "label": "Service Address",
+      "required": true,
+      "country_restriction": ["us"]
+    },
+    {"key": "details", "type": "textarea", "label": "Describe the Issue", "rows": 4}
+  ],
+  "settings": {
+    "submit_button_text": "Get Quote",
+    "success_message": "We'll contact you within 2 hours.",
+    "webhook_enabled": true,
+    "webhook_url": "https://hooks.zapier.com/hooks/catch/...",
+    "notification": {
+      "subject": "New {field:service} Request - {field:urgency}",
       "reply_to": "{field:email}"
     }
   }
@@ -1186,6 +1307,7 @@ Before outputting a form, verify:
 - [ ] Conditional logic references existing field keys in the `"field"` property
 - [ ] Column values are valid fractions: `1/2`, `1/3`, `2/3`, `1/4`, `3/4`
 - [ ] `show_title` is only set to `true` if the title should display above the form
+- [ ] Webhook URLs use HTTPS and are valid endpoints (Zapier, Make, custom)
 - [ ] JSON syntax is valid (no trailing commas, proper quotes)
 
 ### Common Mistakes to Avoid

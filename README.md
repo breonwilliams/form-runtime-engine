@@ -121,6 +121,10 @@ array(
             'window' => 3600,
         ),
     ),
+
+    // Webhook Integration
+    'webhook_enabled' => true,
+    'webhook_url'     => 'https://hooks.zapier.com/...',
 )
 ```
 
@@ -167,6 +171,16 @@ add_action( 'fre_form_registered', function( $form_id, $config ) {
 add_action( 'fre_notification_sent', function( $sent, $entry_id, $form_config, $entry_data ) {
     // ...
 }, 10, 4 );
+
+// After entry created (webhook triggers here)
+add_action( 'fre_entry_created', function( $entry_id, $form_id, $data ) {
+    // ...
+}, 10, 3 );
+
+// After webhook sent successfully
+add_action( 'fre_webhook_sent', function( $url, $payload, $entry_id, $form_id ) {
+    // ...
+}, 10, 4 );
 ```
 
 ### Filters
@@ -181,6 +195,11 @@ add_filter( 'fre_field_types', function( $types ) {
 // Modify email body
 add_filter( 'fre_notification_body', function( $body, $form_config, $entry_data, $entry_id ) {
     return $body;
+}, 10, 4 );
+
+// Modify webhook payload
+add_filter( 'fre_webhook_payload', function( $payload, $entry_id, $form_id, $data ) {
+    return $payload;
 }, 10, 4 );
 ```
 
@@ -204,6 +223,7 @@ fre(): Form_Runtime_Engine
 
 - AJAX form submission
 - Email notifications with retry queue
+- Webhook integration (Zapier, Make, custom endpoints)
 - File uploads with security protections
 - Spam protection (honeypot, timing check, rate limiting)
 - Entry storage and admin management
@@ -219,6 +239,7 @@ fre(): Form_Runtime_Engine
 - PHP execution disabled in upload directory
 - CSRF protection with nonces
 - Input sanitization and validation
+- Webhook SSRF protection (blocks private IP ranges)
 
 ## Changelog
 
