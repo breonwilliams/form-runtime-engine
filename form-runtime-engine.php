@@ -153,6 +153,9 @@ final class Form_Runtime_Engine {
         // Fix #1: Initialize email retry queue hooks.
         FRE_Email_Notification::init_hooks();
 
+        // Initialize webhook dispatcher.
+        FRE_Webhook_Dispatcher::init();
+
         // Initialize shortcode.
         new FRE_Shortcode();
 

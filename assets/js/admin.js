@@ -249,6 +249,25 @@
 
             // Copy shortcode button.
             $(document).on('click', '.fre-forms-copy-btn', this.handleCopy.bind(this));
+
+            // Webhook enable/disable toggle.
+            $('#fre-webhook-enabled').on('change', this.handleWebhookToggle.bind(this));
+        },
+
+        /**
+         * Handle webhook enable/disable toggle.
+         *
+         * @param {Event} e
+         */
+        handleWebhookToggle: function(e) {
+            var $checkbox = $(e.target);
+            var $urlWrapper = $('#fre-webhook-url-wrapper');
+
+            if ($checkbox.is(':checked')) {
+                $urlWrapper.slideDown(200);
+            } else {
+                $urlWrapper.slideUp(200);
+            }
         },
 
         /**
@@ -269,6 +288,8 @@
             var title = $('#fre-form-title').val().trim();
             var config = $('#fre-form-config').val().trim();
             var customCss = $('#fre-form-custom-css').val().trim();
+            var webhookEnabled = $('#fre-webhook-enabled').is(':checked');
+            var webhookUrl = $('#fre-webhook-url').val().trim();
 
             // Client-side validation.
             if (!formId) {
@@ -311,6 +332,15 @@
                 }
             }
 
+            // Validate webhook URL if enabled.
+            if (webhookEnabled) {
+                var webhookResult = this.validateWebhookUrl(webhookUrl);
+                if (!webhookResult.valid) {
+                    this.showNotice($notices, 'error', webhookResult.errors.join(' '));
+                    return;
+                }
+            }
+
             // Show loading state.
             $submitBtn.prop('disabled', true).text(freAdmin.strings.saving);
             $spinner.addClass('is-active');
@@ -326,7 +356,9 @@
                     form_id: formId,
                     title: title,
                     config: config,
-                    custom_css: customCss
+                    custom_css: customCss,
+                    webhook_enabled: webhookEnabled ? '1' : '0',
+                    webhook_url: webhookUrl
                 },
                 success: function(response) {
                     if (response.success) {
@@ -508,6 +540,65 @@
             var div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        },
+
+        /**
+         * Validate webhook URL.
+         *
+         * @param {string} url
+         * @return {object} Result with valid flag and errors array.
+         */
+        validateWebhookUrl: function(url) {
+            var result = {
+                valid: true,
+                errors: []
+            };
+
+            // URL is required when webhook is enabled.
+            if (!url || !url.trim()) {
+                result.valid = false;
+                result.errors.push('Webhook URL is required when webhook is enabled.');
+                return result;
+            }
+
+            url = url.trim().toLowerCase();
+
+            // Check URL format.
+            try {
+                var parsed = new URL(url);
+
+                // Must be http or https.
+                if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                    result.valid = false;
+                    result.errors.push('Webhook URL must use http:// or https://.');
+                    return result;
+                }
+
+                // Block localhost and loopback.
+                var blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+                if (blockedHosts.indexOf(parsed.hostname) !== -1) {
+                    result.valid = false;
+                    result.errors.push('Webhook URL cannot point to localhost or loopback addresses.');
+                    return result;
+                }
+
+                // Block private IP ranges (basic check).
+                var hostname = parsed.hostname;
+                if (/^10\./.test(hostname) ||
+                    /^192\.168\./.test(hostname) ||
+                    /^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)) {
+                    result.valid = false;
+                    result.errors.push('Webhook URL cannot point to private IP addresses.');
+                    return result;
+                }
+
+            } catch (e) {
+                result.valid = false;
+                result.errors.push('Invalid webhook URL format.');
+                return result;
+            }
+
+            return result;
         },
 
         /**

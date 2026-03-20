@@ -55,6 +55,10 @@ class FRE_Autoloader {
         'FRE_Rate_Limiter'           => 'Security/class-fre-rate-limiter.php',
         'FRE_CSS_Validator'          => 'Security/class-fre-css-validator.php',
         'FRE_JSON_Schema_Validator'  => 'Security/class-fre-json-schema-validator.php',
+        'FRE_Webhook_Validator'      => 'Security/class-fre-webhook-validator.php',
+
+        // Webhook classes.
+        'FRE_Webhook_Dispatcher'     => 'Webhooks/class-fre-webhook-dispatcher.php',
 
         // Upload classes.
         'FRE_Upload_Handler'      => 'Uploads/class-fre-upload-handler.php',

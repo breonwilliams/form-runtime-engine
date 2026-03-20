@@ -45,13 +45,15 @@ class FRE_Forms_Manager {
     /**
      * Save a form to database.
      *
-     * @param string $form_id     Form ID.
-     * @param string $title       Form title.
-     * @param string $json_config JSON configuration.
-     * @param string $custom_css  Custom CSS for the form.
+     * @param string $form_id         Form ID.
+     * @param string $title           Form title.
+     * @param string $json_config     JSON configuration.
+     * @param string $custom_css      Custom CSS for the form.
+     * @param bool   $webhook_enabled Whether webhook is enabled.
+     * @param string $webhook_url     Webhook URL.
      * @return array|WP_Error
      */
-    public static function save_form( $form_id, $title, $json_config, $custom_css = '' ) {
+    public static function save_form( $form_id, $title, $json_config, $custom_css = '', $webhook_enabled = false, $webhook_url = '' ) {
         // Validate form ID.
         if ( empty( $form_id ) ) {
             return new WP_Error( 'empty_id', __( 'Form ID is required.', 'form-runtime-engine' ) );
@@ -92,6 +94,19 @@ class FRE_Forms_Manager {
             $custom_css = FRE_CSS_Validator::sanitize( $custom_css );
         }
 
+        // Webhook URL validation (if enabled and URL provided).
+        $webhook_enabled = (bool) $webhook_enabled;
+        if ( $webhook_enabled && ! empty( $webhook_url ) ) {
+            $webhook_result = FRE_Webhook_Validator::validate_and_sanitize( $webhook_url );
+            if ( is_wp_error( $webhook_result ) ) {
+                return $webhook_result;
+            }
+            $webhook_url = $webhook_result;
+        } elseif ( ! $webhook_enabled ) {
+            // Clear URL if webhook is disabled.
+            $webhook_url = '';
+        }
+
         // Get existing forms.
         $forms  = self::get_forms();
         $is_new = ! isset( $forms[ $form_id ] );
@@ -103,12 +118,14 @@ class FRE_Forms_Manager {
 
         // Save form (CSS is already sanitized by FRE_CSS_Validator).
         $forms[ $form_id ] = array(
-            'id'         => $form_id,
-            'title'      => sanitize_text_field( $title ),
-            'config'     => $json_config,
-            'custom_css' => $custom_css,
-            'created'    => $is_new ? time() : ( $forms[ $form_id ]['created'] ?? time() ),
-            'modified'   => time(),
+            'id'              => $form_id,
+            'title'           => sanitize_text_field( $title ),
+            'config'          => $json_config,
+            'custom_css'      => $custom_css,
+            'webhook_enabled' => $webhook_enabled,
+            'webhook_url'     => $webhook_url,
+            'created'         => $is_new ? time() : ( $forms[ $form_id ]['created'] ?? time() ),
+            'modified'        => time(),
         );
 
         update_option( self::OPTION_KEY, $forms );
@@ -353,6 +370,42 @@ class FRE_Forms_Manager {
                                 </p>
                             </td>
                         </tr>
+                        <tr>
+                            <th scope="row">
+                                <?php esc_html_e( 'Webhook Integration', 'form-runtime-engine' ); ?>
+                            </th>
+                            <td>
+                                <fieldset>
+                                    <label for="fre-webhook-enabled">
+                                        <input
+                                            type="checkbox"
+                                            id="fre-webhook-enabled"
+                                            name="webhook_enabled"
+                                            value="1"
+                                            <?php checked( ! empty( $edit_form['webhook_enabled'] ) ); ?>
+                                        >
+                                        <?php esc_html_e( 'Enable webhook for this form', 'form-runtime-engine' ); ?>
+                                    </label>
+                                    <p class="description">
+                                        <?php esc_html_e( 'Send form submissions to an external service like Zapier, Make.com, or any webhook endpoint.', 'form-runtime-engine' ); ?>
+                                    </p>
+                                </fieldset>
+                                <div id="fre-webhook-url-wrapper" style="margin-top: 15px; <?php echo empty( $edit_form['webhook_enabled'] ) ? 'display: none;' : ''; ?>">
+                                    <label for="fre-webhook-url"><?php esc_html_e( 'Webhook URL', 'form-runtime-engine' ); ?></label>
+                                    <input
+                                        type="url"
+                                        id="fre-webhook-url"
+                                        name="webhook_url"
+                                        class="large-text"
+                                        value="<?php echo esc_url( $edit_form['webhook_url'] ?? '' ); ?>"
+                                        placeholder="https://hooks.zapier.com/..."
+                                    >
+                                    <p class="description">
+                                        <?php esc_html_e( 'Enter the full webhook URL. Must start with http:// or https://.', 'form-runtime-engine' ); ?>
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
                     </table>
 
                     <p class="submit">
@@ -417,12 +470,14 @@ class FRE_Forms_Manager {
 
         check_ajax_referer( 'fre_admin_nonce', 'nonce' );
 
-        $form_id    = isset( $_POST['form_id'] ) ? sanitize_key( $_POST['form_id'] ) : '';
-        $title      = isset( $_POST['title'] ) ? sanitize_text_field( $_POST['title'] ) : '';
-        $config     = isset( $_POST['config'] ) ? wp_unslash( $_POST['config'] ) : '';
-        $custom_css = isset( $_POST['custom_css'] ) ? wp_unslash( $_POST['custom_css'] ) : '';
+        $form_id         = isset( $_POST['form_id'] ) ? sanitize_key( $_POST['form_id'] ) : '';
+        $title           = isset( $_POST['title'] ) ? sanitize_text_field( $_POST['title'] ) : '';
+        $config          = isset( $_POST['config'] ) ? wp_unslash( $_POST['config'] ) : '';
+        $custom_css      = isset( $_POST['custom_css'] ) ? wp_unslash( $_POST['custom_css'] ) : '';
+        $webhook_enabled = isset( $_POST['webhook_enabled'] ) && $_POST['webhook_enabled'] === '1';
+        $webhook_url     = isset( $_POST['webhook_url'] ) ? esc_url_raw( wp_unslash( $_POST['webhook_url'] ) ) : '';
 
-        $result = self::save_form( $form_id, $title, $config, $custom_css );
+        $result = self::save_form( $form_id, $title, $config, $custom_css, $webhook_enabled, $webhook_url );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( array( 'message' => $result->get_error_message() ) );

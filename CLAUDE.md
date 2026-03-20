@@ -395,9 +395,23 @@ do_action( 'fre_notification_sent', $sent, $entry_id, $form_config, $entry_data 
 
 // Email permanently failed after retries
 do_action( 'fre_email_permanently_failed', $entry_id, $form_config );
+
+// After webhook sent successfully
+do_action( 'fre_webhook_sent', $url, $payload, $entry_id, $form_id );
+
+// When webhook request fails
+do_action( 'fre_webhook_failed', $wp_error, $url, $payload, $entry_id, $form_id );
 ```
 
 ### Filters
+
+```php
+// Modify webhook payload before sending
+$payload = apply_filters( 'fre_webhook_payload', $payload, $entry_id, $form_id, $data );
+
+// Modify webhook request arguments
+$args = apply_filters( 'fre_webhook_request_args', $args, $url, $payload, $entry_id, $form_id );
+```
 
 ```php
 // Modify valid field types
