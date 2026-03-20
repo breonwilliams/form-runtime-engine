@@ -348,6 +348,53 @@ array(
 | `step` | string | Key of step this field belongs to (multi-step forms) |
 | `conditions` | array | Conditional logic rules (see Conditional Logic) |
 
+## Field Naming Conventions
+
+For consistency across forms and reusable automations, use these standard field keys:
+
+### Contact Information
+| Data | Recommended Key | Avoid |
+|------|-----------------|-------|
+| Full name | `name` | `full_name`, `your_name`, `customer_name` |
+| First name | `first_name` | `fname`, `firstName` |
+| Last name | `last_name` | `lname`, `lastName` |
+| Email | `email` | `email_address`, `your_email` |
+| Phone | `phone` | `phone_number`, `tel`, `mobile` |
+
+### Address Fields
+| Data | Recommended Key |
+|------|-----------------|
+| Full address | `address` |
+| Street | `street` or `street_address` |
+| City | `city` |
+| State/Province | `state` |
+| ZIP/Postal | `zip` or `postal_code` |
+| Country | `country` |
+
+### Business/Service Fields
+| Data | Recommended Key |
+|------|-----------------|
+| Service type | `service` or `service_type` |
+| Budget range | `budget` |
+| Timeline | `timeline` |
+| Urgency | `urgency` |
+| Company name | `company` |
+
+### Common Patterns
+| Data | Recommended Key |
+|------|-----------------|
+| Message/Description | `message` or `details` |
+| How heard about us | `source` or `referral_source` |
+| Appointment date | `date` or `appointment_date` |
+| File upload | `file` or descriptive like `resume`, `documents` |
+
+> **Tip:** Prefer standard keys from this list. Only create custom keys when the data doesn't fit any standard pattern.
+
+**Why this matters:**
+- Zapier/Make automations can be reused across forms
+- Webhook payloads are predictable
+- AI-generated forms are consistent
+
 ## Form Settings
 
 ### Settings Defaults Quick Reference
@@ -1297,6 +1344,7 @@ When generating forms with Claude Code:
 Before outputting a form, verify:
 
 - [ ] Every field has a unique `key` (no duplicates)
+- [ ] Field keys use `snake_case` format (e.g., `first_name`, not `firstName` or `first-name`)
 - [ ] Every field has a `type` (valid: text, email, tel, textarea, select, radio, checkbox, file, hidden, message, section, date, address)
 - [ ] Select, radio, and checkbox-group fields have an `options` array
 - [ ] Date fields use YYYY-MM-DD format for `min`, `max`, and `default` values
