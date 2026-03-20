@@ -143,9 +143,47 @@ class FRE_Admin {
         $query     = new FRE_Entry_Query();
         $form_ids  = $query->get_form_ids();
 
+        // Check if filtering by form.
+        $current_form_id = isset( $_GET['form_id'] ) ? sanitize_key( $_GET['form_id'] ) : '';
+        $form_title      = '';
+
+        if ( $current_form_id ) {
+            $form = fre()->registry->get( $current_form_id );
+            $form_title = $form && ! empty( $form['title'] ) ? $form['title'] : $current_form_id;
+        }
+
         ?>
         <div class="wrap">
-            <h1 class="wp-heading-inline"><?php esc_html_e( 'Form Entries', 'form-runtime-engine' ); ?></h1>
+            <?php if ( $current_form_id ) : ?>
+                <h1 class="wp-heading-inline">
+                    <?php
+                    printf(
+                        /* translators: %s: form title */
+                        esc_html__( 'Entries for: %s', 'form-runtime-engine' ),
+                        esc_html( $form_title )
+                    );
+                    ?>
+                </h1>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-entries' ) ); ?>" class="page-title-action">
+                    <?php esc_html_e( 'View All Entries', 'form-runtime-engine' ); ?>
+                </a>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $current_form_id ) ); ?>" class="page-title-action">
+                    <?php esc_html_e( 'Edit Form', 'form-runtime-engine' ); ?>
+                </a>
+                <hr class="wp-header-end">
+
+                <!-- Tab navigation to match form edit page -->
+                <h2 class="nav-tab-wrapper fre-form-tabs">
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $current_form_id ) ); ?>" class="nav-tab">
+                        <?php esc_html_e( 'Settings', 'form-runtime-engine' ); ?>
+                    </a>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-entries&form_id=' . $current_form_id ) ); ?>" class="nav-tab nav-tab-active">
+                        <?php esc_html_e( 'Entries', 'form-runtime-engine' ); ?>
+                    </a>
+                </h2>
+            <?php else : ?>
+                <h1 class="wp-heading-inline"><?php esc_html_e( 'Form Entries', 'form-runtime-engine' ); ?></h1>
+            <?php endif; ?>
 
             <form method="get">
                 <input type="hidden" name="page" value="fre-entries" />
@@ -417,5 +455,39 @@ class FRE_Admin {
         } else {
             wp_send_json_error( array( 'message' => 'Failed to update entry' ) );
         }
+    }
+
+    /**
+     * Get entry counts grouped by form ID.
+     *
+     * Returns an array with total and unread counts for each form.
+     * Uses a single efficient query with GROUP BY.
+     *
+     * @return array Associative array keyed by form_id, each with 'total' and 'unread' counts.
+     */
+    public static function get_entry_counts_by_form() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'fre_entries';
+
+        $results = $wpdb->get_results(
+            "SELECT form_id,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'unread' THEN 1 ELSE 0 END) as unread
+             FROM {$table}
+             WHERE is_spam = 0
+             GROUP BY form_id",
+            ARRAY_A
+        );
+
+        $counts = array();
+        foreach ( $results as $row ) {
+            $counts[ $row['form_id'] ] = array(
+                'total'  => (int) $row['total'],
+                'unread' => (int) $row['unread'],
+            );
+        }
+
+        return $counts;
     }
 }

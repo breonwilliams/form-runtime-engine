@@ -72,7 +72,20 @@ class FRE_Entry_Detail {
             wp_die( esc_html__( 'Entry not found.', 'form-runtime-engine' ) );
         }
 
+        // Build back URL - preserve form_id filter if coming from filtered view.
         $back_url = admin_url( 'admin.php?page=fre-entries' );
+
+        // Check the referer for form_id filter.
+        $referer = isset( $_SERVER['HTTP_REFERER'] ) ? wp_unslash( $_SERVER['HTTP_REFERER'] ) : '';
+        if ( $referer && strpos( $referer, 'form_id=' ) !== false ) {
+            // Use the form_id from this entry.
+            $back_url = add_query_arg( 'form_id', $this->entry['form_id'], $back_url );
+        }
+
+        // Also check if form_id was passed directly in the URL.
+        if ( isset( $_GET['form_id'] ) ) {
+            $back_url = add_query_arg( 'form_id', sanitize_key( $_GET['form_id'] ), admin_url( 'admin.php?page=fre-entries' ) );
+        }
 
         ?>
         <div class="wrap">

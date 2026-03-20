@@ -35,8 +35,23 @@
    Entries List Table
    ========================================================================== */
 
-.column-id {
-    width: 60px;
+.column-entry {
+    width: 35%;
+}
+
+.column-entry .row-title {
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.column-entry .row-title:hover {
+    color: #2271b1;
+}
+
+.fre-entry-id {
+    color: #646970;
+    font-size: 13px;
+    margin-left: 4px;
 }
 
 .column-form_id {
@@ -56,18 +71,16 @@
     width: 120px;
 }
 
-.column-summary {
-    min-width: 200px;
-}
-
 /* Row actions */
 .wp-list-table .row-actions .fre-delete-entry,
-.wp-list-table .row-actions .fre-mark-spam {
+.wp-list-table .row-actions .fre-mark-spam,
+.wp-list-table .row-actions .submitdelete {
     color: #b32d2e;
 }
 
 .wp-list-table .row-actions .fre-delete-entry:hover,
-.wp-list-table .row-actions .fre-mark-spam:hover {
+.wp-list-table .row-actions .fre-mark-spam:hover,
+.wp-list-table .row-actions .submitdelete:hover {
     color: #a00;
 }
 
@@ -172,12 +185,22 @@
 }
 
 /* Table styles */
-.fre-forms-table .column-id {
-    width: 15%;
+.fre-forms-table .column-form {
+    width: 35%;
 }
 
-.fre-forms-table .column-title {
-    width: 20%;
+.fre-forms-table .column-form .row-title {
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.fre-forms-table .column-form .row-title:hover {
+    color: #2271b1;
+}
+
+.fre-forms-table .fre-form-id {
+    color: #646970;
+    font-size: 13px;
 }
 
 .fre-forms-table .column-shortcode {
@@ -185,10 +208,6 @@
 }
 
 .fre-forms-table .column-modified {
-    width: 15%;
-}
-
-.fre-forms-table .column-actions {
     width: 20%;
 }
 
@@ -217,25 +236,15 @@
     vertical-align: text-top;
 }
 
-.fre-forms-delete-btn {
-    color: #b32d2e !important;
+/* Row actions styling for forms table */
+.fre-forms-table .row-actions .delete a,
+.fre-forms-table .row-actions .submitdelete {
+    color: #b32d2e;
 }
 
-.fre-forms-delete-btn:hover {
-    color: #a00 !important;
-    border-color: #a00 !important;
-}
-
-.fre-forms-table .column-actions .button-small {
-    margin-right: 5px;
-}
-
-.fre-forms-table .column-actions .dashicons {
-    font-size: 14px;
-    width: 14px;
-    height: 14px;
-    vertical-align: text-top;
-    margin-right: 2px;
+.fre-forms-table .row-actions .delete a:hover,
+.fre-forms-table .row-actions .submitdelete:hover {
+    color: #a00;
 }
 
 /* Form styles */
@@ -328,4 +337,99 @@
     transform: translateX(-50%);
     border: 4px solid transparent;
     border-top-color: #1d2327;
+}
+
+/* ==========================================================================
+   Entry Count Badges
+   ========================================================================== */
+
+.fre-forms-table .column-entries {
+    width: 100px;
+}
+
+.fre-entry-count {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    text-decoration: none;
+}
+
+.fre-entry-count:hover {
+    text-decoration: none;
+}
+
+.fre-count-total {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.fre-entry-count:hover .fre-count-total {
+    color: #2271b1;
+}
+
+.fre-count-unread {
+    display: inline-block;
+    background-color: #0073aa;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 10px;
+    line-height: 1.4;
+}
+
+/* ==========================================================================
+   Form Edit Page Tabs
+   ========================================================================== */
+
+.fre-form-tabs {
+    margin: 15px 0 0;
+}
+
+.fre-form-tabs .nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fre-tab-count {
+    display: inline-block;
+    background-color: #e5e5e5;
+    color: #50575e;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 10px;
+    line-height: 1.4;
+}
+
+.nav-tab-active .fre-tab-count {
+    background-color: #0073aa;
+    color: #fff;
+}
+
+/* ==========================================================================
+   Entries Context Header
+   ========================================================================== */
+
+.fre-entries-context {
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    background: #f0f6fc;
+    border-left: 4px solid #72aee6;
+}
+
+.fre-entries-context .fre-context-title {
+    margin: 0 0 5px;
+    font-size: 14px;
+}
+
+.fre-entries-context .fre-context-links {
+    font-size: 13px;
+}
+
+.fre-entries-context .fre-context-links a {
+    margin-right: 10px;
 }

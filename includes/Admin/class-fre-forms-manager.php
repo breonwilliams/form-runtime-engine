@@ -191,6 +191,9 @@ class FRE_Forms_Manager {
         $is_add_view  = 'add' === $action;
         $is_edit_view = 'edit' === $action && $edit_form;
         $is_list_view = ! $is_add_view && ! $is_edit_view;
+
+        // Get entry counts for all forms (used in list and edit views).
+        $entry_counts = FRE_Admin::get_entry_counts_by_form();
         ?>
 
         <div class="wrap fre-forms-manager">
@@ -214,27 +217,55 @@ class FRE_Forms_Manager {
                     <table class="wp-list-table widefat fixed striped fre-forms-table">
                         <thead>
                             <tr>
-                                <th scope="col" class="column-id"><?php esc_html_e( 'ID', 'form-runtime-engine' ); ?></th>
-                                <th scope="col" class="column-title"><?php esc_html_e( 'Title', 'form-runtime-engine' ); ?></th>
+                                <th scope="col" class="column-form"><?php esc_html_e( 'Form', 'form-runtime-engine' ); ?></th>
                                 <th scope="col" class="column-shortcode"><?php esc_html_e( 'Shortcode', 'form-runtime-engine' ); ?></th>
+                                <th scope="col" class="column-entries"><?php esc_html_e( 'Entries', 'form-runtime-engine' ); ?></th>
                                 <th scope="col" class="column-modified"><?php esc_html_e( 'Modified', 'form-runtime-engine' ); ?></th>
-                                <th scope="col" class="column-actions"><?php esc_html_e( 'Actions', 'form-runtime-engine' ); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ( $forms as $form_id => $form ) : ?>
+                                <?php
+                                $counts       = isset( $entry_counts[ $form_id ] ) ? $entry_counts[ $form_id ] : array( 'total' => 0, 'unread' => 0 );
+                                $entries_url  = admin_url( 'admin.php?page=fre-entries&form_id=' . $form_id );
+                                $edit_url     = admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $form_id );
+                                $display_title = ! empty( $form['title'] ) ? $form['title'] : $form_id;
+                                ?>
                                 <tr data-form-id="<?php echo esc_attr( $form_id ); ?>">
-                                    <td class="column-id">
-                                        <strong><?php echo esc_html( $form_id ); ?></strong>
-                                    </td>
-                                    <td class="column-title">
-                                        <?php echo esc_html( $form['title'] ?: '—' ); ?>
+                                    <td class="column-form">
+                                        <strong>
+                                            <a href="<?php echo esc_url( $edit_url ); ?>" class="row-title">
+                                                <?php echo esc_html( $display_title ); ?>
+                                            </a>
+                                        </strong>
+                                        <?php if ( ! empty( $form['title'] ) ) : ?>
+                                            <span class="fre-form-id">— <?php echo esc_html( $form_id ); ?></span>
+                                        <?php endif; ?>
+                                        <div class="row-actions">
+                                            <span class="edit">
+                                                <a href="<?php echo esc_url( $edit_url ); ?>"><?php esc_html_e( 'Edit', 'form-runtime-engine' ); ?></a> |
+                                            </span>
+                                            <span class="entries">
+                                                <a href="<?php echo esc_url( $entries_url ); ?>"><?php esc_html_e( 'Entries', 'form-runtime-engine' ); ?></a> |
+                                            </span>
+                                            <span class="delete">
+                                                <a href="#" class="fre-forms-delete-btn submitdelete" data-form-id="<?php echo esc_attr( $form_id ); ?>"><?php esc_html_e( 'Delete', 'form-runtime-engine' ); ?></a>
+                                            </span>
+                                        </div>
                                     </td>
                                     <td class="column-shortcode">
                                         <code class="fre-forms-shortcode">[fre_form id="<?php echo esc_attr( $form_id ); ?>"]</code>
                                         <button type="button" class="button-link fre-forms-copy-btn" data-shortcode='[fre_form id="<?php echo esc_attr( $form_id ); ?>"]' title="<?php esc_attr_e( 'Copy to clipboard', 'form-runtime-engine' ); ?>">
                                             <span class="dashicons dashicons-clipboard"></span>
                                         </button>
+                                    </td>
+                                    <td class="column-entries">
+                                        <a href="<?php echo esc_url( $entries_url ); ?>" class="fre-entry-count">
+                                            <span class="fre-count-total"><?php echo (int) $counts['total']; ?></span>
+                                            <?php if ( $counts['unread'] > 0 ) : ?>
+                                                <span class="fre-count-unread"><?php echo (int) $counts['unread']; ?> <?php esc_html_e( 'new', 'form-runtime-engine' ); ?></span>
+                                            <?php endif; ?>
+                                        </a>
                                     </td>
                                     <td class="column-modified">
                                         <?php
@@ -244,16 +275,6 @@ class FRE_Forms_Manager {
                                             echo '—';
                                         }
                                         ?>
-                                    </td>
-                                    <td class="column-actions">
-                                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $form_id ) ); ?>" class="button button-small">
-                                            <span class="dashicons dashicons-edit"></span>
-                                            <?php esc_html_e( 'Edit', 'form-runtime-engine' ); ?>
-                                        </a>
-                                        <button type="button" class="button button-small fre-forms-delete-btn" data-form-id="<?php echo esc_attr( $form_id ); ?>">
-                                            <span class="dashicons dashicons-trash"></span>
-                                            <?php esc_html_e( 'Delete', 'form-runtime-engine' ); ?>
-                                        </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -276,6 +297,22 @@ class FRE_Forms_Manager {
                     <?php esc_html_e( 'Back to List', 'form-runtime-engine' ); ?>
                 </a>
                 <hr class="wp-header-end">
+
+                <?php if ( $is_edit_view ) : ?>
+                    <?php
+                    $edit_counts  = isset( $entry_counts[ $editing_id ] ) ? $entry_counts[ $editing_id ] : array( 'total' => 0, 'unread' => 0 );
+                    $edit_entries_url = admin_url( 'admin.php?page=fre-entries&form_id=' . $editing_id );
+                    ?>
+                    <h2 class="nav-tab-wrapper fre-form-tabs">
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $editing_id ) ); ?>" class="nav-tab nav-tab-active">
+                            <?php esc_html_e( 'Settings', 'form-runtime-engine' ); ?>
+                        </a>
+                        <a href="<?php echo esc_url( $edit_entries_url ); ?>" class="nav-tab">
+                            <?php esc_html_e( 'Entries', 'form-runtime-engine' ); ?>
+                            <span class="fre-tab-count"><?php echo (int) $edit_counts['total']; ?></span>
+                        </a>
+                    </h2>
+                <?php endif; ?>
 
                 <div id="fre-forms-notices"></div>
 

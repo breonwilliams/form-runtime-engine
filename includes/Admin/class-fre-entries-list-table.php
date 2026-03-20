@@ -55,9 +55,8 @@ class FRE_Entries_List_Table extends WP_List_Table {
     public function get_columns() {
         return array(
             'cb'           => '<input type="checkbox" />',
-            'id'           => __( 'ID', 'form-runtime-engine' ),
+            'entry'        => __( 'Entry', 'form-runtime-engine' ),
             'form_id'      => __( 'Form', 'form-runtime-engine' ),
-            'summary'      => __( 'Summary', 'form-runtime-engine' ),
             'status'       => __( 'Status', 'form-runtime-engine' ),
             'notification' => __( 'Email', 'form-runtime-engine' ),
             'created_at'   => __( 'Date', 'form-runtime-engine' ),
@@ -71,7 +70,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
      */
     public function get_sortable_columns() {
         return array(
-            'id'         => array( 'id', false ),
+            'entry'      => array( 'id', false ),
             'form_id'    => array( 'form_id', false ),
             'status'     => array( 'status', false ),
             'created_at' => array( 'created_at', true ),
@@ -103,30 +102,44 @@ class FRE_Entries_List_Table extends WP_List_Table {
     }
 
     /**
-     * ID column with view link.
+     * Entry column - combined summary, ID, and row actions.
      *
      * @param array $item Entry data.
      * @return string
      */
-    public function column_id( $item ) {
-        $view_url = add_query_arg(
-            array(
-                'page'     => 'fre-entry',
-                'entry_id' => $item['id'],
-            ),
-            admin_url( 'admin.php' )
+    public function column_entry( $item ) {
+        // Build view URL, preserving form_id filter if set.
+        $view_args = array(
+            'page'     => 'fre-entry',
+            'entry_id' => $item['id'],
         );
 
+        // Preserve form_id filter for back navigation.
+        if ( ! empty( $_GET['form_id'] ) ) {
+            $view_args['form_id'] = sanitize_key( $_GET['form_id'] );
+        }
+
+        $view_url = add_query_arg( $view_args, admin_url( 'admin.php' ) );
+
+        // Build summary content from preloaded metadata.
+        $fields = isset( $this->preloaded_meta[ $item['id'] ] )
+            ? $this->preloaded_meta[ $item['id'] ]
+            : array();
+
+        $summary_html = $this->build_entry_summary( $fields, $view_url );
+
+        // Entry ID (muted).
+        $entry_id_html = sprintf(
+            '<span class="fre-entry-id">#%d</span>',
+            (int) $item['id']
+        );
+
+        // Row actions.
         $actions = array(
             'view'   => sprintf(
                 '<a href="%s">%s</a>',
                 esc_url( $view_url ),
                 esc_html__( 'View', 'form-runtime-engine' )
-            ),
-            'delete' => sprintf(
-                '<a href="#" class="fre-delete-entry" data-entry-id="%d">%s</a>',
-                (int) $item['id'],
-                esc_html__( 'Delete', 'form-runtime-engine' )
             ),
         );
 
@@ -139,50 +152,29 @@ class FRE_Entries_List_Table extends WP_List_Table {
             );
         }
 
-        return sprintf(
-            '<a href="%s"><strong>#%d</strong></a>%s',
-            esc_url( $view_url ),
+        $actions['delete'] = sprintf(
+            '<a href="#" class="fre-delete-entry submitdelete" data-entry-id="%d">%s</a>',
             (int) $item['id'],
-            $this->row_actions( $actions )
+            esc_html__( 'Delete', 'form-runtime-engine' )
         );
+
+        return $summary_html . ' ' . $entry_id_html . $this->row_actions( $actions );
     }
 
     /**
-     * Form ID column.
+     * Build entry summary HTML from field data.
      *
-     * @param array $item Entry data.
+     * @param array  $fields   Field data.
+     * @param string $view_url URL to view the entry.
      * @return string
      */
-    public function column_form_id( $item ) {
-        $form = fre()->registry->get( $item['form_id'] );
-
-        if ( $form && ! empty( $form['title'] ) ) {
-            return esc_html( $form['title'] );
-        }
-
-        return sprintf(
-            '<code>%s</code>%s',
-            esc_html( $item['form_id'] ),
-            $form ? '' : ' <em>(' . esc_html__( 'deleted', 'form-runtime-engine' ) . ')</em>'
-        );
-    }
-
-    /**
-     * Summary column - show first few field values.
-     *
-     * Performance fix: Uses preloaded metadata instead of per-row queries.
-     *
-     * @param array $item Entry data.
-     * @return string
-     */
-    public function column_summary( $item ) {
-        // Use preloaded metadata to avoid N+1 query problem.
-        $fields = isset( $this->preloaded_meta[ $item['id'] ] )
-            ? $this->preloaded_meta[ $item['id'] ]
-            : array();
-
+    private function build_entry_summary( $fields, $view_url ) {
         if ( empty( $fields ) ) {
-            return '<em>' . esc_html__( 'No data', 'form-runtime-engine' ) . '</em>';
+            return sprintf(
+                '<a class="row-title" href="%s"><em>%s</em></a>',
+                esc_url( $view_url ),
+                esc_html__( 'No data', 'form-runtime-engine' )
+            );
         }
 
         $summary = array();
@@ -206,16 +198,49 @@ class FRE_Entries_List_Table extends WP_List_Table {
             }
 
             if ( ! empty( $value ) ) {
-                $summary[] = sprintf(
-                    '<strong>%s:</strong> %s',
-                    esc_html( ucfirst( str_replace( '_', ' ', $key ) ) ),
-                    esc_html( $value )
-                );
+                $label = ucfirst( str_replace( '_', ' ', $key ) );
+
+                if ( $count === 0 ) {
+                    // First field: make it the clickable title.
+                    $summary[] = sprintf(
+                        '<a class="row-title" href="%s"><strong>%s:</strong> %s</a>',
+                        esc_url( $view_url ),
+                        esc_html( $label ),
+                        esc_html( $value )
+                    );
+                } else {
+                    // Subsequent fields: regular text.
+                    $summary[] = sprintf(
+                        '<strong>%s:</strong> %s',
+                        esc_html( $label ),
+                        esc_html( $value )
+                    );
+                }
                 $count++;
             }
         }
 
         return implode( '<br>', $summary );
+    }
+
+    /**
+     * Form ID column.
+     *
+     * @param array $item Entry data.
+     * @return string
+     */
+    public function column_form_id( $item ) {
+        $form = fre()->registry->get( $item['form_id'] );
+
+        if ( $form && ! empty( $form['title'] ) ) {
+            return esc_html( $form['title'] );
+        }
+
+        return sprintf(
+            '<code>%s</code>%s',
+            esc_html( $item['form_id'] ),
+            $form ? '' : ' <em>(' . esc_html__( 'deleted', 'form-runtime-engine' ) . ')</em>'
+        );
     }
 
     /**
