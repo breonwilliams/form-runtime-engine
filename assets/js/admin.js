@@ -173,6 +173,77 @@
     });
 
     /**
+     * Settings page handler.
+     */
+    const FRESettings = {
+        /**
+         * Initialize settings functionality.
+         */
+        init: function() {
+            this.bindEvents();
+        },
+
+        /**
+         * Bind event handlers.
+         */
+        bindEvents: function() {
+            // Test API key button.
+            $(document).on('click', '#fre-test-api-key', this.handleTestApiKey.bind(this));
+
+            // Clear status when API key input changes.
+            $(document).on('input', '#fre_google_places_api_key', function() {
+                $('#fre-api-key-status').html('').removeClass('success error');
+            });
+        },
+
+        /**
+         * Handle test API key button click.
+         *
+         * @param {Event} e
+         */
+        handleTestApiKey: function(e) {
+            e.preventDefault();
+
+            var $btn = $(e.currentTarget);
+            var $status = $('#fre-api-key-status');
+            var apiKey = $('#fre_google_places_api_key').val().trim();
+            var originalText = $btn.text();
+
+            // Show loading state.
+            $btn.prop('disabled', true).text(freAdmin.strings.testing);
+            $status.html('').removeClass('success error');
+
+            $.ajax({
+                url: freAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'fre_test_google_api_key',
+                    api_key: apiKey,
+                    nonce: freAdmin.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $status.addClass('success').html('<span class="dashicons dashicons-yes-alt"></span> ' + response.data.message);
+                    } else {
+                        $status.addClass('error').html('<span class="dashicons dashicons-dismiss"></span> ' + response.data.message);
+                    }
+                },
+                error: function() {
+                    $status.addClass('error').html('<span class="dashicons dashicons-dismiss"></span> ' + freAdmin.strings.connectionError);
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).text(freAdmin.strings.testConnection);
+                }
+            });
+        }
+    };
+
+    // Initialize Settings on document ready.
+    $(document).ready(function() {
+        FRESettings.init();
+    });
+
+    /**
      * Forms Manager handler.
      */
     const FREFormsManager = {
@@ -675,7 +746,8 @@
 
             var validFieldTypes = [
                 'text', 'email', 'tel', 'textarea', 'select',
-                'radio', 'checkbox', 'file', 'hidden', 'message', 'section'
+                'radio', 'checkbox', 'file', 'hidden', 'message', 'section',
+                'date', 'address'
             ];
 
             // Must be an object.

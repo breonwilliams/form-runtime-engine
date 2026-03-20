@@ -272,6 +272,8 @@ class FRE_Registry {
             'hidden',
             'message',
             'section',
+            'date',
+            'address',
         );
 
         /**

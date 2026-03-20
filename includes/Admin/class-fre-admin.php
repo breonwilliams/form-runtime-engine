@@ -34,6 +34,9 @@ class FRE_Admin {
         // AJAX handlers for forms management.
         add_action( 'wp_ajax_fre_save_form', array( 'FRE_Forms_Manager', 'ajax_save_form' ) );
         add_action( 'wp_ajax_fre_delete_form', array( 'FRE_Forms_Manager', 'ajax_delete_form' ) );
+
+        // AJAX handler for API key testing.
+        add_action( 'wp_ajax_fre_test_google_api_key', array( $this, 'ajax_test_google_api_key' ) );
     }
 
     /**
@@ -144,6 +147,10 @@ class FRE_Admin {
         <button type="button" class="button fre-toggle-api-key" data-target="fre_google_places_api_key">
             <?php esc_html_e( 'Show', 'form-runtime-engine' ); ?>
         </button>
+        <button type="button" class="button fre-test-api-key" id="fre-test-api-key">
+            <?php esc_html_e( 'Test Connection', 'form-runtime-engine' ); ?>
+        </button>
+        <span id="fre-api-key-status" class="fre-api-key-status"></span>
         <p class="description">
             <?php
             printf(
@@ -241,6 +248,10 @@ class FRE_Admin {
                 'deleting'           => __( 'Deleting...', 'form-runtime-engine' ),
                 'formIdRequired'     => __( 'Form ID is required.', 'form-runtime-engine' ),
                 'configRequired'     => __( 'Configuration is required.', 'form-runtime-engine' ),
+                // API key testing strings.
+                'testing'            => __( 'Testing...', 'form-runtime-engine' ),
+                'testConnection'     => __( 'Test Connection', 'form-runtime-engine' ),
+                'connectionError'    => __( 'Connection error. Please try again.', 'form-runtime-engine' ),
             ),
         ) );
     }
@@ -608,5 +619,113 @@ class FRE_Admin {
         }
 
         return $counts;
+    }
+
+    /**
+     * AJAX: Test Google Places API key.
+     */
+    public function ajax_test_google_api_key() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
+        }
+
+        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+
+        $api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
+
+        if ( empty( $api_key ) ) {
+            wp_send_json_error( array( 'message' => __( 'Please enter an API key.', 'form-runtime-engine' ) ) );
+        }
+
+        // Test the API key with Google Places Find Place From Text endpoint.
+        $test_url = add_query_arg(
+            array(
+                'input'     => 'New York',
+                'inputtype' => 'textquery',
+                'fields'    => 'place_id',
+                'key'       => $api_key,
+            ),
+            'https://maps.googleapis.com/maps/api/place/findplacefromtext/json'
+        );
+
+        $response = wp_remote_get( $test_url, array( 'timeout' => 15 ) );
+
+        if ( is_wp_error( $response ) ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'Could not connect to Google API. Please check your server\'s internet connection.', 'form-runtime-engine' ),
+                )
+            );
+        }
+
+        $body = wp_remote_retrieve_body( $response );
+        $data = json_decode( $body, true );
+
+        if ( ! $data ) {
+            wp_send_json_error(
+                array(
+                    'message' => __( 'Invalid response from Google API.', 'form-runtime-engine' ),
+                )
+            );
+        }
+
+        $status = isset( $data['status'] ) ? $data['status'] : '';
+
+        switch ( $status ) {
+            case 'OK':
+            case 'ZERO_RESULTS':
+                // Both indicate a valid, working API key.
+                wp_send_json_success(
+                    array(
+                        'message' => __( 'API key is valid and working.', 'form-runtime-engine' ),
+                    )
+                );
+                break;
+
+            case 'REQUEST_DENIED':
+                $error_message = isset( $data['error_message'] ) ? $data['error_message'] : '';
+
+                if ( strpos( $error_message, 'not authorized' ) !== false || strpos( $error_message, 'API key' ) !== false ) {
+                    wp_send_json_error(
+                        array(
+                            'message' => __( 'Invalid API key or Places API not enabled for this key.', 'form-runtime-engine' ),
+                        )
+                    );
+                } else {
+                    wp_send_json_error(
+                        array(
+                            /* translators: %s: error message from Google API */
+                            'message' => sprintf( __( 'Request denied: %s', 'form-runtime-engine' ), $error_message ),
+                        )
+                    );
+                }
+                break;
+
+            case 'OVER_QUERY_LIMIT':
+                wp_send_json_error(
+                    array(
+                        'message' => __( 'API key works but you have exceeded your quota. Check your Google Cloud billing.', 'form-runtime-engine' ),
+                    )
+                );
+                break;
+
+            case 'INVALID_REQUEST':
+                wp_send_json_error(
+                    array(
+                        'message' => __( 'Invalid request. The API key may be malformed.', 'form-runtime-engine' ),
+                    )
+                );
+                break;
+
+            default:
+                $error_message = isset( $data['error_message'] ) ? $data['error_message'] : $status;
+                wp_send_json_error(
+                    array(
+                        /* translators: %s: error status or message from Google API */
+                        'message' => sprintf( __( 'API error: %s', 'form-runtime-engine' ), $error_message ),
+                    )
+                );
+                break;
+        }
     }
 }
