@@ -691,6 +691,99 @@
 }
 
 /* ==========================================================================
+   Date Field
+   ========================================================================== */
+
+.fre-field__input--date {
+    /* Ensure consistent styling across browsers */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    position: relative;
+}
+
+/* Calendar icon for WebKit browsers */
+.fre-field__input--date::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+}
+
+.fre-field__input--date::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* Prevent date picker from being too narrow */
+.fre-field__input--date {
+    min-width: 150px;
+}
+
+/* ==========================================================================
+   Address Field
+   ========================================================================== */
+
+.fre-field__input--address {
+    /* Ensure autocomplete dropdown appears correctly */
+    position: relative;
+}
+
+/* Google Places Autocomplete dropdown styling */
+.pac-container {
+    font-family: inherit;
+    font-size: var(--fre-font-size, 16px);
+    border-radius: var(--fre-border-radius, 4px);
+    border: 1px solid var(--fre-border-color, #ddd);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-top: 2px;
+    z-index: 10000;
+}
+
+.pac-container .pac-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-top: 1px solid #f0f0f0;
+    transition: background-color 0.15s ease;
+}
+
+.pac-container .pac-item:first-child {
+    border-top: none;
+}
+
+.pac-container .pac-item:hover,
+.pac-container .pac-item.pac-item-selected {
+    background-color: #f5f5f5;
+}
+
+.pac-container .pac-item-query {
+    font-weight: 500;
+    color: #333;
+}
+
+.pac-container .pac-matched {
+    font-weight: 600;
+}
+
+/* Address field warning message */
+.fre-field__warning {
+    margin: 8px 0 0;
+    padding: 8px 12px;
+    font-size: 0.875em;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: var(--fre-border-radius, 4px);
+    color: #856404;
+}
+
+.fre-field__warning a {
+    color: #856404;
+    font-weight: 500;
+}
+
+.fre-field__warning a:hover {
+    color: #533f03;
+}
+
+/* ==========================================================================
    Responsive
    ========================================================================== */
 

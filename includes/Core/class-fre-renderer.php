@@ -57,6 +57,9 @@ class FRE_Renderer {
         // Enqueue assets.
         $this->enqueue_assets();
 
+        // Enqueue field-type-specific scripts (e.g., Google Places API for address fields).
+        $this->enqueue_field_type_scripts( $form );
+
         // Build form HTML.
         $html = $this->build_form( $form, $args );
 
@@ -895,6 +898,33 @@ class FRE_Renderer {
     private function enqueue_assets() {
         wp_enqueue_style( 'fre-frontend' );
         wp_enqueue_script( 'fre-frontend' );
+    }
+
+    /**
+     * Enqueue scripts for specific field types.
+     *
+     * @param array $form Form configuration.
+     */
+    private function enqueue_field_type_scripts( array $form ) {
+        // Check for address fields and enqueue Google Places API.
+        if ( $this->has_address_field( $form ) ) {
+            FRE_Field_Address::enqueue_scripts();
+        }
+    }
+
+    /**
+     * Check if form has address fields.
+     *
+     * @param array $form Form configuration.
+     * @return bool
+     */
+    private function has_address_field( array $form ) {
+        foreach ( $form['fields'] as $field ) {
+            if ( isset( $field['type'] ) && $field['type'] === 'address' ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

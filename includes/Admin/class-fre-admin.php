@@ -23,6 +23,7 @@ class FRE_Admin {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
         add_action( 'admin_notices', array( $this, 'admin_notices' ) );
         add_action( 'admin_init', array( $this, 'handle_actions' ) );
+        add_action( 'admin_init', array( $this, 'register_settings' ) );
 
         // AJAX handlers for entries.
         add_action( 'wp_ajax_fre_mark_read', array( $this, 'ajax_mark_read' ) );
@@ -79,6 +80,124 @@ class FRE_Admin {
             'fre-forms',
             array( 'FRE_Forms_Manager', 'render_page' )
         );
+
+        // Settings page.
+        add_submenu_page(
+            'fre-entries',
+            __( 'Settings', 'form-runtime-engine' ),
+            __( 'Settings', 'form-runtime-engine' ),
+            'manage_options',
+            'fre-settings',
+            array( $this, 'render_settings_page' )
+        );
+    }
+
+    /**
+     * Register plugin settings.
+     */
+    public function register_settings() {
+        register_setting(
+            'fre_settings',
+            'fre_google_places_api_key',
+            array(
+                'type'              => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default'           => '',
+            )
+        );
+
+        add_settings_section(
+            'fre_api_keys_section',
+            __( 'API Keys', 'form-runtime-engine' ),
+            array( $this, 'render_api_keys_section' ),
+            'fre-settings'
+        );
+
+        add_settings_field(
+            'fre_google_places_api_key',
+            __( 'Google Places API Key', 'form-runtime-engine' ),
+            array( $this, 'render_google_places_api_key_field' ),
+            'fre-settings',
+            'fre_api_keys_section'
+        );
+    }
+
+    /**
+     * Render API keys section description.
+     */
+    public function render_api_keys_section() {
+        echo '<p>' . esc_html__( 'Configure API keys for advanced form field features.', 'form-runtime-engine' ) . '</p>';
+    }
+
+    /**
+     * Render Google Places API key field.
+     */
+    public function render_google_places_api_key_field() {
+        $value = get_option( 'fre_google_places_api_key', '' );
+        ?>
+        <input type="password"
+               id="fre_google_places_api_key"
+               name="fre_google_places_api_key"
+               value="<?php echo esc_attr( $value ); ?>"
+               class="regular-text"
+               autocomplete="off" />
+        <button type="button" class="button fre-toggle-api-key" data-target="fre_google_places_api_key">
+            <?php esc_html_e( 'Show', 'form-runtime-engine' ); ?>
+        </button>
+        <p class="description">
+            <?php
+            printf(
+                /* translators: %s: link to Google Cloud Console */
+                esc_html__( 'Required for address autocomplete fields. Get an API key from the %s.', 'form-runtime-engine' ),
+                '<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">' .
+                esc_html__( 'Google Cloud Console', 'form-runtime-engine' ) .
+                '</a>'
+            );
+            ?>
+        </p>
+        <p class="description">
+            <?php esc_html_e( 'Make sure to enable the Places API and Maps JavaScript API for your project.', 'form-runtime-engine' ); ?>
+        </p>
+        <?php
+    }
+
+    /**
+     * Render settings page.
+     */
+    public function render_settings_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
+        }
+
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e( 'Form Runtime Engine Settings', 'form-runtime-engine' ); ?></h1>
+
+            <form method="post" action="options.php">
+                <?php
+                settings_fields( 'fre_settings' );
+                do_settings_sections( 'fre-settings' );
+                submit_button();
+                ?>
+            </form>
+        </div>
+
+        <script>
+        jQuery(document).ready(function($) {
+            $('.fre-toggle-api-key').on('click', function() {
+                var $btn = $(this);
+                var $input = $('#' + $btn.data('target'));
+                if ($input.attr('type') === 'password') {
+                    $input.attr('type', 'text');
+                    $btn.text('<?php echo esc_js( __( 'Hide', 'form-runtime-engine' ) ); ?>');
+                } else {
+                    $input.attr('type', 'password');
+                    $btn.text('<?php echo esc_js( __( 'Show', 'form-runtime-engine' ) ); ?>');
+                }
+            });
+        });
+        </script>
+        <?php
     }
 
     /**

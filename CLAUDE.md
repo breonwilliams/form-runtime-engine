@@ -278,6 +278,55 @@ array(
 ```
 Fields belong to a section via the `section` attribute (see Advanced Layout Features).
 
+### date
+Native HTML5 date picker input.
+```php
+array(
+    'key'         => 'appointment_date',
+    'type'        => 'date',
+    'label'       => 'Appointment Date',
+    'required'    => true,
+    'min'         => '2024-01-01',           // Minimum allowed date (YYYY-MM-DD)
+    'max'         => '2025-12-31',           // Maximum allowed date (YYYY-MM-DD)
+    'default'     => '',                      // Default value (YYYY-MM-DD)
+    'description' => 'Select your preferred date',
+)
+```
+**Notes:**
+- Uses native HTML5 date input with browser-native date picker
+- Mobile-friendly with native date picker on iOS/Android
+- Dates are stored in YYYY-MM-DD format
+- Min/max validation is performed both client-side and server-side
+
+### address
+Address input with Google Places autocomplete.
+```php
+array(
+    'key'                 => 'property_address',
+    'type'                => 'address',
+    'label'               => 'Property Address',
+    'required'            => true,
+    'placeholder'         => 'Start typing an address...',
+    'country_restriction' => array( 'us', 'ca' ),  // ISO country codes (optional)
+    'description'         => 'Start typing to see suggestions',
+)
+```
+**Notes:**
+- Requires Google Places API key (Settings → Form Entries → Settings)
+- Automatically stores parsed address components in hidden fields:
+  - `{field_key}_street_number`, `{field_key}_route`, `{field_key}_locality`
+  - `{field_key}_administrative_area_level_1`, `{field_key}_postal_code`, `{field_key}_country`
+  - `{field_key}_formatted_address`, `{field_key}_lat`, `{field_key}_lng`
+- Shows a warning message to admins if no API key is configured
+- Country restriction accepts ISO 3166-1 alpha-2 codes (e.g., `us`, `ca`, `gb`)
+
+**Setting up Google Places API:**
+1. Go to WordPress Admin → Form Entries → Settings
+2. Enter your Google Places API key
+3. In Google Cloud Console, enable:
+   - Places API
+   - Maps JavaScript API
+
 ## Common Field Options
 
 | Option | Type | Description |
@@ -517,6 +566,45 @@ These JSON examples are ready to paste into the admin UI.
     {"key": "city", "type": "text", "label": "City", "section": "address_info", "column": "1/2"},
     {"key": "zip", "type": "text", "label": "ZIP Code", "section": "address_info", "column": "1/2"}
   ]
+}
+```
+
+### Appointment Booking Form (with Date and Address)
+```json
+{
+  "title": "Book an Appointment",
+  "fields": [
+    {"key": "name", "type": "text", "label": "Full Name", "required": true},
+    {"key": "email", "type": "email", "label": "Email", "required": true},
+    {"key": "phone", "type": "tel", "label": "Phone Number", "required": true},
+    {
+      "key": "appointment_date",
+      "type": "date",
+      "label": "Preferred Date",
+      "required": true,
+      "min": "2024-01-01",
+      "max": "2025-12-31",
+      "description": "Select a date for your appointment"
+    },
+    {
+      "key": "service_address",
+      "type": "address",
+      "label": "Service Address",
+      "required": true,
+      "placeholder": "Start typing your address...",
+      "country_restriction": ["us"],
+      "description": "Where should we come?"
+    },
+    {"key": "notes", "type": "textarea", "label": "Additional Notes", "rows": 4}
+  ],
+  "settings": {
+    "submit_button_text": "Book Appointment",
+    "success_message": "Your appointment request has been submitted. We'll confirm within 24 hours.",
+    "notification": {
+      "subject": "New Appointment Request for {field:appointment_date}",
+      "reply_to": "{field:email}"
+    }
+  }
 }
 ```
 
@@ -1005,7 +1093,7 @@ Form configurations are validated for structure and field types. This prevents i
 **Validated:**
 - `fields` array is present and non-empty
 - Each field has required `key` and `type` properties
-- Field types are valid (text, email, tel, textarea, select, radio, checkbox, file, hidden, message, section)
+- Field types are valid (text, email, tel, textarea, select, radio, checkbox, file, hidden, message, section, date, address)
 - No duplicate field keys
 - Select/radio fields have `options` array
 - Steps configuration (if multi-step form)
@@ -1088,8 +1176,10 @@ When generating forms with Claude Code:
 Before outputting a form, verify:
 
 - [ ] Every field has a unique `key` (no duplicates)
-- [ ] Every field has a `type` (valid: text, email, tel, textarea, select, radio, checkbox, file, hidden, message, section)
+- [ ] Every field has a `type` (valid: text, email, tel, textarea, select, radio, checkbox, file, hidden, message, section, date, address)
 - [ ] Select, radio, and checkbox-group fields have an `options` array
+- [ ] Date fields use YYYY-MM-DD format for `min`, `max`, and `default` values
+- [ ] Address fields require Google Places API key to be configured in plugin settings
 - [ ] Multi-step forms have a `steps` array at the top level
 - [ ] Each field in a multi-step form has `"step": "step_key"` matching a defined step
 - [ ] Sections are defined (type: section) before fields reference them with `"section": "section_key"`

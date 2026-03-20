@@ -892,4 +892,164 @@
     // Expose for external use.
     window.FREForm = FREForm;
 
+    /**
+     * Initialize address autocomplete fields.
+     * Called by Google Maps API callback.
+     */
+    function initAddressFields() {
+        const addressFields = document.querySelectorAll('[data-fre-address="true"]');
+
+        if (addressFields.length === 0) {
+            return;
+        }
+
+        // Check if Google Places API is available.
+        if (typeof google === 'undefined' || typeof google.maps === 'undefined' || typeof google.maps.places === 'undefined') {
+            console.warn('FRE: Google Places API not loaded');
+            return;
+        }
+
+        addressFields.forEach(field => {
+            initAddressAutocomplete(field);
+        });
+    }
+
+    /**
+     * Initialize autocomplete on a single address field.
+     *
+     * @param {HTMLInputElement} input - The address input field.
+     */
+    function initAddressAutocomplete(input) {
+        // Skip if already initialized.
+        if (input.dataset.freAddressInitialized === 'true') {
+            return;
+        }
+
+        const options = {
+            types: ['address'],
+            fields: [
+                'address_components',
+                'formatted_address',
+                'geometry'
+            ]
+        };
+
+        // Country restrictions.
+        const countryRestriction = input.dataset.countryRestriction;
+        if (countryRestriction) {
+            try {
+                const countries = JSON.parse(countryRestriction);
+                if (Array.isArray(countries) && countries.length > 0) {
+                    options.componentRestrictions = { country: countries };
+                }
+            } catch (e) {
+                console.warn('FRE: Invalid country restriction format', e);
+            }
+        }
+
+        // Create autocomplete instance.
+        const autocomplete = new google.maps.places.Autocomplete(input, options);
+
+        // Handle place selection.
+        autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (!place.address_components) {
+                return;
+            }
+
+            // Update the main input with formatted address.
+            input.value = place.formatted_address || '';
+
+            // Populate hidden component fields.
+            populateAddressComponents(input, place);
+
+            // Trigger change event for conditional logic.
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        // Mark as initialized.
+        input.dataset.freAddressInitialized = 'true';
+    }
+
+    /**
+     * Populate hidden address component fields.
+     *
+     * @param {HTMLInputElement} input - The address input field.
+     * @param {Object} place - Google Place object.
+     */
+    function populateAddressComponents(input, place) {
+        const fieldKey = input.name.replace('fre_field_', '');
+        const form = input.closest('.fre-form');
+
+        if (!form) return;
+
+        // Component mapping from Google Places to our field names.
+        const componentMap = {
+            'street_number': { types: ['street_number'], property: 'long_name' },
+            'route': { types: ['route'], property: 'long_name' },
+            'locality': { types: ['locality', 'postal_town'], property: 'long_name' },
+            'administrative_area_level_1': { types: ['administrative_area_level_1'], property: 'short_name' },
+            'postal_code': { types: ['postal_code'], property: 'long_name' },
+            'country': { types: ['country'], property: 'short_name' }
+        };
+
+        // Extract components from place data.
+        const components = {};
+        if (place.address_components) {
+            place.address_components.forEach(component => {
+                const type = component.types[0];
+                components[type] = {
+                    long_name: component.long_name,
+                    short_name: component.short_name
+                };
+            });
+        }
+
+        // Populate hidden fields.
+        Object.entries(componentMap).forEach(([fieldName, config]) => {
+            const hiddenField = form.querySelector(`[name="fre_field_${fieldKey}_${fieldName}"]`);
+            if (hiddenField) {
+                let value = '';
+                for (const type of config.types) {
+                    if (components[type]) {
+                        value = components[type][config.property] || '';
+                        break;
+                    }
+                }
+                hiddenField.value = value;
+            }
+        });
+
+        // Populate formatted address.
+        const formattedField = form.querySelector(`[name="fre_field_${fieldKey}_formatted_address"]`);
+        if (formattedField) {
+            formattedField.value = place.formatted_address || '';
+        }
+
+        // Populate lat/lng if geometry is available.
+        if (place.geometry && place.geometry.location) {
+            const latField = form.querySelector(`[name="fre_field_${fieldKey}_lat"]`);
+            const lngField = form.querySelector(`[name="fre_field_${fieldKey}_lng"]`);
+
+            if (latField) {
+                latField.value = place.geometry.location.lat();
+            }
+            if (lngField) {
+                lngField.value = place.geometry.location.lng();
+            }
+        }
+    }
+
+    // Expose address initialization for Google Maps callback.
+    window.freInitAddressFields = initAddressFields;
+
+    // Also try to initialize if Google Maps is already loaded.
+    if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAddressFields);
+        } else {
+            initAddressFields();
+        }
+    }
+
 })();

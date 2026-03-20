@@ -54,6 +54,21 @@ class FRE_Webhook_Dispatcher {
             return;
         }
 
+        // Re-validate URL at dispatch time (defense against DNS rebinding attacks).
+        // URL was validated at save time, but DNS could have changed since then.
+        $validation = FRE_Webhook_Validator::validate( $webhook_url );
+        if ( is_wp_error( $validation ) ) {
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( sprintf(
+                    'FRE Webhook blocked [form: %s, entry: %d]: %s',
+                    $form_id,
+                    $entry_id,
+                    $validation->get_error_message()
+                ) );
+            }
+            return;
+        }
+
         // Build the payload.
         $payload = self::build_payload( $entry_id, $form_id, $data, $form_data );
 
@@ -204,7 +219,7 @@ class FRE_Webhook_Dispatcher {
         $args = array(
             'method'      => 'POST',
             'timeout'     => self::TIMEOUT,
-            'redirection' => 5,
+            'redirection' => 0, // Disable redirects to prevent redirect-based SSRF attacks.
             'httpversion' => '1.1',
             'blocking'    => false, // Non-blocking request.
             'headers'     => array(
@@ -300,7 +315,7 @@ class FRE_Webhook_Dispatcher {
         $args = array(
             'method'      => 'POST',
             'timeout'     => self::TIMEOUT,
-            'redirection' => 5,
+            'redirection' => 0, // Disable redirects to prevent redirect-based SSRF attacks.
             'httpversion' => '1.1',
             'blocking'    => true, // Blocking for test to get response.
             'headers'     => array(

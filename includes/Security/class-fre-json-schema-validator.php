@@ -34,6 +34,8 @@ class FRE_JSON_Schema_Validator {
         'hidden',
         'message',
         'section',
+        'date',
+        'address',
     );
 
     /**
@@ -68,6 +70,11 @@ class FRE_JSON_Schema_Validator {
         'max_size',
         'content',
         'style',
+        // Date field options.
+        'min',
+        'max',
+        // Address field options.
+        'country_restriction',
     );
 
     /**
