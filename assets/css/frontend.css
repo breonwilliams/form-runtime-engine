@@ -31,8 +31,9 @@
     --fre-info-color: var(--aisb-color-info, #3b82f6);
 
     /* Border radius */
-    --fre-border-radius: var(--aisb-section-radius-button, 8px);
+    --fre-border-radius: var(--aisb-section-radius-card, 8px);
     --fre-border-radius-lg: var(--aisb-section-radius-card, 12px);
+    --fre-border-radius-button: var(--aisb-section-radius-button, 8px);
 
     /* Typography */
     --fre-font-family: var(--aisb-section-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
@@ -379,7 +380,7 @@
     color: var(--fre-button-text);
     background-color: var(--fre-button-bg);
     border: none;
-    border-radius: var(--fre-border-radius);
+    border-radius: var(--fre-border-radius-button);
     cursor: pointer;
     transition: background-color var(--fre-transition-fast);
     min-width: 120px;
@@ -748,7 +749,7 @@
     font-family: var(--fre-font-family);
     font-weight: 500;
     border: none;
-    border-radius: var(--fre-border-radius);
+    border-radius: var(--fre-border-radius-button);
     cursor: pointer;
     transition: all var(--fre-transition-fast);
     min-width: 100px;
