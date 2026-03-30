@@ -28,6 +28,8 @@
     font-size: var(--fre-font-size);
     line-height: var(--fre-line-height);
     max-width: 100%;
+    container-type: inline-size;
+    container-name: fre-form;
 }
 
 .fre-form__title {
@@ -599,6 +601,20 @@
     color: var(--fre-primary-color);
 }
 
+/* Bar container for adaptive progress switching */
+.fre-progress__bar-container {
+    text-align: center;
+}
+
+.fre-progress__bar-container .fre-progress__bar {
+    margin-bottom: 8px;
+}
+
+.fre-progress__bar-container .fre-progress__text {
+    font-size: 0.875em;
+    color: #666;
+}
+
 /* Steps */
 .fre-step {
     display: none;
@@ -784,21 +800,10 @@
 }
 
 /* ==========================================================================
-   Responsive
+   Container Query - Stack Columns (< 480px)
    ========================================================================== */
 
-@media (max-width: 600px) {
-    .fre-form__submit-button {
-        width: 100%;
-    }
-
-    .fre-field__checkbox-group--inline,
-    .fre-field__radio-group--inline {
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    /* Stack columns on mobile */
+@container fre-form (max-width: 479px) {
     .fre-row {
         flex-direction: column;
     }
@@ -811,21 +816,116 @@
         width: 100%;
     }
 
-    /* Progress adjustments */
+    .fre-field__checkbox-group--inline,
+    .fre-field__radio-group--inline {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* ==========================================================================
+   Container Query - Progress Indicator & Nav (< 400px)
+   ========================================================================== */
+
+@container fre-form (max-width: 400px) {
+    /* Hide step labels, keep numbers */
     .fre-progress--steps .fre-progress__label {
         display: none;
     }
 
-    .fre-progress__connector {
-        margin: 15px 4px 0;
+    /* Reduce step number size */
+    .fre-progress__number {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8em;
     }
 
-    /* Step nav stacking */
+    /* Tighten connector margins */
+    .fre-progress__connector {
+        margin: 13px 6px 0;
+    }
+
+    /* Stack navigation buttons */
     .fre-step__nav {
         flex-direction: column-reverse;
+        gap: 0.75rem;
     }
 
     .fre-step__nav .fre-btn {
         width: 100%;
+    }
+}
+
+/* ==========================================================================
+   Container Query - Ultra-Narrow (< 320px)
+   ========================================================================== */
+
+@container fre-form (max-width: 320px) {
+    .fre-progress__number {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75em;
+    }
+
+    .fre-progress__connector {
+        margin: 11px 4px 0;
+    }
+
+    .fre-btn {
+        padding: 8px 16px;
+        min-width: auto;
+    }
+
+    .fre-form__submit-button {
+        width: 100%;
+    }
+}
+
+/* ==========================================================================
+   Fallback for Browsers Without Container Query Support
+   ========================================================================== */
+
+@supports not (container-type: inline-size) {
+    @media (max-width: 600px) {
+        .fre-form__submit-button {
+            width: 100%;
+        }
+
+        .fre-field__checkbox-group--inline,
+        .fre-field__radio-group--inline {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Stack columns on mobile */
+        .fre-row {
+            flex-direction: column;
+        }
+
+        .fre-col--1-2,
+        .fre-col--1-3,
+        .fre-col--2-3,
+        .fre-col--1-4,
+        .fre-col--3-4 {
+            width: 100%;
+        }
+
+        /* Progress adjustments */
+        .fre-progress--steps .fre-progress__label {
+            display: none;
+        }
+
+        .fre-progress__connector {
+            margin: 15px 4px 0;
+        }
+
+        /* Step nav stacking */
+        .fre-step__nav {
+            flex-direction: column-reverse;
+        }
+
+        .fre-step__nav .fre-btn {
+            width: 100%;
+        }
     }
 }

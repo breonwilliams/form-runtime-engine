@@ -677,10 +677,15 @@ class FRE_Renderer {
         $style = isset( $multistep_settings['progress_style'] ) ? $multistep_settings['progress_style'] : 'steps';
         $total_steps = count( $steps );
 
+        // Determine if we need a bar fallback for adaptive switching.
+        // Always include bar fallback for steps style (dynamic threshold may trigger for any step count).
+        $needs_bar_fallback = ( 'steps' === $style && $total_steps >= 2 );
+
         $html = sprintf(
-            '<div class="fre-progress fre-progress--%s" data-total-steps="%d">',
+            '<div class="fre-progress fre-progress--%s" data-total-steps="%d" data-original-style="%s">',
             esc_attr( $style ),
-            $total_steps
+            $total_steps,
+            esc_attr( $style )
         );
 
         if ( $style === 'bar' ) {
@@ -688,7 +693,7 @@ class FRE_Renderer {
             $html .= '<div class="fre-progress__fill" style="width: ' . ( 100 / $total_steps ) . '%;"></div>';
             $html .= '</div>';
             $html .= sprintf(
-                '<div class="fre-progress__text"><span class="fre-progress__current">1</span> / %d</div>',
+                '<div class="fre-progress__text">Step <span class="fre-progress__current">1</span> of %d</div>',
                 $total_steps
             );
         } else {
@@ -727,6 +732,19 @@ class FRE_Renderer {
                 }
             }
             $html .= '</div>';
+
+            // Add hidden bar fallback for adaptive switching (5+ steps with "steps" style).
+            if ( $needs_bar_fallback ) {
+                $html .= '<div class="fre-progress__bar-container" style="display: none;">';
+                $html .= '<div class="fre-progress__bar">';
+                $html .= '<div class="fre-progress__fill" style="width: ' . ( 100 / $total_steps ) . '%;"></div>';
+                $html .= '</div>';
+                $html .= sprintf(
+                    '<div class="fre-progress__text">Step <span class="fre-progress__current">1</span> of %d</div>',
+                    $total_steps
+                );
+                $html .= '</div>';
+            }
         }
 
         $html .= '</div>';

@@ -25,6 +25,12 @@
      */
     class FREForm {
         /**
+         * Width per step for calculating dynamic threshold.
+         * Each step needs ~85px to display comfortably (32px number + label + connector spacing).
+         */
+        static PROGRESS_WIDTH_PER_STEP = 85;
+
+        /**
          * Initialize a form.
          *
          * @param {HTMLFormElement} form - Form element.
@@ -49,6 +55,11 @@
             // Conditional fields tracking.
             this.conditionalFields = [];
             this.conditionalSections = [];
+
+            // Progress style adaptation tracking.
+            this.originalProgressStyle = null;
+            this.currentProgressStyle = null;
+            this.progressResizeObserver = null;
 
             this.init();
         }
@@ -110,6 +121,106 @@
                 });
                 stepEl.style.cursor = 'pointer';
             });
+
+            // Initialize progress style adaptation for many-step forms in narrow containers.
+            this.initProgressAdaptation();
+        }
+
+        /**
+         * Initialize progress style adaptation for narrow containers.
+         * Automatically switches from "steps" to "bar" style when container is narrow
+         * and there are many steps (5+).
+         */
+        initProgressAdaptation() {
+            // Only adapt for multi-step forms.
+            if (!this.isMultistep || this.totalSteps < 2) {
+                return;
+            }
+
+            const progress = this.form.querySelector('.fre-progress');
+            if (!progress) return;
+
+            // Get original style from data attribute.
+            this.originalProgressStyle = progress.dataset.originalStyle ||
+                (progress.classList.contains('fre-progress--steps') ? 'steps' :
+                 progress.classList.contains('fre-progress--dots') ? 'dots' : 'bar');
+            this.currentProgressStyle = this.originalProgressStyle;
+
+            // Only adapt if original style is 'steps' (dots and bar scale fine).
+            if (this.originalProgressStyle !== 'steps') {
+                return;
+            }
+
+            // Check if bar fallback exists (rendered by PHP for 5+ step forms).
+            const barContainer = progress.querySelector('.fre-progress__bar-container');
+            if (!barContainer) {
+                return;
+            }
+
+            // Set up ResizeObserver for container width detection.
+            if (typeof ResizeObserver !== 'undefined') {
+                this.progressResizeObserver = new ResizeObserver(entries => {
+                    for (const entry of entries) {
+                        this.handleProgressResize(entry.contentRect.width);
+                    }
+                });
+
+                this.progressResizeObserver.observe(this.form);
+
+                // Initial check.
+                this.handleProgressResize(this.form.offsetWidth);
+            }
+        }
+
+        /**
+         * Handle form resize for progress adaptation.
+         *
+         * @param {number} width - Form container width.
+         */
+        handleProgressResize(width) {
+            // Dynamic threshold: more steps need more width.
+            const requiredWidth = this.totalSteps * FREForm.PROGRESS_WIDTH_PER_STEP;
+            const shouldUseBar = width < requiredWidth;
+
+            if (shouldUseBar && this.currentProgressStyle === 'steps') {
+                this.switchProgressStyle('bar');
+            } else if (!shouldUseBar && this.currentProgressStyle === 'bar' && this.originalProgressStyle === 'steps') {
+                this.switchProgressStyle('steps');
+            }
+        }
+
+        /**
+         * Switch progress indicator style between steps and bar.
+         *
+         * @param {string} style - Target style: 'steps' or 'bar'.
+         */
+        switchProgressStyle(style) {
+            const progress = this.form.querySelector('.fre-progress');
+            if (!progress) return;
+
+            const stepsContainer = progress.querySelector('.fre-progress__steps');
+            const barContainer = progress.querySelector('.fre-progress__bar-container');
+
+            if (!stepsContainer || !barContainer) return;
+
+            if (style === 'bar') {
+                // Hide steps, show bar.
+                stepsContainer.style.display = 'none';
+                barContainer.style.display = 'block';
+                progress.classList.remove('fre-progress--steps');
+                progress.classList.add('fre-progress--bar');
+            } else {
+                // Hide bar, show steps.
+                stepsContainer.style.display = 'flex';
+                barContainer.style.display = 'none';
+                progress.classList.remove('fre-progress--bar');
+                progress.classList.add('fre-progress--steps');
+            }
+
+            this.currentProgressStyle = style;
+
+            // Update the bar's progress to match current step.
+            this.updateProgressIndicator(this.currentStep);
         }
 
         /**
@@ -176,18 +287,17 @@
             const progress = this.form.querySelector('.fre-progress');
             if (!progress) return;
 
-            // Update bar style.
-            const fill = progress.querySelector('.fre-progress__fill');
-            if (fill) {
-                const percentage = (stepNum / this.totalSteps) * 100;
-                fill.style.width = `${percentage}%`;
-            }
+            const percentage = (stepNum / this.totalSteps) * 100;
 
-            // Update current number text.
-            const currentText = progress.querySelector('.fre-progress__current');
-            if (currentText) {
+            // Update all progress fills (both main and fallback bar container).
+            progress.querySelectorAll('.fre-progress__fill').forEach(fill => {
+                fill.style.width = `${percentage}%`;
+            });
+
+            // Update all current number text elements (both main and fallback).
+            progress.querySelectorAll('.fre-progress__current').forEach(currentText => {
                 currentText.textContent = stepNum;
-            }
+            });
 
             // Update step indicators.
             progress.querySelectorAll('.fre-progress__step').forEach(stepEl => {
