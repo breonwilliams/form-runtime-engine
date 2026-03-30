@@ -5,19 +5,79 @@
  */
 
 /* ==========================================================================
-   CSS Variables
+   CSS Variables - Design System Integration
+
+   These variables use a fallback chain pattern:
+   1. First tries AISB (AI Section Builder) design tokens if available
+   2. Falls back to sensible defaults for standalone use
+
+   When AISB is active, forms automatically inherit brand styling.
    ========================================================================== */
 
 :root {
-    --fre-primary-color: #0073aa;
-    --fre-primary-hover: #005a87;
-    --fre-error-color: #dc3545;
-    --fre-success-color: #28a745;
-    --fre-border-color: #ddd;
-    --fre-border-radius: 4px;
-    --fre-spacing: 1rem;
+    /* Colors - inherit from AISB or use standalone defaults */
+    --fre-primary-color: var(--aisb-color-primary, #6366f1);
+    --fre-primary-hover: var(--aisb-button-primary-hover-bg, #4f46e5);
+    --fre-text-color: var(--aisb-color-text, #1f2937);
+    --fre-text-muted: var(--aisb-color-text-muted, #6b7280);
+    --fre-background-color: var(--aisb-color-background, #ffffff);
+    --fre-surface-color: var(--aisb-color-surface, #f9fafb);
+    --fre-border-color: var(--aisb-color-border, #e5e7eb);
+
+    /* Semantic colors */
+    --fre-error-color: var(--aisb-color-error, #ef4444);
+    --fre-success-color: var(--aisb-color-success, #10b981);
+    --fre-warning-color: var(--aisb-color-warning, #f59e0b);
+    --fre-info-color: var(--aisb-color-info, #3b82f6);
+
+    /* Border radius */
+    --fre-border-radius: var(--aisb-section-radius-button, 8px);
+    --fre-border-radius-lg: var(--aisb-section-radius-card, 12px);
+
+    /* Typography */
+    --fre-font-family: var(--aisb-section-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+    --fre-font-heading: var(--aisb-section-font-heading, var(--fre-font-family));
     --fre-font-size: 16px;
     --fre-line-height: 1.5;
+
+    /* Button styling */
+    --fre-button-text: var(--aisb-button-primary-text, #ffffff);
+    --fre-button-bg: var(--aisb-button-primary-bg, var(--fre-primary-color));
+    --fre-button-hover-bg: var(--aisb-button-primary-hover-bg, var(--fre-primary-hover));
+
+    /* Ghost button (secondary/previous button) */
+    --fre-ghost-color: var(--aisb-smart-light-ghost-button, var(--aisb-smart-light-section-link, var(--fre-primary-color)));
+    --fre-ghost-hover-bg: var(--aisb-button-primary-hover-bg, var(--fre-primary-hover));
+    --fre-ghost-hover-text: var(--aisb-button-primary-hover-text, var(--fre-button-text));
+
+    /* Spacing - inherit from AISB or use standalone defaults */
+    --fre-spacing-xs: var(--aisb-section-space-xs, 0.5rem);
+    --fre-spacing-sm: var(--aisb-section-space-sm, 1rem);
+    --fre-spacing: var(--aisb-section-space-md, 1.5rem);
+    --fre-spacing-lg: var(--aisb-section-space-lg, 2rem);
+
+    /* Transitions */
+    --fre-transition-fast: var(--aisb-section-transition-fast, 150ms ease);
+    --fre-transition-base: var(--aisb-section-transition-base, 200ms ease);
+}
+
+/* ==========================================================================
+   Dark Mode Support
+
+   Forms automatically inherit dark mode when placed inside AISB dark sections,
+   or can be explicitly set with .fre-form--dark class.
+   ========================================================================== */
+
+.aisb-section--dark .fre-form,
+.fre-form--dark {
+    --fre-text-color: var(--aisb-color-dark-text, #fafafa);
+    --fre-text-muted: var(--aisb-color-dark-text-muted, #9ca3af);
+    --fre-background-color: var(--aisb-color-dark-background, #1a1a1a);
+    --fre-surface-color: var(--aisb-color-dark-surface, #2a2a2a);
+    --fre-border-color: var(--aisb-color-dark-border, #4b5563);
+
+    /* Ghost button in dark mode */
+    --fre-ghost-color: var(--aisb-smart-dark-ghost-button, var(--aisb-smart-dark-section-link, var(--fre-primary-color)));
 }
 
 /* ==========================================================================
@@ -26,7 +86,9 @@
 
 .fre-form {
     font-size: var(--fre-font-size);
+    font-family: var(--fre-font-family);
     line-height: var(--fre-line-height);
+    color: var(--fre-text-color);
     max-width: 100%;
     container-type: inline-size;
     container-name: fre-form;
@@ -36,6 +98,8 @@
     margin: 0 0 var(--fre-spacing);
     font-size: 1.5em;
     font-weight: 600;
+    font-family: var(--fre-font-heading);
+    color: var(--fre-text-color);
 }
 
 .fre-form__fields {
@@ -84,6 +148,8 @@
     display: block;
     margin-bottom: 6px;
     font-weight: 500;
+    font-family: var(--fre-font-heading);
+    color: var(--fre-text-color);
 }
 
 .fre-required {
@@ -98,13 +164,13 @@
     width: 100%;
     padding: 10px 12px;
     font-size: inherit;
-    font-family: inherit;
+    font-family: var(--fre-font-family);
     line-height: var(--fre-line-height);
-    color: #333;
-    background-color: #fff;
+    color: var(--fre-text-color);
+    background-color: var(--fre-background-color);
     border: 1px solid var(--fre-border-color);
     border-radius: var(--fre-border-radius);
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    transition: border-color var(--fre-transition-fast), box-shadow var(--fre-transition-fast);
     box-sizing: border-box;
 }
 
@@ -113,14 +179,24 @@
 .fre-field__select:focus {
     outline: none;
     border-color: var(--fre-primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fre-primary-color) 20%, transparent);
+}
+
+/* Fallback for browsers without color-mix support */
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .fre-field__input:focus,
+    .fre-field__textarea:focus,
+    .fre-field__select:focus {
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
 }
 
 .fre-field__input:disabled,
 .fre-field__textarea:disabled,
 .fre-field__select:disabled {
-    background-color: #f5f5f5;
+    background-color: var(--fre-surface-color);
     cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .fre-field__textarea {
@@ -147,7 +223,7 @@
 .fre-field__file-info {
     margin: 6px 0 0;
     font-size: 0.875em;
-    color: #666;
+    color: var(--fre-text-muted);
 }
 
 /* ==========================================================================
@@ -210,7 +286,7 @@
 .fre-field__description {
     margin: 6px 0 0;
     font-size: 0.875em;
-    color: #666;
+    color: var(--fre-text-muted);
 }
 
 /* ==========================================================================
@@ -246,8 +322,8 @@
 .fre-field--message {
     padding: 16px;
     border-radius: var(--fre-border-radius);
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background-color: var(--fre-surface-color);
+    border: 1px solid var(--fre-border-color);
 }
 
 .fre-field__message-heading {
@@ -298,24 +374,31 @@
     justify-content: center;
     padding: 12px 24px;
     font-size: inherit;
-    font-family: inherit;
+    font-family: var(--fre-font-family);
     font-weight: 500;
-    color: #fff;
-    background-color: var(--fre-primary-color);
+    color: var(--fre-button-text);
+    background-color: var(--fre-button-bg);
     border: none;
     border-radius: var(--fre-border-radius);
     cursor: pointer;
-    transition: background-color 0.15s ease-in-out;
+    transition: background-color var(--fre-transition-fast);
     min-width: 120px;
 }
 
 .fre-form__submit-button:hover:not(:disabled) {
-    background-color: var(--fre-primary-hover);
+    background-color: var(--fre-button-hover-bg);
 }
 
 .fre-form__submit-button:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.3);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fre-primary-color) 30%, transparent);
+}
+
+/* Fallback for browsers without color-mix support */
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .fre-form__submit-button:focus {
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
 }
 
 .fre-form__submit-button:disabled {
@@ -422,22 +505,23 @@
 .fre-section {
     margin-bottom: calc(var(--fre-spacing) * 1.5);
     padding: var(--fre-spacing);
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: var(--fre-border-radius);
+    background-color: var(--fre-surface-color);
+    border: 1px solid var(--fre-border-color);
+    border-radius: var(--fre-border-radius-lg, var(--fre-border-radius));
 }
 
 .fre-section__title {
     margin: 0 0 calc(var(--fre-spacing) * 0.5);
     font-size: 1.1em;
     font-weight: 600;
-    color: #333;
+    font-family: var(--fre-font-heading);
+    color: var(--fre-text-color);
 }
 
 .fre-section__description {
     margin: 0 0 var(--fre-spacing);
     font-size: 0.9em;
-    color: #666;
+    color: var(--fre-text-muted);
 }
 
 .fre-section__fields {
@@ -499,23 +583,23 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-color: #e9ecef;
-    color: #666;
+    background-color: var(--fre-surface-color);
+    color: var(--fre-text-muted);
     font-weight: 600;
     font-size: 0.875em;
-    transition: all 0.2s ease;
+    transition: all var(--fre-transition-base);
 }
 
 .fre-progress__step--active .fre-progress__number,
 .fre-progress__step--completed .fre-progress__number {
     background-color: var(--fre-primary-color);
-    color: #fff;
+    color: var(--fre-button-text);
 }
 
 .fre-progress__label {
     margin-top: 6px;
     font-size: 0.8em;
-    color: #666;
+    color: var(--fre-text-muted);
     text-align: center;
     max-width: 100px;
 }
@@ -528,9 +612,9 @@
 .fre-progress__connector {
     flex: 1;
     height: 2px;
-    background-color: #e9ecef;
+    background-color: var(--fre-border-color);
     margin: 15px 8px 0;
-    transition: background-color 0.2s ease;
+    transition: background-color var(--fre-transition-base);
 }
 
 .fre-progress__step--completed + .fre-progress__connector {
@@ -553,8 +637,8 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: #e9ecef;
-    transition: all 0.2s ease;
+    background-color: var(--fre-border-color);
+    transition: all var(--fre-transition-base);
 }
 
 .fre-progress--dots .fre-progress__step--active .fre-progress__dot {
@@ -578,7 +662,7 @@
 
 .fre-progress__bar {
     height: 6px;
-    background-color: #e9ecef;
+    background-color: var(--fre-border-color);
     border-radius: 3px;
     overflow: hidden;
     margin-bottom: 8px;
@@ -593,7 +677,7 @@
 
 .fre-progress__text {
     font-size: 0.875em;
-    color: #666;
+    color: var(--fre-text-muted);
 }
 
 .fre-progress__current {
@@ -612,7 +696,7 @@
 
 .fre-progress__bar-container .fre-progress__text {
     font-size: 0.875em;
-    color: #666;
+    color: var(--fre-text-muted);
 }
 
 /* Steps */
@@ -628,6 +712,8 @@
     margin: 0 0 var(--fre-spacing);
     font-size: 1.2em;
     font-weight: 600;
+    font-family: var(--fre-font-heading);
+    color: var(--fre-text-color);
 }
 
 .fre-step__fields {
@@ -659,31 +745,34 @@
     justify-content: center;
     padding: 10px 20px;
     font-size: inherit;
-    font-family: inherit;
+    font-family: var(--fre-font-family);
     font-weight: 500;
     border: none;
     border-radius: var(--fre-border-radius);
     cursor: pointer;
-    transition: all 0.15s ease-in-out;
+    transition: all var(--fre-transition-fast);
     min-width: 100px;
 }
 
 .fre-btn--primary {
-    background-color: var(--fre-primary-color);
-    color: #fff;
+    background-color: var(--fre-button-bg);
+    color: var(--fre-button-text);
 }
 
 .fre-btn--primary:hover:not(:disabled) {
-    background-color: var(--fre-primary-hover);
+    background-color: var(--fre-button-hover-bg);
 }
 
 .fre-btn--secondary {
-    background-color: #e9ecef;
-    color: #333;
+    background-color: transparent;
+    color: var(--fre-ghost-color);
+    border: 2px solid var(--fre-ghost-color);
 }
 
 .fre-btn--secondary:hover:not(:disabled) {
-    background-color: #dee2e6;
+    background-color: var(--fre-ghost-hover-bg);
+    border-color: var(--fre-ghost-hover-bg);
+    color: var(--fre-ghost-hover-text);
 }
 
 .fre-btn:disabled {
@@ -693,7 +782,22 @@
 
 .fre-btn:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.3);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fre-primary-color) 30%, transparent);
+}
+
+.fre-btn--secondary:focus {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fre-ghost-color) 30%, transparent);
+}
+
+/* Fallback for browsers without color-mix support */
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .fre-btn:focus {
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
+
+    .fre-btn--secondary:focus {
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
 }
 
 /* Step validation error state */

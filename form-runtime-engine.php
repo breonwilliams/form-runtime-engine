@@ -156,6 +156,9 @@ final class Form_Runtime_Engine {
         // Initialize webhook dispatcher.
         FRE_Webhook_Dispatcher::init();
 
+        // Initialize design system integration.
+        new FRE_Design_System();
+
         // Initialize shortcode.
         new FRE_Shortcode();
 

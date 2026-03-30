@@ -120,6 +120,12 @@ class FRE_Renderer {
             $classes[] = 'fre-form--multistep';
         }
 
+        // Add theme variant class for dark mode support.
+        $theme_variant = isset( $settings['theme_variant'] ) ? $settings['theme_variant'] : 'light';
+        if ( in_array( $theme_variant, array( 'light', 'dark', 'auto' ), true ) ) {
+            $classes[] = 'fre-form--' . $theme_variant;
+        }
+
         // Check for file fields to set enctype.
         $has_file_field = $this->has_file_field( $form );
 

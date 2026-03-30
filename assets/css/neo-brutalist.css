@@ -1,0 +1,161 @@
+/**
+ * Form Runtime Engine - Neo-Brutalist Styles
+ *
+ * Applied when AI Section Builder Modern has neo-brutalist mode enabled.
+ * Provides bold borders, box shadows, and offset transforms for buttons.
+ *
+ * @package FormRuntimeEngine
+ */
+
+/* ==========================================================================
+   Neo-Brutalist Section Styling
+   ========================================================================== */
+
+.fre-section {
+    border-width: var(--aisb-neo-border-width, 4px);
+    border-style: solid;
+    border-color: var(--fre-text-color);
+    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-text-color);
+}
+
+/* Dark mode sections */
+.aisb-section--dark .fre-section,
+.fre-form--dark .fre-section {
+    border-color: var(--fre-border-color);
+    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-border-color);
+}
+
+/* ==========================================================================
+   Neo-Brutalist Message Field
+   ========================================================================== */
+
+.fre-field--message {
+    border-width: var(--aisb-neo-border-width, 4px);
+    border-style: solid;
+    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 currentColor;
+}
+
+.fre-field--message-info {
+    border-color: var(--fre-primary-color);
+    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-primary-color);
+}
+
+.fre-field--message-warning {
+    border-color: #f59e0b;
+    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 #f59e0b;
+}
+
+.fre-field--message-success {
+    border-color: var(--fre-success-color);
+    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-success-color);
+}
+
+.fre-field--message-error {
+    border-color: var(--fre-error-color);
+    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-error-color);
+}
+
+/* ==========================================================================
+   Neo-Brutalist Buttons
+   ========================================================================== */
+
+.fre-form__submit-button,
+.fre-btn--primary {
+    border: var(--aisb-neo-border-width-button, 3px) solid var(--fre-text-color);
+    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-text-color);
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease;
+}
+
+.fre-form__submit-button:hover:not(:disabled),
+.fre-btn--primary:hover:not(:disabled) {
+    transform: translate(1px, 1px);
+    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-text-color);
+}
+
+.fre-form__submit-button:active:not(:disabled),
+.fre-btn--primary:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--fre-text-color);
+}
+
+/* Secondary buttons (ghost style) */
+.fre-btn--secondary {
+    border: var(--aisb-neo-border-width-button, 3px) solid var(--fre-ghost-color);
+    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-ghost-color);
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.fre-btn--secondary:hover:not(:disabled) {
+    transform: translate(1px, 1px);
+    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-ghost-hover-bg);
+    border-color: var(--fre-ghost-hover-bg);
+}
+
+.fre-btn--secondary:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--fre-ghost-hover-bg);
+}
+
+/* Dark mode buttons - primary */
+.aisb-section--dark .fre-form__submit-button,
+.aisb-section--dark .fre-btn--primary,
+.fre-form--dark .fre-form__submit-button,
+.fre-form--dark .fre-btn--primary {
+    border-color: var(--fre-text-color);
+    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-text-color);
+}
+
+.aisb-section--dark .fre-form__submit-button:hover:not(:disabled),
+.aisb-section--dark .fre-btn--primary:hover:not(:disabled),
+.fre-form--dark .fre-form__submit-button:hover:not(:disabled),
+.fre-form--dark .fre-btn--primary:hover:not(:disabled) {
+    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-text-color);
+}
+
+/* Dark mode buttons - secondary (ghost) */
+.aisb-section--dark .fre-btn--secondary,
+.fre-form--dark .fre-btn--secondary {
+    border-color: var(--fre-ghost-color);
+    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-ghost-color);
+}
+
+.aisb-section--dark .fre-btn--secondary:hover:not(:disabled),
+.fre-form--dark .fre-btn--secondary:hover:not(:disabled) {
+    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-ghost-hover-bg);
+    border-color: var(--fre-ghost-hover-bg);
+}
+
+/* ==========================================================================
+   Neo-Brutalist Form Inputs (optional enhancement)
+   ========================================================================== */
+
+.fre-field__input,
+.fre-field__textarea,
+.fre-field__select {
+    border-width: 2px;
+}
+
+.fre-field__input:focus,
+.fre-field__textarea:focus,
+.fre-field__select:focus {
+    box-shadow: 3px 3px 0 var(--fre-primary-color);
+}
+
+/* ==========================================================================
+   Neo-Brutalist Progress Indicator
+   ========================================================================== */
+
+.fre-progress__number {
+    border: 2px solid var(--fre-text-color);
+}
+
+.fre-progress__step--active .fre-progress__number,
+.fre-progress__step--completed .fre-progress__number {
+    border-color: var(--fre-primary-color);
+}
+
+/* Dark mode progress */
+.aisb-section--dark .fre-progress__number,
+.fre-form--dark .fre-progress__number {
+    border-color: var(--fre-text-color);
+}

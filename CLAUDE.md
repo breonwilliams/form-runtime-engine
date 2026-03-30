@@ -2,6 +2,32 @@
 
 A lightweight WordPress form engine that renders forms from configuration arrays.
 
+## Design System Integration
+
+When **AI Section Builder Modern** is active, forms automatically inherit brand styling:
+- **Colors**: Primary, text, background, border colors from AISB global settings
+- **Typography**: Heading and body fonts from AISB typography settings
+- **Border Radius**: Button and card radius from AISB design tokens
+- **Dark Mode**: Forms inside `.aisb-section--dark` automatically use dark colors
+- **Neo-Brutalist Mode**: Bold borders and box shadows when enabled in AISB settings
+
+Forms work perfectly standalone with sensible defaults when AISB is not active.
+
+### Theme Variants
+
+Set `theme_variant` in form settings to control dark mode:
+- `light` (default): Light mode styling
+- `dark`: Dark mode styling
+- `auto`: Inherits from parent AISB section
+
+```json
+{
+  "settings": {
+    "theme_variant": "dark"
+  }
+}
+```
+
 ## Quick Start
 
 Register forms on the `fre_init` hook (not `init` or `plugins_loaded`):
@@ -418,6 +444,7 @@ For consistency across forms and reusable automations, use these standard field 
 | `multistep.validate_on_next` | `true` | Validate fields before next step |
 | `webhook_enabled` | `false` | Enable webhook for form submissions |
 | `webhook_url` | `null` | URL to send form data (Zapier, Make, etc.) |
+| `theme_variant` | `"light"` | Theme mode: `light`, `dark`, or `auto` (inherits from AISB section) |
 
 ### Full Settings Structure
 
