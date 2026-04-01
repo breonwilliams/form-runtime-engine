@@ -108,7 +108,7 @@ class FRE_Registry {
         $validated = $this->validate_config( $config );
 
         if ( is_wp_error( $validated ) ) {
-            error_log( 'FRE: Form registration failed - ' . $validated->get_error_message() );
+            FRE_Logger::error( 'Form registration failed - ' . $validated->get_error_message() );
             return false;
         }
 
@@ -219,6 +219,7 @@ class FRE_Registry {
                 return new WP_Error(
                     'missing_field_key',
                     sprintf(
+                        /* translators: %d: field index number */
                         __( 'Field at index %d must have a key.', 'form-runtime-engine' ),
                         $index
                     )
@@ -230,6 +231,7 @@ class FRE_Registry {
                 return new WP_Error(
                     'duplicate_field_key',
                     sprintf(
+                        /* translators: %s: duplicate field key name */
                         __( 'Duplicate field key: %s', 'form-runtime-engine' ),
                         $field['key']
                     )
@@ -243,6 +245,7 @@ class FRE_Registry {
                 return new WP_Error(
                     'invalid_field_type',
                     sprintf(
+                        /* translators: %s: invalid field type value */
                         __( 'Invalid field type: %s', 'form-runtime-engine' ),
                         $type
                     )

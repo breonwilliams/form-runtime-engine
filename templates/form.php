@@ -36,7 +36,10 @@ if ( ! defined( 'ABSPATH' ) ) {
     <?php endif; ?>
 
     <?php if ( ! empty( $settings['spam_protection']['honeypot'] ) ) : ?>
-        <?php echo $honeypot_html; ?>
+        <?php
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $honeypot_html is pre-escaped by FRE_Honeypot.
+        echo $honeypot_html;
+        ?>
     <?php endif; ?>
 
     <?php if ( ! empty( $form['title'] ) ) : ?>
@@ -52,6 +55,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                 ? $args['values'][ $field['key'] ]
                 : ( isset( $field['default'] ) ? $field['default'] : '' );
 
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_field() returns pre-escaped HTML.
             echo $renderer->render_field( $field, $value, $form );
             ?>
         <?php endforeach; ?>

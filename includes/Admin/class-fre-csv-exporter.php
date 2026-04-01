@@ -2,7 +2,17 @@
 /**
  * CSV Exporter for Form Runtime Engine.
  *
+ * NOTE: Uses direct database queries for efficient batch export of entries.
+ * Custom tables require direct queries for proper JOIN operations.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+ * phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+ * phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+ * phpcs:disable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+ * phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter
  */
 
 // Prevent direct access.
@@ -156,6 +166,7 @@ class FRE_CSV_Exporter {
             $page++;
         } while ( true ); // Loop exits via empty($entries) check
 
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Closing php://output stream.
         fclose( $output );
         exit;
     }

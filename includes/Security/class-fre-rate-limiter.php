@@ -4,7 +4,14 @@
  *
  * Prevents excessive form submissions from a single IP.
  *
+ * NOTE: Uses direct database queries for atomic rate limit operations.
+ * Transactional queries prevent race conditions in concurrent submissions.
+ * Caching is intentionally avoided to ensure accurate real-time counts.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
  */
 
 // Prevent direct access.
@@ -130,12 +137,12 @@ class FRE_Rate_Limiter {
                 // Exponential backoff: 50ms, 100ms.
                 $delay = 50000 * pow( 2, $attempts - 1 );
                 usleep( $delay );
-                error_log( "FRE Rate Limiter: Deadlock detected, retry attempt {$attempts}" );
+                FRE_Logger::warning( "Rate Limiter: Deadlock detected, retry attempt {$attempts}" );
             }
         }
 
         // Max retries exhausted - fail closed to enforce rate limits under load.
-        error_log( 'FRE Rate Limiter: Max deadlock retries exceeded, failing closed' );
+        FRE_Logger::error( 'Rate Limiter: Max deadlock retries exceeded, failing closed' );
         return true;
     }
 
@@ -278,7 +285,7 @@ class FRE_Rate_Limiter {
 
         } catch ( Exception $e ) {
             $wpdb->query( 'ROLLBACK' );
-            error_log( 'FRE Rate Limiter Error: ' . $e->getMessage() );
+            FRE_Logger::error( 'Rate Limiter Error: ' . $e->getMessage() );
             return false; // Fail open on error.
         }
     }
@@ -365,8 +372,8 @@ class FRE_Rate_Limiter {
         }
 
         if ( (int) $current >= $max ) {
-            error_log( sprintf(
-                'FRE Global rate limit hit: form=%s, count=%d, max=%d',
+            FRE_Logger::warning( sprintf(
+                'Global rate limit hit: form=%s, count=%d, max=%d',
                 $form_id,
                 $current,
                 $max
@@ -427,8 +434,8 @@ class FRE_Rate_Limiter {
         ) );
 
         if ( (int) $current > $max ) {
-            error_log( sprintf(
-                'FRE Global rate limit hit: form=%s, count=%d, max=%d',
+            FRE_Logger::warning( sprintf(
+                'Global rate limit hit: form=%s, count=%d, max=%d',
                 $form_id,
                 $current,
                 $max
@@ -460,8 +467,8 @@ class FRE_Rate_Limiter {
         }
 
         if ( (int) $current >= $max ) {
-            error_log( sprintf(
-                'FRE Global IP rate limit exceeded: ip=%s, count=%d, max=%d',
+            FRE_Logger::warning( sprintf(
+                'Global IP rate limit exceeded: ip=%s, count=%d, max=%d',
                 $ip,
                 $current,
                 $max
@@ -575,8 +582,8 @@ class FRE_Rate_Limiter {
      * @param int    $max     Maximum allowed.
      */
     private function log_rate_limit_hit( $form_id, $ip, $current, $max ) {
-        error_log( sprintf(
-            'FRE Rate limit exceeded: form=%s, ip=%s, count=%d, max=%d',
+        FRE_Logger::warning( sprintf(
+            'Rate limit exceeded: form=%s, ip=%s, count=%d, max=%d',
             $form_id,
             $ip,
             $current,

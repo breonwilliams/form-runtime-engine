@@ -2,7 +2,18 @@
 /**
  * MIME Type Validator for Form Runtime Engine.
  *
+ * NOTE: This file uses low-level file operations (fopen, fread, fclose) intentionally.
+ * These are required for binary-mode file scanning and MIME type detection.
+ * WP_Filesystem is not suitable because:
+ * 1. It lacks binary mode support needed for accurate magic byte detection
+ * 2. Security scanning requires direct byte-level access
+ * 3. Performance: scanning large files in chunks requires efficient I/O
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+ * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fread
+ * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
  */
 
 // Prevent direct access.

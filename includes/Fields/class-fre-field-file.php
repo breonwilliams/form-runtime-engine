@@ -2,7 +2,12 @@
 /**
  * File Field Type for Form Runtime Engine.
  *
+ * NOTE: Called from submission handler after nonce verification.
+ * $_FILES access is safe as the caller has already verified the nonce.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.Security.NonceVerification.Missing
  */
 
 // Prevent direct access.
@@ -120,6 +125,7 @@ class FRE_Field_File extends FRE_Field_Type_Abstract {
      */
     public function validate( $value, array $field, array $form ) {
         $file_key = $this->get_name( $field );
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File uploads are validated via MIME type, extension, and size checks.
         $files    = isset( $_FILES[ $file_key ] ) ? $_FILES[ $file_key ] : null;
 
         // Check required.

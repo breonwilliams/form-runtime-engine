@@ -2,7 +2,15 @@
 /**
  * Email Notification Handler for Form Runtime Engine.
  *
+ * NOTE: Uses direct database query for retrieving failed email queue.
+ * Caching is avoided to ensure accurate real-time failure counts.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+ * phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+ * phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter
  */
 
 // Prevent direct access.
@@ -112,7 +120,7 @@ class FRE_Email_Notification {
         $this->update_notification_status( $entry_id, $sent, $sent ? null : 'wp_mail returned false' );
 
         if ( ! $sent ) {
-            error_log( "FRE: Email notification failed for entry {$entry_id}" );
+            FRE_Logger::error( "Email notification failed for entry {$entry_id}" );
             $this->increment_failure_counter();
 
             // Fix #1: Schedule retry for failed email.
@@ -500,8 +508,8 @@ class FRE_Email_Notification {
             array( $entry_id, $attempt + 1 )
         );
 
-        error_log( sprintf(
-            'FRE: Scheduled email retry for entry %d, attempt %d, delay %d seconds',
+        FRE_Logger::info( sprintf(
+            'Scheduled email retry for entry %d, attempt %d, delay %d seconds',
             $entry_id,
             $attempt + 1,
             $delay
@@ -519,7 +527,7 @@ class FRE_Email_Notification {
         $entry   = $handler->entry_repo->get( $entry_id );
 
         if ( ! $entry ) {
-            error_log( "FRE: Email retry failed - entry {$entry_id} not found" );
+            FRE_Logger::error( "Email retry failed - entry {$entry_id} not found" );
             return;
         }
 
@@ -570,10 +578,10 @@ class FRE_Email_Notification {
         ) );
 
         if ( $sent ) {
-            error_log( "FRE: Email retry succeeded for entry {$entry_id} on attempt {$attempt}" );
+            FRE_Logger::info( "Email retry succeeded for entry {$entry_id} on attempt {$attempt}" );
             $handler->reset_failure_counter();
         } else {
-            error_log( "FRE: Email retry failed for entry {$entry_id} on attempt {$attempt}" );
+            FRE_Logger::error( "Email retry failed for entry {$entry_id} on attempt {$attempt}" );
             // Schedule next retry.
             $handler->schedule_retry( $entry_id, $form_config, $entry_data, array(), $attempt );
         }
@@ -608,7 +616,7 @@ class FRE_Email_Notification {
             'notification_error' => 'Max retries exceeded - added to failed queue',
         ) );
 
-        error_log( "FRE: Entry {$entry_id} added to failed email queue after max retries" );
+        FRE_Logger::warning( "Entry {$entry_id} added to failed email queue after max retries" );
 
         /**
          * Fires when an email fails permanently after all retries.

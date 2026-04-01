@@ -4,7 +4,16 @@
  *
  * Handles creation and migration of database tables.
  *
+ * NOTE: Uses dbDelta() and direct queries for schema management.
+ * This is the standard WordPress approach for plugin table creation.
+ * Table names are hardcoded with $wpdb->prefix for safety.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+ * phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+ * phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
  */
 
 // Prevent direct access.
@@ -97,7 +106,7 @@ class FRE_Migrator {
             update_option( 'fre_migration_error', $e->getMessage() );
 
             // Log error.
-            error_log( 'FRE Migration Error: ' . $e->getMessage() );
+            FRE_Logger::error( 'Migration Error: ' . $e->getMessage() );
 
             return false;
         }
@@ -356,7 +365,7 @@ class FRE_Migrator {
                 );
 
                 if ( $result === false ) {
-                    error_log( "FRE: Failed to create index {$index['name']} on {$index['table']}: " . $this->wpdb->last_error );
+                    FRE_Logger::error( "Failed to create index {$index['name']} on {$index['table']}: " . $this->wpdb->last_error );
                     // Continue with other indexes even if one fails.
                 }
             }

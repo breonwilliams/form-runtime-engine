@@ -34,7 +34,7 @@ if ( ! empty( $field['css_class'] ) ) {
 }
 ?>
 
-<div class="<?php echo implode( ' ', $classes ); ?>" data-field-key="<?php echo esc_attr( $field['key'] ); ?>">
+<div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" data-field-key="<?php echo esc_attr( $field['key'] ); ?>">
     <?php if ( ! empty( $field['label'] ) ) : ?>
         <label class="fre-field__label" for="<?php echo esc_attr( $input_id ); ?>">
             <?php echo esc_html( $field['label'] ); ?>
@@ -44,7 +44,10 @@ if ( ! empty( $field['css_class'] ) ) {
         </label>
     <?php endif; ?>
 
-    <?php echo $input_html; ?>
+    <?php
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $input_html is pre-escaped by field renderer.
+    echo $input_html;
+    ?>
 
     <?php if ( ! empty( $field['description'] ) ) : ?>
         <p class="fre-field__description"><?php echo esc_html( $field['description'] ); ?></p>

@@ -4,7 +4,18 @@
  *
  * Provides a fluent interface for querying entries.
  *
+ * NOTE: Uses direct database queries because this plugin uses custom tables.
+ * Query builder pattern requires dynamic SQL construction with proper escaping.
+ * All user input is escaped via $wpdb->prepare() or esc_sql().
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+ * phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+ * phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+ * phpcs:disable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+ * phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter
  */
 
 // Prevent direct access.

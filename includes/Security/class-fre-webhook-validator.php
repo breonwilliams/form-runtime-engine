@@ -102,9 +102,7 @@ class FRE_Webhook_Validator {
         if ( $ip === $host && ! filter_var( $host, FILTER_VALIDATE_IP ) ) {
             // For security, we proceed but log a warning.
             // The webhook will fail at send time if DNS doesn't resolve.
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( 'FRE Webhook: Could not resolve hostname: ' . $host );
-            }
+            FRE_Logger::warning( 'Webhook: Could not resolve hostname: ' . $host );
         } else {
             // Check if IP is in private ranges.
             if ( self::is_private_ip( $ip ) ) {

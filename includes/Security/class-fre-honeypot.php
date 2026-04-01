@@ -2,7 +2,12 @@
 /**
  * Honeypot Protection for Form Runtime Engine.
  *
+ * NOTE: Called from submission handler after nonce verification.
+ * $_POST access is safe as the caller has already verified the nonce.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.Security.NonceVerification.Missing
  */
 
 // Prevent direct access.
@@ -197,8 +202,8 @@ class FRE_Honeypot {
     private function log_spam_attempt( $form_id, $reason ) {
         $ip = $this->get_client_ip();
 
-        error_log( sprintf(
-            'FRE Spam blocked: form=%s, reason=%s, ip=%s',
+        FRE_Logger::warning( sprintf(
+            'Spam blocked: form=%s, reason=%s, ip=%s',
             $form_id,
             $reason,
             $ip

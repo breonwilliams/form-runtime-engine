@@ -178,7 +178,7 @@ class FRE_Field_Address extends FRE_Field_Type_Abstract {
                 'https://maps.googleapis.com/maps/api/js'
             ),
             array( 'fre-frontend' ),
-            null,
+            FRE_VERSION,
             true
         );
 

@@ -4,7 +4,12 @@
  *
  * Detects bot submissions that happen too quickly.
  *
+ * NOTE: Called from submission handler after nonce verification.
+ * $_POST access is safe as the caller has already verified the nonce.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.Security.NonceVerification.Missing
  */
 
 // Prevent direct access.
@@ -34,7 +39,7 @@ class FRE_Timing_Check {
      * @return bool True if submission was too fast (likely bot).
      */
     public function is_too_fast( $form_id, array $settings = array() ) {
-        $token = isset( $_POST['_fre_timing_token'] ) ? sanitize_text_field( $_POST['_fre_timing_token'] ) : '';
+        $token = isset( $_POST['_fre_timing_token'] ) ? sanitize_text_field( wp_unslash( $_POST['_fre_timing_token'] ) ) : '';
 
         // Fallback: Check for legacy timestamp (for backwards compatibility).
         if ( empty( $token ) ) {
@@ -196,8 +201,8 @@ class FRE_Timing_Check {
             ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
             : 'unknown';
 
-        error_log( sprintf(
-            'FRE Spam blocked: form=%s, reason=%s, elapsed=%ds, ip=%s',
+        FRE_Logger::warning( sprintf(
+            'Spam blocked: form=%s, reason=%s, elapsed=%ds, ip=%s',
             $form_id,
             $reason,
             $elapsed,

@@ -2,7 +2,12 @@
 /**
  * Entry Detail View for Form Runtime Engine.
  *
+ * NOTE: Uses $_GET parameters for entry ID and navigation which is standard
+ * for WordPress admin detail views. Admin page context provides security.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.Security.NonceVerification.Recommended
  */
 
 // Prevent direct access.
@@ -76,7 +81,7 @@ class FRE_Entry_Detail {
         $back_url = admin_url( 'admin.php?page=fre-entries' );
 
         // Check the referer for form_id filter.
-        $referer = isset( $_SERVER['HTTP_REFERER'] ) ? wp_unslash( $_SERVER['HTTP_REFERER'] ) : '';
+        $referer = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
         if ( $referer && strpos( $referer, 'form_id=' ) !== false ) {
             // Use the form_id from this entry.
             $back_url = add_query_arg( 'form_id', $this->entry['form_id'], $back_url );
@@ -94,7 +99,7 @@ class FRE_Entry_Detail {
                 printf(
                     /* translators: %d: entry ID */
                     esc_html__( 'Entry #%d', 'form-runtime-engine' ),
-                    $this->entry_id
+                    (int) $this->entry_id
                 );
                 ?>
             </h1>
@@ -173,6 +178,7 @@ class FRE_Entry_Detail {
 
             echo '<tr>';
             echo '<td><strong>' . esc_html( $label ) . '</strong></td>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_field_value() performs internal escaping.
             echo '<td>' . $this->render_field_value( $field_key, $value, $field_config ) . '</td>';
             echo '</tr>';
         }

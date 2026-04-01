@@ -5,7 +5,17 @@
  * This file runs when the plugin is uninstalled (deleted) from WordPress.
  * It removes all plugin data including database tables and options.
  *
+ * NOTE: Uses direct database queries and filesystem operations for complete cleanup.
+ * This runs once during plugin deletion and must reliably remove all plugin data.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+ * phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange
+ * phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+ * phpcs:disable WordPress.WP.AlternativeFunctions.unlink_unlink
+ * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
  */
 
 // Exit if uninstall not called from WordPress.

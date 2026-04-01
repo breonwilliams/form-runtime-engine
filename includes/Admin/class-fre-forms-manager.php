@@ -4,7 +4,12 @@
  *
  * Handles CRUD operations for database-stored form configurations.
  *
+ * NOTE: Uses $_GET parameters for form editing UI which is standard for
+ * WordPress admin interfaces. AJAX handlers verify nonces via check_ajax_referer().
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.Security.NonceVerification.Recommended
  */
 
 // Prevent direct access.
@@ -76,11 +81,10 @@ class FRE_Forms_Manager {
             return new WP_Error( 'schema_error', implode( ' ', $schema_result['errors'] ) );
         }
 
-        // Log warnings (non-fatal issues) if WP_DEBUG is enabled.
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG && ! empty( $schema_result['warnings'] ) ) {
+        // Log warnings (non-fatal issues).
+        if ( ! empty( $schema_result['warnings'] ) ) {
             foreach ( $schema_result['warnings'] as $warning ) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-                error_log( 'FRE Form Schema Warning [' . $form_id . ']: ' . $warning );
+                FRE_Logger::warning( 'Form Schema Warning [' . $form_id . ']: ' . $warning );
             }
         }
 
@@ -507,9 +511,11 @@ class FRE_Forms_Manager {
 
         check_ajax_referer( 'fre_admin_nonce', 'nonce' );
 
-        $form_id         = isset( $_POST['form_id'] ) ? sanitize_key( $_POST['form_id'] ) : '';
-        $title           = isset( $_POST['title'] ) ? sanitize_text_field( $_POST['title'] ) : '';
+        $form_id         = isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : '';
+        $title           = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON is validated by FRE_Schema_Validator::validate().
         $config          = isset( $_POST['config'] ) ? wp_unslash( $_POST['config'] ) : '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- CSS is validated by FRE_CSS_Validator::validate().
         $custom_css      = isset( $_POST['custom_css'] ) ? wp_unslash( $_POST['custom_css'] ) : '';
         $webhook_enabled = isset( $_POST['webhook_enabled'] ) && $_POST['webhook_enabled'] === '1';
         $webhook_url     = isset( $_POST['webhook_url'] ) ? esc_url_raw( wp_unslash( $_POST['webhook_url'] ) ) : '';

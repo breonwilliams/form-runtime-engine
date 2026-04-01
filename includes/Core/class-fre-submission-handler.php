@@ -4,7 +4,13 @@
  *
  * Processes form submissions through the complete lifecycle.
  *
+ * NOTE: Nonce verification is performed via verify_nonce() method at the start
+ * of handle_submission(). Subsequent $_POST access is safe after verification.
+ * Security checks (honeypot, timing, rate limit) access $_POST after nonce check.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:disable WordPress.Security.NonceVerification.Missing
  */
 
 // Prevent direct access.
@@ -203,7 +209,7 @@ class FRE_Submission_Handler {
             wp_send_json_success( $response );
 
         } catch ( Exception $e ) {
-            error_log( 'FRE Submission Error: ' . $e->getMessage() );
+            FRE_Logger::error( 'Submission Error: ' . $e->getMessage() );
             $this->send_error( 'processing_error', __( 'An error occurred processing your submission. Please try again.', 'form-runtime-engine' ) );
         }
     }
@@ -214,7 +220,7 @@ class FRE_Submission_Handler {
      * @param string $form_id Form ID.
      */
     private function verify_nonce( $form_id ) {
-        $nonce = isset( $_POST['_wpnonce'] ) ? $_POST['_wpnonce'] : '';
+        $nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
 
         if ( ! wp_verify_nonce( $nonce, 'fre_submit_' . $form_id ) ) {
             wp_send_json_error( array(
@@ -327,6 +333,7 @@ class FRE_Submission_Handler {
                 continue;
             }
 
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File uploads are validated via MIME type, extension, and size checks.
             $files = $_FILES[ $file_key ];
 
             // Handle multiple files.
@@ -535,8 +542,8 @@ class FRE_Submission_Handler {
             'timestamp'         => current_time( 'mysql' ),
         );
 
-        error_log( sprintf(
-            'FRE Form Config Error: Form "%s" not found. Registered forms: [%s]. Referer: %s',
+        FRE_Logger::error( sprintf(
+            'Form Config Error: Form "%s" not found. Registered forms: [%s]. Referer: %s',
             $form_id,
             implode( ', ', $registered_forms ),
             $error_details['referer']

@@ -1,13 +1,15 @@
 <?php
 /**
  * Plugin Name: Form Runtime Engine
- * Plugin URI: https://example.com/form-runtime-engine
+ * Plugin URI: https://developer.developer.developer
  * Description: A lightweight WordPress form runtime engine that processes form submissions via configuration.
  * Version: 1.0.0
- * Author: Your Name
- * Author URI: https://example.com
- * License: GPL-2.0+
- * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
+ * Author: Developer
+ * Author URI: https://developer.developer.developer
+ * License: GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: form-runtime-engine
  * Domain Path: /languages
  *
@@ -112,8 +114,6 @@ final class Form_Runtime_Engine {
         // Initialize plugin on plugins_loaded.
         add_action( 'plugins_loaded', array( $this, 'init' ) );
 
-        // Load text domain.
-        add_action( 'init', array( $this, 'load_textdomain' ) );
     }
 
     /**
@@ -230,17 +230,6 @@ final class Form_Runtime_Engine {
                 'url'   => admin_url( 'admin-ajax.php' ),
                 'nonce' => wp_create_nonce( 'fre_ajax_nonce' ),
             )
-        );
-    }
-
-    /**
-     * Load plugin text domain.
-     */
-    public function load_textdomain() {
-        load_plugin_textdomain(
-            'form-runtime-engine',
-            false,
-            dirname( FRE_PLUGIN_BASENAME ) . '/languages/'
         );
     }
 

@@ -58,14 +58,12 @@ class FRE_Webhook_Dispatcher {
         // URL was validated at save time, but DNS could have changed since then.
         $validation = FRE_Webhook_Validator::validate( $webhook_url );
         if ( is_wp_error( $validation ) ) {
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( sprintf(
-                    'FRE Webhook blocked [form: %s, entry: %d]: %s',
-                    $form_id,
-                    $entry_id,
-                    $validation->get_error_message()
-                ) );
-            }
+            FRE_Logger::warning( sprintf(
+                'Webhook blocked [form: %s, entry: %d]: %s',
+                $form_id,
+                $entry_id,
+                $validation->get_error_message()
+            ) );
             return;
         }
 
@@ -245,16 +243,14 @@ class FRE_Webhook_Dispatcher {
         // Send the request.
         $response = wp_remote_post( $url, $args );
 
-        // Log errors if WP_DEBUG is enabled.
+        // Log errors.
         if ( is_wp_error( $response ) ) {
-            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log( sprintf(
-                    'FRE Webhook Error [form: %s, entry: %d]: %s',
-                    $form_id,
-                    $entry_id,
-                    $response->get_error_message()
-                ) );
-            }
+            FRE_Logger::error( sprintf(
+                'Webhook Error [form: %s, entry: %d]: %s',
+                $form_id,
+                $entry_id,
+                $response->get_error_message()
+            ) );
 
             /**
              * Fires when a webhook request fails.

@@ -1,5 +1,14 @@
 # Form Runtime Engine
 
+**Contributors:** developer
+**Tags:** forms, contact form, form builder, email notifications
+**Requires at least:** 5.0
+**Tested up to:** 6.9
+**Stable tag:** 1.0.0
+**Requires PHP:** 7.4
+**License:** GPLv2 or later
+**License URI:** https://www.gnu.org/licenses/gpl-2.0.html
+
 A lightweight WordPress form plugin that renders and processes forms from PHP configuration arrays. No GUI builder - just clean, declarative code.
 
 ## Requirements
