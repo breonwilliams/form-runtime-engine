@@ -256,6 +256,40 @@ class FRE_Migrator {
     }
 
     /**
+     * Check if tables support transactions (InnoDB).
+     *
+     * This plugin requires InnoDB for atomic entry creation and duplicate detection.
+     *
+     * @return bool|array True if all tables support transactions, array of non-InnoDB tables otherwise.
+     */
+    public function check_innodb_support() {
+        $non_innodb = array();
+
+        foreach ( $this->tables as $name => $table ) {
+            $engine = $this->wpdb->get_var(
+                $this->wpdb->prepare(
+                    "SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES
+                     WHERE TABLE_SCHEMA = DATABASE()
+                     AND TABLE_NAME = %s",
+                    $table
+                )
+            );
+
+            // Table doesn't exist yet - skip check.
+            if ( $engine === null ) {
+                continue;
+            }
+
+            // Check for InnoDB (case-insensitive).
+            if ( strtolower( $engine ) !== 'innodb' ) {
+                $non_innodb[] = $table . ' (' . $engine . ')';
+            }
+        }
+
+        return empty( $non_innodb ) ? true : $non_innodb;
+    }
+
+    /**
      * Get table name.
      *
      * @param string $table Table key (entries, entry_meta, entry_files).

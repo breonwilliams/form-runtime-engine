@@ -73,18 +73,39 @@ class FRE_Upload_Handler {
     private const QUARANTINE_DIR = 'fre-quarantine';
 
     /**
+     * Default maximum file size in bytes (10MB).
+     *
+     * @var int
+     */
+    private const DEFAULT_MAX_FILE_SIZE = 10485760;
+
+    /**
+     * Default maximum total upload size in bytes (25MB).
+     *
+     * @var int
+     */
+    private const DEFAULT_MAX_TOTAL_SIZE = 26214400;
+
+    /**
+     * File permissions for uploaded files (owner read/write only).
+     *
+     * @var int
+     */
+    private const FILE_PERMISSIONS = 0600;
+
+    /**
      * Default maximum file size (10MB).
      *
      * @var int
      */
-    private $default_max_size = 10485760;
+    private $default_max_size = self::DEFAULT_MAX_FILE_SIZE;
 
     /**
      * Default maximum total upload size (25MB).
      *
      * @var int
      */
-    private $default_max_total_size = 26214400;
+    private $default_max_total_size = self::DEFAULT_MAX_TOTAL_SIZE;
 
     /**
      * MIME validator instance.
@@ -305,9 +326,9 @@ class FRE_Upload_Handler {
             return new WP_Error( 'move_failed', __( 'Failed to complete upload.', 'form-runtime-engine' ) );
         }
 
-        // Fix #11: Set more restrictive permissions (0600 instead of 0644).
+        // Fix #11: Set more restrictive permissions (owner read/write only).
         // On shared hosting, 0644 allows other local users to read uploaded files.
-        if ( ! chmod( $final_path, 0600 ) ) {
+        if ( ! chmod( $final_path, self::FILE_PERMISSIONS ) ) {
             FRE_Logger::warning( 'Failed to set restrictive file permissions for ' . $final_path );
         }
 

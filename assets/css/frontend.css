@@ -724,6 +724,7 @@
 .fre-step__nav {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: var(--fre-spacing);
     margin-top: calc(var(--fre-spacing) * 1.5);
     padding-top: var(--fre-spacing);
@@ -744,7 +745,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 20px;
+    padding: 12px 24px;
     font-size: inherit;
     font-family: var(--fre-font-family);
     font-weight: 500;
@@ -752,7 +753,7 @@
     border-radius: var(--fre-border-radius-button);
     cursor: pointer;
     transition: all var(--fre-transition-fast);
-    min-width: 100px;
+    min-width: 120px;
 }
 
 .fre-btn--primary {
@@ -768,6 +769,8 @@
     background-color: transparent;
     color: var(--fre-ghost-color);
     border: 2px solid var(--fre-ghost-color);
+    /* Reduce padding by 2px to account for border, keeping total size consistent */
+    padding: 10px 22px;
 }
 
 .fre-btn--secondary:hover:not(:disabled) {
@@ -816,10 +819,7 @@
    ========================================================================== */
 
 .fre-field__input--date {
-    /* Ensure consistent styling across browsers */
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
+    /* Keep native date picker appearance for calendar icon visibility */
     position: relative;
 }
 
@@ -837,6 +837,24 @@
 /* Prevent date picker from being too narrow */
 .fre-field__input--date {
     min-width: 150px;
+    color-scheme: light;
+}
+
+/* Dark mode - invert the calendar icon for visibility */
+.fre-form--dark .fre-field__input--date,
+.aisb-section--dark .fre-form .fre-field__input--date {
+    color-scheme: dark;
+}
+
+.fre-form--dark .fre-field--date .fre-field__input--date::-webkit-calendar-picker-indicator,
+.aisb-section--dark .fre-form .fre-field--date .fre-field__input--date::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.8;
+}
+
+.fre-form--dark .fre-field--date .fre-field__input--date::-webkit-calendar-picker-indicator:hover,
+.aisb-section--dark .fre-form .fre-field--date .fre-field__input--date::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
 }
 
 /* ==========================================================================

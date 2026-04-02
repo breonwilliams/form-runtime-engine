@@ -299,6 +299,20 @@ final class Form_Runtime_Engine {
                 echo '</p></div>';
             } );
         }
+
+        // Check for InnoDB support (required for transactions).
+        $innodb_check = $migrator->check_innodb_support();
+        if ( $innodb_check !== true ) {
+            add_action( 'admin_notices', function() use ( $innodb_check ) {
+                echo '<div class="notice notice-warning">';
+                echo '<p><strong>' . esc_html__( 'Form Runtime Engine:', 'form-runtime-engine' ) . '</strong> ';
+                echo esc_html__( 'Tables not using InnoDB engine: ', 'form-runtime-engine' );
+                echo esc_html( implode( ', ', $innodb_check ) );
+                echo '<br>';
+                echo esc_html__( 'InnoDB is required for transaction support. Form submissions may not work correctly.', 'form-runtime-engine' );
+                echo '</p></div>';
+            } );
+        }
     }
 
     /**

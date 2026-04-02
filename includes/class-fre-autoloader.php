@@ -28,6 +28,7 @@ class FRE_Autoloader {
         'FRE_Submission_Handler'  => 'Core/class-fre-submission-handler.php',
         'FRE_Validator'           => 'Core/class-fre-validator.php',
         'FRE_Sanitizer'           => 'Core/class-fre-sanitizer.php',
+        'FRE_Logger'              => 'Core/class-fre-logger.php',
 
         // Database classes.
         'FRE_Migrator'            => 'Database/class-fre-migrator.php',

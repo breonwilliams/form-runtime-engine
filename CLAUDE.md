@@ -13,6 +13,28 @@ When **AI Section Builder Modern** is active, forms automatically inherit brand 
 
 Forms work perfectly standalone with sensible defaults when AISB is not active.
 
+## System Requirements
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| WordPress | 5.0+ | Uses REST API, block editor compatibility |
+| PHP | 7.4+ | Type hints, arrow functions |
+| MySQL | 5.6+ / MariaDB 10.0+ | **InnoDB storage engine required** |
+
+### Database Requirements
+
+This plugin requires **MySQL InnoDB storage engine** for transactional integrity:
+
+- **Entry creation** uses transactions to ensure atomic storage of entries and metadata
+- **Duplicate detection** uses atomic INSERT operations for race condition protection
+- If your database uses MyISAM tables, form submissions may fail or produce inconsistent data
+
+**Verification:** Most modern WordPress installations use InnoDB by default. You can verify by checking your `wp_options` table engine:
+```sql
+SHOW TABLE STATUS WHERE Name = 'wp_options';
+```
+The `Engine` column should show `InnoDB`.
+
 ### Theme Variants
 
 Set `theme_variant` in form settings to control dark mode:

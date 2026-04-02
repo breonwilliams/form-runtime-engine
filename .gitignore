@@ -1,0 +1,19 @@
+# Development/Testing artifacts
+vendor/
+tests/
+bin/
+phpunit.xml
+.phpunit.result.cache
+composer
+composer-setup.php
+
+# IDE/Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

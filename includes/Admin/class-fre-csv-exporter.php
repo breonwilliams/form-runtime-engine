@@ -301,10 +301,15 @@ class FRE_CSV_Exporter {
         $value = (string) $value;
 
         // Fix #1: Escape CSV formula injection.
-        // Values starting with =, +, -, or @ can be executed as formulas in Excel.
-        if ( strlen( $value ) > 0 && in_array( $value[0], array( '=', '+', '-', '@' ), true ) ) {
+        // Values starting with =, +, -, @, tab, or newlines can be executed as formulas
+        // or cause injection in Excel/LibreOffice/Google Sheets.
+        $dangerous_chars = array( '=', '+', '-', '@', "\t", "\r", "\n" );
+        if ( strlen( $value ) > 0 && in_array( $value[0], $dangerous_chars, true ) ) {
             $value = "'" . $value;
         }
+
+        // Also escape any embedded tabs/newlines that could cause row injection.
+        $value = str_replace( array( "\t", "\r\n", "\r", "\n" ), ' ', $value );
 
         return $value;
     }

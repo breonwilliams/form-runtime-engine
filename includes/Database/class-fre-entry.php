@@ -32,6 +32,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 class FRE_Entry {
 
     /**
+     * Maximum length for user agent string storage.
+     * Matches the database column varchar(500).
+     *
+     * @var int
+     */
+    private const MAX_USER_AGENT_LENGTH = 500;
+
+    /**
      * WordPress database instance.
      *
      * @var wpdb
@@ -77,7 +85,7 @@ class FRE_Entry {
             'user_id'    => get_current_user_id() ?: null,
             'ip_address' => $this->get_client_ip(),
             'user_agent' => isset( $_SERVER['HTTP_USER_AGENT'] )
-                ? substr( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 0, 500 )
+                ? substr( sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ), 0, self::MAX_USER_AGENT_LENGTH )
                 : '',
             'status'     => 'unread',
             'is_spam'    => isset( $meta['is_spam'] ) ? (int) $meta['is_spam'] : 0,
