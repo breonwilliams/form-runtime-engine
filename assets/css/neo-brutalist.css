@@ -4,6 +4,10 @@
  * Applied when AI Section Builder Modern has neo-brutalist mode enabled.
  * Provides bold borders, box shadows, and offset transforms for buttons.
  *
+ * Design Principle: Only primary/solid buttons and card-like containers
+ * (sections, message boxes) receive Neo-Brutalist treatment. Form fields
+ * and ghost buttons remain minimal for usability.
+ *
  * @package FormRuntimeEngine
  */
 
@@ -56,7 +60,10 @@
 }
 
 /* ==========================================================================
-   Neo-Brutalist Buttons
+   Neo-Brutalist Buttons (Primary Only)
+
+   Ghost/secondary buttons intentionally excluded to maintain usability
+   and align with Promptless design system.
    ========================================================================== */
 
 .fre-form__submit-button,
@@ -78,24 +85,6 @@
     box-shadow: 2px 2px 0 var(--fre-text-color);
 }
 
-/* Secondary buttons (ghost style) */
-.fre-btn--secondary {
-    border: var(--aisb-neo-border-width-button, 3px) solid var(--fre-ghost-color);
-    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-ghost-color);
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.fre-btn--secondary:hover:not(:disabled) {
-    transform: translate(1px, 1px);
-    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-ghost-hover-bg);
-    border-color: var(--fre-ghost-hover-bg);
-}
-
-.fre-btn--secondary:active:not(:disabled) {
-    transform: translate(2px, 2px);
-    box-shadow: 2px 2px 0 var(--fre-ghost-hover-bg);
-}
-
 /* Dark mode buttons - primary */
 .aisb-section--dark .fre-form__submit-button,
 .aisb-section--dark .fre-btn--primary,
@@ -110,52 +99,4 @@
 .fre-form--dark .fre-form__submit-button:hover:not(:disabled),
 .fre-form--dark .fre-btn--primary:hover:not(:disabled) {
     box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-text-color);
-}
-
-/* Dark mode buttons - secondary (ghost) */
-.aisb-section--dark .fre-btn--secondary,
-.fre-form--dark .fre-btn--secondary {
-    border-color: var(--fre-ghost-color);
-    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-ghost-color);
-}
-
-.aisb-section--dark .fre-btn--secondary:hover:not(:disabled),
-.fre-form--dark .fre-btn--secondary:hover:not(:disabled) {
-    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-ghost-hover-bg);
-    border-color: var(--fre-ghost-hover-bg);
-}
-
-/* ==========================================================================
-   Neo-Brutalist Form Inputs (optional enhancement)
-   ========================================================================== */
-
-.fre-field__input,
-.fre-field__textarea,
-.fre-field__select {
-    border-width: 2px;
-}
-
-.fre-field__input:focus,
-.fre-field__textarea:focus,
-.fre-field__select:focus {
-    box-shadow: 3px 3px 0 var(--fre-primary-color);
-}
-
-/* ==========================================================================
-   Neo-Brutalist Progress Indicator
-   ========================================================================== */
-
-.fre-progress__number {
-    border: 2px solid var(--fre-text-color);
-}
-
-.fre-progress__step--active .fre-progress__number,
-.fre-progress__step--completed .fre-progress__number {
-    border-color: var(--fre-primary-color);
-}
-
-/* Dark mode progress */
-.aisb-section--dark .fre-progress__number,
-.fre-form--dark .fre-progress__number {
-    border-color: var(--fre-text-color);
 }
