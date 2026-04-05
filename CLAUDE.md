@@ -1437,3 +1437,100 @@ add_action( 'wp_footer', function() {
     }
 });
 ```
+
+---
+
+## Releasing New Versions
+
+This plugin uses GitHub-based automatic updates. WordPress sites with this plugin installed will receive update notifications when new releases are published on GitHub.
+
+### How Updates Work
+
+1. The plugin checks GitHub for new releases periodically
+2. When a newer version tag is found, WordPress shows an update notification
+3. Users can update directly from the WordPress admin (Plugins → Updates)
+
+### Version Locations
+
+When releasing a new version, update the version number in **all** of these locations:
+
+| File | Location | Example |
+|------|----------|---------|
+| `form-runtime-engine.php` | Plugin header (line ~6) | `Version: 1.1.0` |
+| `form-runtime-engine.php` | `FRE_VERSION` constant (line ~25) | `define( 'FRE_VERSION', '1.1.0' );` |
+| `CHANGELOG.md` | New entry at top | `## [1.1.0] - 2024-01-15` |
+
+### Release Checklist
+
+Follow these steps to create a new release:
+
+1. **Update version numbers** in all locations listed above
+2. **Update CHANGELOG.md** with new features, fixes, and changes
+3. **Commit changes:**
+   ```bash
+   git add -A
+   git commit -m "Release v1.1.0"
+   ```
+4. **Create a git tag** (must include `v` prefix):
+   ```bash
+   git tag v1.1.0
+   ```
+5. **Push to GitHub with tags:**
+   ```bash
+   git push origin main --tags
+   ```
+6. **Create GitHub Release** (choose one method):
+
+   **Option A: GitHub CLI**
+   ```bash
+   gh release create v1.1.0 --title "v1.1.0" --notes "See CHANGELOG.md for details"
+   ```
+
+   **Option B: GitHub Web UI**
+   - Go to repository → Releases → "Create a new release"
+   - Select the tag you just pushed
+   - Add release title and description
+   - Publish
+
+### CHANGELOG Format
+
+Follow the [Keep a Changelog](https://keepachangelog.com/) format:
+
+```markdown
+## [1.1.0] - 2024-01-15
+
+### Added
+- New feature description
+
+### Changed
+- Modified behavior description
+
+### Fixed
+- Bug fix description
+```
+
+**Change Types:**
+- `Added` - New features
+- `Changed` - Changes in existing functionality
+- `Deprecated` - Features to be removed in future
+- `Removed` - Features removed in this release
+- `Fixed` - Bug fixes
+- `Security` - Security vulnerability fixes
+
+### Version Numbering
+
+Use [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH):
+
+| Type | When to Increment | Example |
+|------|-------------------|---------|
+| **MAJOR** | Breaking changes / incompatible API changes | 1.0.0 → 2.0.0 |
+| **MINOR** | New features (backward compatible) | 1.0.0 → 1.1.0 |
+| **PATCH** | Bug fixes (backward compatible) | 1.0.0 → 1.0.1 |
+
+### Important Notes
+
+- **Tag prefix:** Always use `v` prefix for tags (e.g., `v1.1.0`, not `1.1.0`)
+- **GitHub Release required:** The update checker looks for GitHub Releases, not just tags
+- **Version format:** Use three-part version numbers (MAJOR.MINOR.PATCH)
+- **Testing:** Test the plugin thoroughly before releasing
+- **Commit message:** Use clear commit messages like "Release v1.1.0"
