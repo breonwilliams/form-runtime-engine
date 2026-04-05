@@ -165,6 +165,9 @@ final class Form_Runtime_Engine {
         // Initialize admin.
         if ( is_admin() ) {
             $this->init_admin();
+
+            // Initialize GitHub updater for update checks.
+            new FRE_GitHub_Updater();
         }
 
         // Register AJAX handlers.

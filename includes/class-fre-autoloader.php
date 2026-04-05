@@ -79,6 +79,9 @@ class FRE_Autoloader {
 
         // Integration classes.
         'FRE_Design_System'       => 'Integration/class-fre-design-system.php',
+
+        // Updates classes.
+        'FRE_GitHub_Updater'      => 'Updates/class-fre-github-updater.php',
     );
 
     /**
