@@ -5,6 +5,18 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-04-05
+
+### Changed
+- Comprehensive README.md rewrite with complete feature documentation
+- Updated plugin description to reflect admin UI capabilities
+- Added documentation for all 13 field types (including section, date, address)
+- Added documentation for layout features (columns, sections, conditional logic)
+- Added documentation for multi-step forms with progress styles
+- Added documentation for admin features (Forms Manager, entries, CSV export)
+- Expanded API functions documentation (4 → 8 functions)
+- Added design system integration documentation
+
 ## [1.0.0] - 2026-04-05
 
 ### Added
