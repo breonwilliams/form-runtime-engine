@@ -1,10 +1,10 @@
 # Form Runtime Engine
 
 **Contributors:** developer
-**Tags:** forms, contact form, form builder, email notifications
+**Tags:** forms, contact form, form builder, email notifications, webhooks, google sheets
 **Requires at least:** 5.0
 **Tested up to:** 6.9
-**Stable tag:** 1.0.0
+**Stable tag:** 1.1.0
 **Requires PHP:** 7.4
 **License:** GPLv2 or later
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html
@@ -194,7 +194,7 @@ array(
         'validate_on_next' => true,
     ),
 
-    // Webhook Integration (Zapier, Make, etc.)
+    // Webhook Integration (Zapier, Make, Google Sheets, etc.)
     'webhook_enabled' => false,
     'webhook_url'     => '',
 )
@@ -324,6 +324,80 @@ Split long forms into steps:
 - `bar` - Progress bar with step count
 - `dots` - Simple dot indicators
 
+## Webhook Integration
+
+Send form submissions to external services like Zapier, Make, Google Sheets, or any custom endpoint.
+
+### Configuration
+
+Enable webhooks in the Forms Manager (Form Entries → Forms → Edit) or via JSON/PHP settings:
+
+```json
+{
+  "settings": {
+    "webhook_enabled": true,
+    "webhook_url": "https://hooks.zapier.com/hooks/catch/..."
+  }
+}
+```
+
+### Webhook Features
+
+- **Destination presets** — Choose Google Sheets, Zapier, Make, or Custom with contextual setup instructions for each service
+- **HMAC-SHA256 request signing** — Per-form secrets auto-generated on first enable; sent as `X-FRE-Signature: sha256={hash}` header for receiver-side verification
+- **Test Connection** — Send a test ping to your endpoint with detailed response display (HTTP status, latency, response body)
+- **Preview Payload** — View a sample JSON payload based on your form's actual fields before going live
+- **Secret management** — Auto-generate, regenerate, or copy the signing secret to clipboard
+- **Webhook logging** — All dispatches logged with status, response code, and retry tracking
+- **Automatic retries** — Failed webhooks retry up to 3 times with exponential backoff (1min, 5min, 30min)
+- **SSRF protection** — Webhook URLs targeting private IP ranges are blocked
+
+### Webhook Payload
+
+```json
+{
+  "event": "form_submission",
+  "timestamp": "2024-01-15T10:30:00+00:00",
+  "form": { "id": "contact", "title": "Contact Us" },
+  "entry": { "id": 123, "submitted_at": "2024-01-15T10:30:00+00:00" },
+  "data": { "name": "John Doe", "email": "john@example.com", "message": "Hello..." },
+  "files": [],
+  "site": { "name": "My Website", "url": "https://example.com" }
+}
+```
+
+## Google Sheets Integration (Free)
+
+Send form submissions directly to Google Sheets without Zapier or Make. Uses Google Apps Script as a free webhook receiver.
+
+### How It Works
+
+```
+Form submission → Webhook POST → Google Apps Script → Google Sheet
+```
+
+Each form automatically gets its own sheet tab. Column headers are generated from field keys on the first submission.
+
+### Setup
+
+1. Create a Google Sheet
+2. Open **Extensions → Apps Script**
+3. Paste the template from `docs/google/apps-script-template.gs`
+4. Deploy as a **Web App** (access: "Anyone")
+5. Copy the Web App URL into the form's **Webhook URL** field in WordPress
+6. Select **Google Sheets** from the destination preset dropdown
+
+Full setup guide: `docs/google/google-sheets-setup.md`
+
+### Features
+
+- Auto-creates sheet tabs per form
+- Dynamic column headers from field keys
+- Handles new fields added to existing forms
+- Optional HMAC-SHA256 signature verification
+- Row rotation for high-volume forms
+- Error logging to a separate sheet tab
+
 ## Admin Features
 
 ### Forms Manager
@@ -333,6 +407,8 @@ Split long forms into steps:
 - Create, edit, and delete forms via JSON configuration
 - Form ID and title management
 - JSON syntax validation with error reporting
+- Webhook configuration with destination presets and test tools
+- Custom CSS per form with security validation
 
 ### Entry Management
 
@@ -485,8 +561,12 @@ fre_delete_db_form( string $form_id ): bool                  // Delete form
 - **Column layouts** and field grouping (sections)
 - **Conditional field logic** (show/hide based on values)
 - **AJAX form submission**
-- **Email notifications** with retry queue
-- **Webhook integration** (Zapier, Make, custom endpoints)
+- **Email notifications** with automatic retry queue (up to 3 retries)
+- **Webhook integration** (Zapier, Make, Google Sheets, custom endpoints)
+- **HMAC-SHA256 webhook signing** with per-form secrets
+- **Webhook admin tools** — test connection, preview payload, destination presets
+- **Webhook logging** with retry tracking and delivery status
+- **Google Sheets integration** — free Zapier alternative via Apps Script
 - **File uploads** with security protections
 - **Spam protection** (honeypot, timing check, rate limiting)
 - **Entry storage** and admin management
@@ -503,11 +583,25 @@ fre_delete_db_form( string $form_id ): bool                  // Delete form
 - PHP execution disabled in upload directory
 - CSRF protection with nonces
 - Input sanitization and validation
+- HMAC-SHA256 webhook request signing (per-form secrets)
 - Webhook SSRF protection (blocks private IP ranges)
-- CSS validation (blocks unsafe patterns)
+- CSS validation (blocks unsafe patterns like `expression()`, `@import`, `javascript:`)
 - JSON schema validation for form configurations
 
 ## Changelog
+
+### 1.1.0
+- Added HMAC-SHA256 webhook request signing with per-form secrets
+- Added webhook destination presets (Google Sheets, Zapier, Make) with contextual setup help
+- Added Test Connection button with rich response display
+- Added Preview Payload button showing sample JSON based on form fields
+- Added webhook secret management (auto-generate, regenerate, copy)
+- Added webhook delivery logging with retry tracking
+- Added Google Sheets integration via Apps Script (free Zapier alternative)
+- Added Google Apps Script template and setup documentation
+
+### 1.0.1
+- Comprehensive README.md rewrite with complete feature documentation
 
 ### 1.0.0
 - Initial release

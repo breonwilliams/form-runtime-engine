@@ -5,6 +5,26 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-11
+
+### Added
+- HMAC-SHA256 webhook request signing with auto-generated per-form secrets
+- Webhook destination presets (Google Sheets, Zapier, Make, Custom) with contextual setup help
+- Test Connection button with rich response display (HTTP status, latency, response body)
+- Preview Payload button showing sample JSON based on form field definitions
+- Webhook secret management: auto-generate on first enable, regenerate, copy to clipboard
+- Webhook delivery logging with database table, retry tracking, and status monitoring
+- Google Sheets integration via Google Apps Script (free Zapier alternative)
+- Google Apps Script template (`docs/google/apps-script-template.gs`) with signature verification support
+- Google Sheets setup guide (`docs/google/google-sheets-setup.md`)
+- Webhook secret field auto-populates in admin UI after server-side generation
+
+### Changed
+- Webhook dispatcher refactored to support HMAC signing and rich test responses
+- Forms Manager admin UI expanded with webhook configuration panel
+- Admin JS updated with handlers for preset switching, test, preview, regenerate, and copy actions
+- Split CLAUDE.md into root (core reference) + `docs/CLAUDE.md` (examples) + `includes/CLAUDE.md` (security) for performance
+
 ## [1.0.1] - 2026-04-05
 
 ### Changed
