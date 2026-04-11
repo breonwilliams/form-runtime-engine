@@ -46,6 +46,15 @@
     --fre-button-bg: var(--aisb-button-primary-bg, var(--fre-primary-color));
     --fre-button-hover-bg: var(--aisb-button-primary-hover-bg, var(--fre-primary-hover));
 
+    /* Button Typography - inherit from AISB */
+    --fre-button-font: var(--aisb-section-font-button, var(--fre-font-family));
+    --fre-button-weight: var(--aisb-section-font-button-weight, 500);
+    --fre-button-transform: var(--aisb-section-font-button-text-transform, none);
+    --fre-button-letter-spacing: var(--aisb-section-font-button-letter-spacing, normal);
+
+    /* Glow effect color for hover */
+    --fre-button-glow-color: var(--aisb-button-glow-color, rgba(99, 102, 241, 0.4));
+
     /* Ghost button (secondary/previous button) */
     --fre-ghost-color: var(--aisb-smart-light-ghost-button, var(--aisb-smart-light-section-link, var(--fre-primary-color)));
     --fre-ghost-hover-bg: var(--aisb-button-primary-hover-bg, var(--fre-primary-hover));
@@ -375,14 +384,16 @@
     justify-content: center;
     padding: 12px 24px;
     font-size: inherit;
-    font-family: var(--fre-font-family);
-    font-weight: 500;
+    font-family: var(--fre-button-font);
+    font-weight: var(--fre-button-weight);
+    text-transform: var(--fre-button-transform);
+    letter-spacing: var(--fre-button-letter-spacing);
     color: var(--fre-button-text);
     background-color: var(--fre-button-bg);
     border: none;
     border-radius: var(--fre-border-radius-button);
     cursor: pointer;
-    transition: background-color var(--fre-transition-fast);
+    transition: background-color var(--fre-transition-fast), transform var(--fre-transition-fast), box-shadow var(--fre-transition-fast);
     min-width: 120px;
 }
 
@@ -747,8 +758,10 @@
     justify-content: center;
     padding: 12px 24px;
     font-size: inherit;
-    font-family: var(--fre-font-family);
-    font-weight: 500;
+    font-family: var(--fre-button-font);
+    font-weight: var(--fre-button-weight);
+    text-transform: var(--fre-button-transform);
+    letter-spacing: var(--fre-button-letter-spacing);
     border: none;
     border-radius: var(--fre-border-radius-button);
     cursor: pointer;
@@ -801,6 +814,50 @@
 
     .fre-btn--secondary:focus {
         box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
+}
+
+/* ==========================================================================
+   AISB Hover Effect Integration
+
+   Responds to Global Settings hover style choices via body classes.
+   These classes are added by AISB when hover effects are configured.
+   ========================================================================== */
+
+/* Lift Effect - Button raises up with shadow */
+body.aisb-hover-lift .fre-form__submit-button:hover:not(:disabled),
+body.aisb-hover-lift .fre-btn--primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Scale Effect - Button grows slightly */
+body.aisb-hover-scale .fre-form__submit-button:hover:not(:disabled),
+body.aisb-hover-scale .fre-btn--primary:hover:not(:disabled) {
+    transform: scale(1.03);
+}
+
+/* Glow Effect - Soft color glow around button */
+body.aisb-hover-glow .fre-form__submit-button:hover:not(:disabled),
+body.aisb-hover-glow .fre-btn--primary:hover:not(:disabled) {
+    box-shadow: 0 0 20px var(--fre-button-glow-color);
+}
+
+/* None Effect - Disable hover transitions */
+body.aisb-hover-none .fre-form__submit-button:hover:not(:disabled),
+body.aisb-hover-none .fre-btn--primary:hover:not(:disabled) {
+    background-color: var(--fre-button-bg);
+    transform: none;
+    box-shadow: none;
+}
+
+/* Reduced Motion Accessibility - Disable transform-based hover effects */
+@media (prefers-reduced-motion: reduce) {
+    body.aisb-hover-lift .fre-form__submit-button:hover,
+    body.aisb-hover-lift .fre-btn--primary:hover,
+    body.aisb-hover-scale .fre-form__submit-button:hover,
+    body.aisb-hover-scale .fre-btn--primary:hover {
+        transform: none;
     }
 }
 

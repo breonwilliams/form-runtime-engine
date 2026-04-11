@@ -1,102 +1,106 @@
 /**
  * Form Runtime Engine - Neo-Brutalist Styles
  *
- * Applied when AI Section Builder Modern has neo-brutalist mode enabled.
- * Provides bold borders, box shadows, and offset transforms for buttons.
+ * Scoped under AISB body classes for proper mode detection:
+ * - .aisb-neo-brutalist-cards = Lifted mode (borders + shadow)
+ * - .aisb-neo-brutalist-cards-outline = Outline mode (borders only)
+ * - .aisb-neo-brutalist-buttons = Button styling enabled
  *
- * Design Principle: Only primary/solid buttons and card-like containers
- * (sections, message boxes) receive Neo-Brutalist treatment. Form fields
- * and ghost buttons remain minimal for usability.
+ * IMPORTANT: Neo-brutalist borders and shadows use a FIXED color that
+ * does NOT change based on light/dark mode. This ensures visual consistency.
+ *
+ * Design Principle: Only primary/solid buttons and section cards receive
+ * Neo-Brutalist treatment. Form fields, ghost buttons, and message alerts
+ * remain minimal for usability.
  *
  * @package FormRuntimeEngine
  */
 
 /* ==========================================================================
-   Neo-Brutalist Section Styling
+   Neo-Brutalist Color Variable
+   Uses AISB's neo-brutalist primary border color, falls back to pure black
+   This color does NOT change in dark mode - Promptless injects #000000 for both themes
    ========================================================================== */
 
-.fre-section {
-    border-width: var(--aisb-neo-border-width, 4px);
-    border-style: solid;
-    border-color: var(--fre-text-color);
-    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-text-color);
-}
-
-/* Dark mode sections */
-.aisb-section--dark .fre-section,
-.fre-form--dark .fre-section {
-    border-color: var(--fre-border-color);
-    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-border-color);
+:root {
+    --fre-neo-border-color: var(--aisb-neo-brutalist-primary-border, #000000);
 }
 
 /* ==========================================================================
-   Neo-Brutalist Message Field
+   Neo-Brutalist Section/Card Styling - LIFTED MODE
+   body.aisb-neo-brutalist-cards (without -outline class)
    ========================================================================== */
 
-.fre-field--message {
+body.aisb-neo-brutalist-cards:not(.aisb-neo-brutalist-cards-outline) .fre-section {
     border-width: var(--aisb-neo-border-width, 4px);
     border-style: solid;
-    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 currentColor;
-}
-
-.fre-field--message-info {
-    border-color: var(--fre-primary-color);
-    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-primary-color);
-}
-
-.fre-field--message-warning {
-    border-color: #f59e0b;
-    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 #f59e0b;
-}
-
-.fre-field--message-success {
-    border-color: var(--fre-success-color);
-    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-success-color);
-}
-
-.fre-field--message-error {
-    border-color: var(--fre-error-color);
-    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-error-color);
+    border-color: var(--fre-neo-border-color);
+    box-shadow: var(--aisb-neo-shadow-offset, 8px) var(--aisb-neo-shadow-offset, 8px) 0 var(--fre-neo-border-color);
+    position: relative;
+    z-index: 1;
 }
 
 /* ==========================================================================
-   Neo-Brutalist Buttons (Primary Only)
-
-   Ghost/secondary buttons intentionally excluded to maintain usability
-   and align with Promptless design system.
+   Neo-Brutalist Section/Card Styling - OUTLINE MODE
+   body.aisb-neo-brutalist-cards.aisb-neo-brutalist-cards-outline
    ========================================================================== */
 
-.fre-form__submit-button,
-.fre-btn--primary {
-    border: var(--aisb-neo-border-width-button, 3px) solid var(--fre-text-color);
-    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-text-color);
+body.aisb-neo-brutalist-cards-outline .fre-section {
+    border-width: var(--aisb-neo-border-width, 4px);
+    border-style: solid;
+    border-color: var(--fre-neo-border-color);
+    box-shadow: none;
+    position: relative;
+    z-index: 1;
+}
+
+/* ==========================================================================
+   EXCLUDED FROM NEO-BRUTALIST STYLING
+
+   The following elements remain minimal and clean:
+   - Message fields / alerts (success, error, warning, info notifications)
+   - Form fields (inputs, textareas, selects)
+   - Checkboxes and radios
+
+   Only buttons and section cards receive neo-brutalist treatment.
+   ========================================================================== */
+
+/* ==========================================================================
+   Neo-Brutalist Buttons - LIFTED MODE
+   body.aisb-neo-brutalist-buttons (without -outline class)
+   ========================================================================== */
+
+body.aisb-neo-brutalist-buttons:not(.aisb-neo-brutalist-buttons-outline) .fre-form__submit-button,
+body.aisb-neo-brutalist-buttons:not(.aisb-neo-brutalist-buttons-outline) .fre-btn--primary {
+    border: var(--aisb-neo-border-width-button, 3px) solid var(--fre-neo-border-color);
+    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-neo-border-color);
     transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease;
 }
 
-.fre-form__submit-button:hover:not(:disabled),
-.fre-btn--primary:hover:not(:disabled) {
+body.aisb-neo-brutalist-buttons:not(.aisb-neo-brutalist-buttons-outline) .fre-form__submit-button:hover:not(:disabled),
+body.aisb-neo-brutalist-buttons:not(.aisb-neo-brutalist-buttons-outline) .fre-btn--primary:hover:not(:disabled) {
     transform: translate(1px, 1px);
-    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-text-color);
+    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-neo-border-color);
 }
 
-.fre-form__submit-button:active:not(:disabled),
-.fre-btn--primary:active:not(:disabled) {
+body.aisb-neo-brutalist-buttons:not(.aisb-neo-brutalist-buttons-outline) .fre-form__submit-button:active:not(:disabled),
+body.aisb-neo-brutalist-buttons:not(.aisb-neo-brutalist-buttons-outline) .fre-btn--primary:active:not(:disabled) {
     transform: translate(2px, 2px);
-    box-shadow: 2px 2px 0 var(--fre-text-color);
+    box-shadow: 2px 2px 0 var(--fre-neo-border-color);
 }
 
-/* Dark mode buttons - primary */
-.aisb-section--dark .fre-form__submit-button,
-.aisb-section--dark .fre-btn--primary,
-.fre-form--dark .fre-form__submit-button,
-.fre-form--dark .fre-btn--primary {
-    border-color: var(--fre-text-color);
-    box-shadow: var(--aisb-neo-shadow-offset-button, 4px) var(--aisb-neo-shadow-offset-button, 4px) 0 var(--fre-text-color);
+/* ==========================================================================
+   Neo-Brutalist Buttons - OUTLINE MODE
+   body.aisb-neo-brutalist-buttons.aisb-neo-brutalist-buttons-outline
+   ========================================================================== */
+
+body.aisb-neo-brutalist-buttons-outline .fre-form__submit-button,
+body.aisb-neo-brutalist-buttons-outline .fre-btn--primary {
+    border: var(--aisb-neo-border-width-button, 3px) solid var(--fre-neo-border-color);
+    box-shadow: none;
 }
 
-.aisb-section--dark .fre-form__submit-button:hover:not(:disabled),
-.aisb-section--dark .fre-btn--primary:hover:not(:disabled),
-.fre-form--dark .fre-form__submit-button:hover:not(:disabled),
-.fre-form--dark .fre-btn--primary:hover:not(:disabled) {
-    box-shadow: var(--aisb-neo-shadow-offset-button-hover, 3px) var(--aisb-neo-shadow-offset-button-hover, 3px) 0 var(--fre-text-color);
+body.aisb-neo-brutalist-buttons-outline .fre-form__submit-button:hover:not(:disabled),
+body.aisb-neo-brutalist-buttons-outline .fre-btn--primary:hover:not(:disabled) {
+    opacity: 0.9;
 }
