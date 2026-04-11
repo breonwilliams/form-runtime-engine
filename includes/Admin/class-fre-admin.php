@@ -44,6 +44,9 @@ class FRE_Admin {
         // AJAX handlers for forms management.
         add_action( 'wp_ajax_fre_save_form', array( 'FRE_Forms_Manager', 'ajax_save_form' ) );
         add_action( 'wp_ajax_fre_delete_form', array( 'FRE_Forms_Manager', 'ajax_delete_form' ) );
+        add_action( 'wp_ajax_fre_test_webhook', array( 'FRE_Forms_Manager', 'ajax_test_webhook' ) );
+        add_action( 'wp_ajax_fre_preview_payload', array( 'FRE_Forms_Manager', 'ajax_preview_payload' ) );
+        add_action( 'wp_ajax_fre_regenerate_secret', array( 'FRE_Forms_Manager', 'ajax_regenerate_secret' ) );
 
         // AJAX handler for API key testing.
         add_action( 'wp_ajax_fre_test_google_api_key', array( $this, 'ajax_test_google_api_key' ) );

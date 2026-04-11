@@ -34,7 +34,7 @@ define( 'FRE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'FRE_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 // Database version.
-define( 'FRE_DB_VERSION', '1.1.0' );
+define( 'FRE_DB_VERSION', '1.2.0' );
 
 // Upload directory name.
 define( 'FRE_UPLOAD_DIR', 'fre-uploads' );
@@ -135,6 +135,11 @@ final class Form_Runtime_Engine {
      * Plugin deactivation.
      */
     public function deactivate() {
+        // Unschedule webhook cron events (recurring and single).
+        wp_clear_scheduled_hook( 'fre_process_webhook_queue' );
+        wp_clear_scheduled_hook( 'fre_prune_webhook_log' );
+        wp_clear_scheduled_hook( 'fre_retry_webhook' );
+
         // Flush rewrite rules.
         flush_rewrite_rules();
     }

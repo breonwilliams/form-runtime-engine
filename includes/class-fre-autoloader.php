@@ -34,6 +34,7 @@ class FRE_Autoloader {
         'FRE_Migrator'            => 'Database/class-fre-migrator.php',
         'FRE_Entry'               => 'Database/class-fre-entry.php',
         'FRE_Entry_Query'         => 'Database/class-fre-entry-query.php',
+        'FRE_Webhook_Log'         => 'Database/class-fre-webhook-log.php',
 
         // Field classes.
         'FRE_Field_Type'          => 'Fields/interface-fre-field-type.php',

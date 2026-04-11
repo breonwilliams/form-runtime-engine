@@ -70,6 +70,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
             'form_id'      => __( 'Form', 'form-runtime-engine' ),
             'status'       => __( 'Status', 'form-runtime-engine' ),
             'notification' => __( 'Email', 'form-runtime-engine' ),
+            'webhook'      => __( 'Webhook', 'form-runtime-engine' ),
             'created_at'   => __( 'Date', 'form-runtime-engine' ),
         );
     }
@@ -297,6 +298,44 @@ class FRE_Entries_List_Table extends WP_List_Table {
         }
 
         return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'Not sent', 'form-runtime-engine' ) . '"></span>';
+    }
+
+    /**
+     * Webhook delivery status column.
+     *
+     * @param array $item Entry data.
+     * @return string
+     */
+    public function column_webhook( $item ) {
+        $log = new FRE_Webhook_Log();
+
+        if ( ! $log->table_exists() ) {
+            return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'No log table', 'form-runtime-engine' ) . '"></span>';
+        }
+
+        $status = $log->get_entry_status( (int) $item['id'] );
+
+        if ( $status === null ) {
+            // No webhook was sent for this entry.
+            return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'No webhook configured', 'form-runtime-engine' ) . '"></span>';
+        }
+
+        switch ( $status ) {
+            case FRE_Webhook_Log::STATUS_SUCCESS:
+                return '<span class="dashicons dashicons-yes" style="color:#46b450;" title="' . esc_attr__( 'Delivered', 'form-runtime-engine' ) . '"></span>';
+
+            case FRE_Webhook_Log::STATUS_RETRYING:
+                return '<span class="dashicons dashicons-update" style="color:#dba617;" title="' . esc_attr__( 'Retrying', 'form-runtime-engine' ) . '"></span>';
+
+            case FRE_Webhook_Log::STATUS_PENDING:
+                return '<span class="dashicons dashicons-clock" style="color:#999;" title="' . esc_attr__( 'Pending', 'form-runtime-engine' ) . '"></span>';
+
+            case FRE_Webhook_Log::STATUS_FAILED:
+                return '<span class="dashicons dashicons-warning" style="color:#d63638;" title="' . esc_attr__( 'Failed', 'form-runtime-engine' ) . '"></span>';
+
+            default:
+                return '<span class="dashicons dashicons-minus" style="color:#999;"></span>';
+        }
     }
 
     /**

@@ -568,10 +568,17 @@ Enable webhooks to send form submissions to external services like Zapier, Make,
 ```
 
 **Security Features:**
+- HMAC-SHA256 request signing (per-form secret, `X-FRE-Signature` header)
 - SSRF protection (blocks private IP ranges)
 - URL validation at save and dispatch time
 - Honeypot/timing fields filtered from payload
 - Non-blocking async dispatch
+
+**Admin UI Features:**
+- Destination presets (Google Sheets, Zapier, Make, Custom) with contextual setup help
+- Auto-generated webhook secret with copy/regenerate buttons
+- Test Connection button with rich response display (HTTP status, latency, response body)
+- Preview Payload button showing sample JSON based on form fields
 
 ## Template Variables
 
@@ -1416,6 +1423,60 @@ Before outputting a form, verify:
 5. **Orphan section references:** Don't set `"section": "bar"` without a field `{"key": "bar", "type": "section"}`
 6. **Condition referencing non-existent field:** The `"field"` in a condition rule must match an existing field key
 7. **JSON trailing commas:** Unlike PHP arrays, JSON doesn't allow trailing commas
+
+---
+
+## Google Sheets Integration (Free Zapier Alternative)
+
+Form Runtime Engine supports sending submissions directly to Google Sheets via Google Apps Script. This is a free alternative to Zapier for projects that just need form data in a spreadsheet.
+
+### How It Works
+
+The plugin's existing webhook feature sends a JSON payload to a Google Apps Script web app endpoint, which writes the data to a Google Sheet. No OAuth, no API keys, no recurring costs.
+
+```
+Form submission → Webhook POST → Google Apps Script → Google Sheet
+```
+
+### Setup
+
+1. Create a Google Sheet
+2. Open Extensions → Apps Script
+3. Paste the template from `docs/google/apps-script-template.gs`
+4. Deploy as a Web App (access: "Anyone")
+5. Copy the URL into the form's Webhook URL field in WordPress
+
+Full guide: `docs/google/google-sheets-setup.md`
+
+### Key Details for AI-Generated Forms
+
+When generating forms that will use Google Sheets:
+- The webhook payload is already compatible — no special configuration needed
+- Each form automatically gets its own sheet tab
+- Column headers are generated from field keys, so **consistent field naming matters**
+- Use the standard field naming conventions from this document (e.g., `name`, `email`, `phone`)
+- Checkbox groups are joined with commas in the spreadsheet
+
+### Webhook Configuration for Google
+
+```json
+{
+  "settings": {
+    "webhook_enabled": true,
+    "webhook_url": "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+  }
+}
+```
+
+Or in PHP:
+```php
+'settings' => array(
+    'webhook_enabled' => true,
+    'webhook_url'     => 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
+),
+```
+
+> **Note for AI:** When a user mentions "Google Sheets", "spreadsheet", or "free alternative to Zapier", recommend the Google Apps Script integration and reference the setup guide at `docs/google/google-sheets-setup.md`.
 
 ---
 

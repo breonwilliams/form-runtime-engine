@@ -56,9 +56,11 @@ class FRE_Forms_Manager {
      * @param string $custom_css      Custom CSS for the form.
      * @param bool   $webhook_enabled Whether webhook is enabled.
      * @param string $webhook_url     Webhook URL.
+     * @param string $webhook_secret  Webhook signing secret (auto-generated if empty and webhook enabled).
+     * @param string $webhook_preset  Webhook destination preset (google_sheets, zapier, make, custom).
      * @return array|WP_Error
      */
-    public static function save_form( $form_id, $title, $json_config, $custom_css = '', $webhook_enabled = false, $webhook_url = '' ) {
+    public static function save_form( $form_id, $title, $json_config, $custom_css = '', $webhook_enabled = false, $webhook_url = '', $webhook_secret = '', $webhook_preset = 'custom' ) {
         // Validate form ID.
         if ( empty( $form_id ) ) {
             return new WP_Error( 'empty_id', __( 'Form ID is required.', 'form-runtime-engine' ) );
@@ -120,6 +122,22 @@ class FRE_Forms_Manager {
             $title = $config['title'];
         }
 
+        // Handle webhook secret: preserve existing, auto-generate if newly enabled, or accept provided.
+        if ( ! empty( $webhook_secret ) ) {
+            // Use the provided secret (e.g., manually set or regenerated).
+            $webhook_secret = sanitize_text_field( $webhook_secret );
+        } elseif ( $webhook_enabled && ! $is_new && ! empty( $forms[ $form_id ]['webhook_secret'] ) ) {
+            // Preserve existing secret when editing.
+            $webhook_secret = $forms[ $form_id ]['webhook_secret'];
+        } elseif ( $webhook_enabled ) {
+            // Auto-generate a new secret when webhook is first enabled.
+            $webhook_secret = wp_generate_password( 32, false );
+        }
+
+        // Validate preset value.
+        $valid_presets  = array( 'google_sheets', 'zapier', 'make', 'custom' );
+        $webhook_preset = in_array( $webhook_preset, $valid_presets, true ) ? $webhook_preset : 'custom';
+
         // Save form (CSS is already sanitized by FRE_CSS_Validator).
         $forms[ $form_id ] = array(
             'id'              => $form_id,
@@ -128,6 +146,8 @@ class FRE_Forms_Manager {
             'custom_css'      => $custom_css,
             'webhook_enabled' => $webhook_enabled,
             'webhook_url'     => $webhook_url,
+            'webhook_secret'  => $webhook_secret,
+            'webhook_preset'  => $webhook_preset,
             'created'         => $is_new ? time() : ( $forms[ $form_id ]['created'] ?? time() ),
             'modified'        => time(),
         );
@@ -428,22 +448,165 @@ class FRE_Forms_Manager {
                                         <?php esc_html_e( 'Enable webhook for this form', 'form-runtime-engine' ); ?>
                                     </label>
                                     <p class="description">
-                                        <?php esc_html_e( 'Send form submissions to an external service like Zapier, Make.com, or any webhook endpoint.', 'form-runtime-engine' ); ?>
+                                        <?php esc_html_e( 'Send form submissions to an external service like Zapier, Make.com, or Google Sheets.', 'form-runtime-engine' ); ?>
                                     </p>
                                 </fieldset>
-                                <div id="fre-webhook-url-wrapper" style="margin-top: 15px; <?php echo empty( $edit_form['webhook_enabled'] ) ? 'display: none;' : ''; ?>">
-                                    <label for="fre-webhook-url"><?php esc_html_e( 'Webhook URL', 'form-runtime-engine' ); ?></label>
-                                    <input
-                                        type="url"
-                                        id="fre-webhook-url"
-                                        name="webhook_url"
-                                        class="large-text"
-                                        value="<?php echo esc_url( $edit_form['webhook_url'] ?? '' ); ?>"
-                                        placeholder="https://hooks.zapier.com/..."
-                                    >
-                                    <p class="description">
-                                        <?php esc_html_e( 'Enter the full webhook URL. Must start with http:// or https://.', 'form-runtime-engine' ); ?>
-                                    </p>
+
+                                <?php
+                                // Determine current preset (auto-detect from URL if not set).
+                                $current_preset = $edit_form['webhook_preset'] ?? 'custom';
+                                $current_url    = $edit_form['webhook_url'] ?? '';
+                                if ( 'custom' === $current_preset && ! empty( $current_url ) ) {
+                                    if ( strpos( $current_url, 'script.google.com' ) !== false ) {
+                                        $current_preset = 'google_sheets';
+                                    } elseif ( strpos( $current_url, 'hooks.zapier.com' ) !== false ) {
+                                        $current_preset = 'zapier';
+                                    } elseif ( strpos( $current_url, 'hook.us1.make.com' ) !== false || strpos( $current_url, 'hook.eu1.make.com' ) !== false || strpos( $current_url, 'hook.make.com' ) !== false ) {
+                                        $current_preset = 'make';
+                                    }
+                                }
+                                ?>
+
+                                <div id="fre-webhook-settings-wrapper" style="margin-top: 15px; <?php echo empty( $edit_form['webhook_enabled'] ) ? 'display: none;' : ''; ?>">
+
+                                    <!-- Destination Preset -->
+                                    <div style="margin-bottom: 15px;">
+                                        <label for="fre-webhook-preset"><?php esc_html_e( 'Destination', 'form-runtime-engine' ); ?></label>
+                                        <select id="fre-webhook-preset" name="webhook_preset" style="margin-left: 8px;">
+                                            <option value="google_sheets" <?php selected( $current_preset, 'google_sheets' ); ?>>
+                                                <?php esc_html_e( 'Google Sheets (Free)', 'form-runtime-engine' ); ?>
+                                            </option>
+                                            <option value="zapier" <?php selected( $current_preset, 'zapier' ); ?>>
+                                                <?php esc_html_e( 'Zapier', 'form-runtime-engine' ); ?>
+                                            </option>
+                                            <option value="make" <?php selected( $current_preset, 'make' ); ?>>
+                                                <?php esc_html_e( 'Make (Integromat)', 'form-runtime-engine' ); ?>
+                                            </option>
+                                            <option value="custom" <?php selected( $current_preset, 'custom' ); ?>>
+                                                <?php esc_html_e( 'Custom Endpoint', 'form-runtime-engine' ); ?>
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Contextual Help (changes based on preset) -->
+                                    <div id="fre-webhook-preset-help" class="fre-webhook-preset-help" style="margin-bottom: 15px; padding: 10px 15px; background: #f0f6fc; border-left: 4px solid #2271b1; display: <?php echo empty( $edit_form['webhook_enabled'] ) ? 'none' : 'block'; ?>;">
+                                        <div id="fre-preset-help-google_sheets" class="fre-preset-help" style="<?php echo 'google_sheets' !== $current_preset ? 'display:none;' : ''; ?>">
+                                            <strong><?php esc_html_e( 'Google Sheets Setup', 'form-runtime-engine' ); ?></strong>
+                                            <ol style="margin: 8px 0 0 20px;">
+                                                <li><?php esc_html_e( 'Create a Google Sheet', 'form-runtime-engine' ); ?></li>
+                                                <li><?php esc_html_e( 'Open Extensions > Apps Script', 'form-runtime-engine' ); ?></li>
+                                                <li>
+                                                    <?php
+                                                    printf(
+                                                        /* translators: %s: path to the template file */
+                                                        esc_html__( 'Paste the template from %s', 'form-runtime-engine' ),
+                                                        '<code>docs/google/apps-script-template.gs</code>'
+                                                    );
+                                                    ?>
+                                                </li>
+                                                <li><?php esc_html_e( 'Deploy as Web App (access: "Anyone")', 'form-runtime-engine' ); ?></li>
+                                                <li><?php esc_html_e( 'Paste the Web App URL below', 'form-runtime-engine' ); ?></li>
+                                            </ol>
+                                            <p style="margin-top: 8px;">
+                                                <?php
+                                                printf(
+                                                    /* translators: %s: path to the setup guide */
+                                                    esc_html__( 'Full setup guide: %s', 'form-runtime-engine' ),
+                                                    '<code>docs/google/google-sheets-setup.md</code>'
+                                                );
+                                                ?>
+                                            </p>
+                                        </div>
+                                        <div id="fre-preset-help-zapier" class="fre-preset-help" style="<?php echo 'zapier' !== $current_preset ? 'display:none;' : ''; ?>">
+                                            <strong><?php esc_html_e( 'Zapier Setup', 'form-runtime-engine' ); ?></strong>
+                                            <ol style="margin: 8px 0 0 20px;">
+                                                <li><?php esc_html_e( 'Create a Zap with "Webhooks by Zapier" as the trigger', 'form-runtime-engine' ); ?></li>
+                                                <li><?php esc_html_e( 'Select "Catch Hook" as the trigger event', 'form-runtime-engine' ); ?></li>
+                                                <li><?php esc_html_e( 'Copy the webhook URL Zapier provides', 'form-runtime-engine' ); ?></li>
+                                                <li><?php esc_html_e( 'Paste it below, save, then use "Test Connection" to send sample data', 'form-runtime-engine' ); ?></li>
+                                            </ol>
+                                        </div>
+                                        <div id="fre-preset-help-make" class="fre-preset-help" style="<?php echo 'make' !== $current_preset ? 'display:none;' : ''; ?>">
+                                            <strong><?php esc_html_e( 'Make (Integromat) Setup', 'form-runtime-engine' ); ?></strong>
+                                            <ol style="margin: 8px 0 0 20px;">
+                                                <li><?php esc_html_e( 'Create a new Scenario in Make', 'form-runtime-engine' ); ?></li>
+                                                <li><?php esc_html_e( 'Add a "Webhooks" module as the trigger', 'form-runtime-engine' ); ?></li>
+                                                <li><?php esc_html_e( 'Select "Custom webhook" and create a new webhook', 'form-runtime-engine' ); ?></li>
+                                                <li><?php esc_html_e( 'Copy the URL and paste it below', 'form-runtime-engine' ); ?></li>
+                                            </ol>
+                                        </div>
+                                        <div id="fre-preset-help-custom" class="fre-preset-help" style="<?php echo 'custom' !== $current_preset ? 'display:none;' : ''; ?>">
+                                            <strong><?php esc_html_e( 'Custom Endpoint', 'form-runtime-engine' ); ?></strong>
+                                            <p style="margin: 8px 0 0 0;"><?php esc_html_e( 'Enter any HTTPS endpoint that accepts POST requests with JSON payloads. Use "Preview Payload" below to see the exact data structure your endpoint will receive.', 'form-runtime-engine' ); ?></p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Webhook URL -->
+                                    <div style="margin-bottom: 15px;">
+                                        <label for="fre-webhook-url"><?php esc_html_e( 'Webhook URL', 'form-runtime-engine' ); ?></label>
+                                        <input
+                                            type="url"
+                                            id="fre-webhook-url"
+                                            name="webhook_url"
+                                            class="large-text"
+                                            value="<?php echo esc_url( $edit_form['webhook_url'] ?? '' ); ?>"
+                                            placeholder="https://"
+                                        >
+                                        <p class="description">
+                                            <?php esc_html_e( 'Enter the full webhook URL. Must use HTTPS.', 'form-runtime-engine' ); ?>
+                                        </p>
+                                    </div>
+
+                                    <!-- Webhook Secret (HMAC Signing) -->
+                                    <div style="margin-bottom: 15px;">
+                                        <label for="fre-webhook-secret"><?php esc_html_e( 'Webhook Secret', 'form-runtime-engine' ); ?></label>
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                            <input
+                                                type="text"
+                                                id="fre-webhook-secret"
+                                                name="webhook_secret"
+                                                class="regular-text code"
+                                                value="<?php echo esc_attr( $edit_form['webhook_secret'] ?? '' ); ?>"
+                                                readonly
+                                            >
+                                            <button type="button" class="button" id="fre-regenerate-secret-btn" <?php echo empty( $editing_id ) ? 'disabled' : ''; ?>>
+                                                <?php esc_html_e( 'Regenerate', 'form-runtime-engine' ); ?>
+                                            </button>
+                                            <button type="button" class="button-link" id="fre-copy-secret-btn" title="<?php esc_attr_e( 'Copy to clipboard', 'form-runtime-engine' ); ?>">
+                                                <span class="dashicons dashicons-clipboard"></span>
+                                            </button>
+                                        </div>
+                                        <p class="description">
+                                            <?php esc_html_e( 'Used to sign requests with HMAC-SHA256. Copy this secret to your receiving endpoint for verification. Auto-generated when webhook is enabled.', 'form-runtime-engine' ); ?>
+                                            <br>
+                                            <?php esc_html_e( 'Signature is sent in the X-FRE-Signature header as: sha256={hash}', 'form-runtime-engine' ); ?>
+                                        </p>
+                                    </div>
+
+                                    <!-- Action Buttons: Test Connection & Preview Payload -->
+                                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                        <button type="button" class="button" id="fre-test-webhook-btn">
+                                            <span class="dashicons dashicons-yes-alt" style="margin-top: 4px;"></span>
+                                            <?php esc_html_e( 'Test Connection', 'form-runtime-engine' ); ?>
+                                        </button>
+                                        <?php if ( $is_edit_view ) : ?>
+                                            <button type="button" class="button" id="fre-preview-payload-btn">
+                                                <span class="dashicons dashicons-visibility" style="margin-top: 4px;"></span>
+                                                <?php esc_html_e( 'Preview Payload', 'form-runtime-engine' ); ?>
+                                            </button>
+                                        <?php endif; ?>
+                                        <span class="spinner" id="fre-webhook-test-spinner" style="float: none;"></span>
+                                    </div>
+
+                                    <!-- Test / Preview Results Area -->
+                                    <div id="fre-webhook-result" style="display: none; margin-bottom: 15px; padding: 12px 15px; border-radius: 4px;"></div>
+
+                                    <!-- Payload Preview Area -->
+                                    <div id="fre-payload-preview" style="display: none; margin-bottom: 15px;">
+                                        <label><?php esc_html_e( 'Sample Payload', 'form-runtime-engine' ); ?></label>
+                                        <pre id="fre-payload-json" class="code" style="background: #f6f7f7; border: 1px solid #c3c4c7; padding: 12px; overflow-x: auto; max-height: 400px; margin-top: 4px;"></pre>
+                                    </div>
+
                                 </div>
                             </td>
                         </tr>
@@ -519,8 +682,10 @@ class FRE_Forms_Manager {
         $custom_css      = isset( $_POST['custom_css'] ) ? wp_unslash( $_POST['custom_css'] ) : '';
         $webhook_enabled = isset( $_POST['webhook_enabled'] ) && $_POST['webhook_enabled'] === '1';
         $webhook_url     = isset( $_POST['webhook_url'] ) ? esc_url_raw( wp_unslash( $_POST['webhook_url'] ) ) : '';
+        $webhook_secret  = isset( $_POST['webhook_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['webhook_secret'] ) ) : '';
+        $webhook_preset  = isset( $_POST['webhook_preset'] ) ? sanitize_key( wp_unslash( $_POST['webhook_preset'] ) ) : 'custom';
 
-        $result = self::save_form( $form_id, $title, $config, $custom_css, $webhook_enabled, $webhook_url );
+        $result = self::save_form( $form_id, $title, $config, $custom_css, $webhook_enabled, $webhook_url, $webhook_secret, $webhook_preset );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( array( 'message' => $result->get_error_message() ) );
@@ -555,5 +720,102 @@ class FRE_Forms_Manager {
         }
 
         wp_send_json_success( array( 'message' => __( 'Form deleted successfully!', 'form-runtime-engine' ) ) );
+    }
+
+    /**
+     * AJAX: Test a webhook connection.
+     *
+     * Sends a test ping to the webhook URL and returns rich response data.
+     */
+    public static function ajax_test_webhook() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
+        }
+
+        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+
+        $webhook_url    = isset( $_POST['webhook_url'] ) ? esc_url_raw( wp_unslash( $_POST['webhook_url'] ) ) : '';
+        $webhook_secret = isset( $_POST['webhook_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['webhook_secret'] ) ) : '';
+        $form_id        = isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : 'test';
+
+        if ( empty( $webhook_url ) ) {
+            wp_send_json_error( array( 'message' => __( 'Webhook URL is required.', 'form-runtime-engine' ) ) );
+        }
+
+        $result = FRE_Webhook_Dispatcher::test( $webhook_url, $form_id, $webhook_secret );
+
+        if ( $result['success'] ) {
+            wp_send_json_success( $result );
+        } else {
+            wp_send_json_error( $result );
+        }
+    }
+
+    /**
+     * AJAX: Preview webhook payload for a form.
+     *
+     * Generates a sample payload using the form's field definitions.
+     */
+    public static function ajax_preview_payload() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
+        }
+
+        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+
+        $form_id = isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : '';
+
+        if ( empty( $form_id ) ) {
+            wp_send_json_error( array( 'message' => __( 'Form ID is required.', 'form-runtime-engine' ) ) );
+        }
+
+        $payload = FRE_Webhook_Dispatcher::preview_payload( $form_id );
+
+        if ( is_wp_error( $payload ) ) {
+            wp_send_json_error( array( 'message' => $payload->get_error_message() ) );
+        }
+
+        wp_send_json_success( array(
+            'payload' => $payload,
+            'json'    => wp_json_encode( $payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ),
+        ) );
+    }
+
+    /**
+     * AJAX: Regenerate webhook secret for a form.
+     *
+     * Generates a new 32-character secret and saves it to the form data.
+     */
+    public static function ajax_regenerate_secret() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
+        }
+
+        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+
+        $form_id = isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : '';
+
+        if ( empty( $form_id ) ) {
+            wp_send_json_error( array( 'message' => __( 'Form ID is required.', 'form-runtime-engine' ) ) );
+        }
+
+        $form = self::get_form( $form_id );
+        if ( empty( $form ) ) {
+            wp_send_json_error( array( 'message' => __( 'Form not found.', 'form-runtime-engine' ) ) );
+        }
+
+        // Generate new secret.
+        $new_secret = wp_generate_password( 32, false );
+
+        // Update the form data directly.
+        $forms = self::get_forms();
+        $forms[ $form_id ]['webhook_secret'] = $new_secret;
+        $forms[ $form_id ]['modified']       = time();
+        update_option( self::OPTION_KEY, $forms );
+
+        wp_send_json_success( array(
+            'message' => __( 'Webhook secret regenerated. Update your endpoint to match.', 'form-runtime-engine' ),
+            'secret'  => $new_secret,
+        ) );
     }
 }

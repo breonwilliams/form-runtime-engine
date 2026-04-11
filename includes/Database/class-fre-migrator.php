@@ -51,6 +51,7 @@ class FRE_Migrator {
             'entries'     => $wpdb->prefix . 'fre_entries',
             'entry_meta'  => $wpdb->prefix . 'fre_entry_meta',
             'entry_files' => $wpdb->prefix . 'fre_entry_files',
+            'webhook_log' => $wpdb->prefix . 'fre_webhook_log',
         );
     }
 
@@ -127,6 +128,10 @@ class FRE_Migrator {
             array(
                 'version' => '1.1.0',
                 'method'  => 'migration_1_1_0',
+            ),
+            array(
+                'version' => '1.2.0',
+                'method'  => 'migration_1_2_0',
             ),
         );
 
@@ -317,7 +322,7 @@ class FRE_Migrator {
      */
     public function drop_tables() {
         // Define allowed table suffixes for validation.
-        $allowed_suffixes = array( 'fre_entries', 'fre_entry_meta', 'fre_entry_files' );
+        $allowed_suffixes = array( 'fre_entries', 'fre_entry_meta', 'fre_entry_files', 'fre_webhook_log' );
 
         foreach ( $this->tables as $name => $table ) {
             // Validate table name against known tables before dropping.
@@ -326,6 +331,7 @@ class FRE_Migrator {
                 'entries'     => 'fre_entries',
                 'entry_meta'  => 'fre_entry_meta',
                 'entry_files' => 'fre_entry_files',
+                'webhook_log' => 'fre_webhook_log',
             );
 
             if ( isset( $suffix_map[ $name ] ) && $table === $this->wpdb->prefix . $suffix_map[ $name ] ) {
@@ -406,5 +412,50 @@ class FRE_Migrator {
         }
 
         return true;
+    }
+
+    /**
+     * Migration for version 1.2.0 - Webhook delivery log table.
+     *
+     * Adds a table to track webhook delivery attempts, retries, and statuses.
+     *
+     * @return bool True on success, false on failure.
+     */
+    private function migration_1_2_0() {
+        $charset_collate = $this->wpdb->get_charset_collate();
+
+        $sql_webhook_log = "CREATE TABLE {$this->tables['webhook_log']} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            entry_id bigint(20) unsigned NOT NULL,
+            form_id varchar(100) NOT NULL,
+            webhook_url varchar(2048) NOT NULL,
+            status varchar(20) NOT NULL DEFAULT 'pending',
+            attempts tinyint(3) unsigned NOT NULL DEFAULT 0,
+            response_code smallint(5) unsigned DEFAULT NULL,
+            response_body text,
+            error_message text,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_attempt_at datetime DEFAULT NULL,
+            next_retry_at datetime DEFAULT NULL,
+            PRIMARY KEY (id),
+            KEY entry_id (entry_id),
+            KEY form_id (form_id),
+            KEY status_retry (status, next_retry_at),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+        dbDelta( $sql_webhook_log );
+
+        // Verify table was created.
+        $exists = $this->wpdb->get_var(
+            $this->wpdb->prepare(
+                'SHOW TABLES LIKE %s',
+                $this->tables['webhook_log']
+            )
+        );
+
+        return $exists === $this->tables['webhook_log'];
     }
 }

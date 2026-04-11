@@ -323,6 +323,21 @@
 
             // Webhook enable/disable toggle.
             $('#fre-webhook-enabled').on('change', this.handleWebhookToggle.bind(this));
+
+            // Webhook preset dropdown.
+            $('#fre-webhook-preset').on('change', this.handlePresetChange.bind(this));
+
+            // Test Connection button.
+            $(document).on('click', '#fre-test-webhook-btn', this.handleTestWebhook.bind(this));
+
+            // Preview Payload button.
+            $(document).on('click', '#fre-preview-payload-btn', this.handlePreviewPayload.bind(this));
+
+            // Regenerate Secret button.
+            $(document).on('click', '#fre-regenerate-secret-btn', this.handleRegenerateSecret.bind(this));
+
+            // Copy Secret button.
+            $(document).on('click', '#fre-copy-secret-btn', this.handleCopySecret.bind(this));
         },
 
         /**
@@ -332,12 +347,239 @@
          */
         handleWebhookToggle: function(e) {
             var $checkbox = $(e.target);
-            var $urlWrapper = $('#fre-webhook-url-wrapper');
+            var $wrapper = $('#fre-webhook-settings-wrapper');
+            var $presetHelp = $('#fre-webhook-preset-help');
 
             if ($checkbox.is(':checked')) {
-                $urlWrapper.slideDown(200);
+                $wrapper.slideDown(200);
+                $presetHelp.show();
             } else {
-                $urlWrapper.slideUp(200);
+                $wrapper.slideUp(200);
+            }
+        },
+
+        /**
+         * Handle webhook destination preset change.
+         *
+         * Shows/hides contextual help based on the selected preset.
+         *
+         * @param {Event} e
+         */
+        handlePresetChange: function(e) {
+            var preset = $(e.target).val();
+
+            // Hide all preset help sections, then show the selected one.
+            $('.fre-preset-help').hide();
+            $('#fre-preset-help-' + preset).show();
+
+            // Update URL placeholder based on preset.
+            var $urlField = $('#fre-webhook-url');
+            var placeholders = {
+                'google_sheets': 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
+                'zapier':        'https://hooks.zapier.com/hooks/catch/...',
+                'make':          'https://hook.us1.make.com/...',
+                'custom':        'https://'
+            };
+            $urlField.attr('placeholder', placeholders[preset] || 'https://');
+        },
+
+        /**
+         * Handle Test Connection button click.
+         *
+         * @param {Event} e
+         */
+        handleTestWebhook: function(e) {
+            e.preventDefault();
+
+            var $btn = $(e.currentTarget);
+            var $spinner = $('#fre-webhook-test-spinner');
+            var $result = $('#fre-webhook-result');
+            var webhookUrl = $('#fre-webhook-url').val().trim();
+            var webhookSecret = $('#fre-webhook-secret').val().trim();
+            var formId = $('#fre-form-id').val().trim() || 'test';
+
+            if (!webhookUrl) {
+                $result.html('<strong>Error:</strong> Please enter a webhook URL first.')
+                    .css({ background: '#fcf0f1', borderLeft: '4px solid #d63638', color: '#d63638' })
+                    .show();
+                return;
+            }
+
+            $btn.prop('disabled', true);
+            $spinner.addClass('is-active');
+            $result.hide();
+
+            $.ajax({
+                url: freAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'fre_test_webhook',
+                    nonce: freAdmin.nonce,
+                    webhook_url: webhookUrl,
+                    webhook_secret: webhookSecret,
+                    form_id: formId
+                },
+                success: function(response) {
+                    var data = response.data || {};
+                    var html = '';
+
+                    if (response.success) {
+                        html += '<strong style="color: #00a32a;">Connection successful!</strong>';
+                        html += '<br>HTTP ' + FREFormsManager.escapeHtml(String(data.response_code || ''));
+                        html += ' &mdash; ' + FREFormsManager.escapeHtml(String(Math.round(data.elapsed_ms || 0))) + 'ms';
+                        if (data.response_body) {
+                            var body = data.response_body;
+                            if (body.length > 200) {
+                                body = body.substring(0, 200) + '...';
+                            }
+                            html += '<pre style="margin: 8px 0 0; font-size: 12px; white-space: pre-wrap; max-height: 100px; overflow-y: auto;">' + FREFormsManager.escapeHtml(body) + '</pre>';
+                        }
+                        $result.css({ background: '#edfaef', borderLeft: '4px solid #00a32a', color: '#1d2327' });
+                    } else {
+                        html += '<strong style="color: #d63638;">Connection failed</strong>';
+                        if (data.error) {
+                            html += '<br>' + FREFormsManager.escapeHtml(data.error);
+                        }
+                        if (data.response_code) {
+                            html += '<br>HTTP ' + FREFormsManager.escapeHtml(String(data.response_code));
+                        }
+                        if (data.elapsed_ms) {
+                            html += ' &mdash; ' + FREFormsManager.escapeHtml(String(Math.round(data.elapsed_ms))) + 'ms';
+                        }
+                        $result.css({ background: '#fcf0f1', borderLeft: '4px solid #d63638', color: '#1d2327' });
+                    }
+
+                    $result.html(html).show();
+                },
+                error: function() {
+                    $result.html('<strong style="color: #d63638;">Request failed</strong><br>Could not reach admin-ajax.php. Please try again.')
+                        .css({ background: '#fcf0f1', borderLeft: '4px solid #d63638', color: '#1d2327' })
+                        .show();
+                },
+                complete: function() {
+                    $btn.prop('disabled', false);
+                    $spinner.removeClass('is-active');
+                }
+            });
+        },
+
+        /**
+         * Handle Preview Payload button click.
+         *
+         * @param {Event} e
+         */
+        handlePreviewPayload: function(e) {
+            e.preventDefault();
+
+            var $btn = $(e.currentTarget);
+            var $spinner = $('#fre-webhook-test-spinner');
+            var $preview = $('#fre-payload-preview');
+            var $json = $('#fre-payload-json');
+            var formId = $('#fre-form-id').val().trim();
+
+            if (!formId) {
+                return;
+            }
+
+            $btn.prop('disabled', true);
+            $spinner.addClass('is-active');
+
+            $.ajax({
+                url: freAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'fre_preview_payload',
+                    nonce: freAdmin.nonce,
+                    form_id: formId
+                },
+                success: function(response) {
+                    if (response.success && response.data.json) {
+                        $json.text(response.data.json);
+                        $preview.slideDown(200);
+                    } else {
+                        $json.text('Error: ' + (response.data.message || 'Could not generate preview.'));
+                        $preview.slideDown(200);
+                    }
+                },
+                error: function() {
+                    $json.text('Error: Could not reach admin-ajax.php.');
+                    $preview.slideDown(200);
+                },
+                complete: function() {
+                    $btn.prop('disabled', false);
+                    $spinner.removeClass('is-active');
+                }
+            });
+        },
+
+        /**
+         * Handle Regenerate Secret button click.
+         *
+         * @param {Event} e
+         */
+        handleRegenerateSecret: function(e) {
+            e.preventDefault();
+
+            var formId = $('#fre-form-id').val().trim();
+            if (!formId) {
+                return;
+            }
+
+            if (!confirm('Regenerate webhook secret? You will need to update the secret in your receiving endpoint.')) {
+                return;
+            }
+
+            var $btn = $(e.currentTarget);
+            $btn.prop('disabled', true);
+
+            $.ajax({
+                url: freAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'fre_regenerate_secret',
+                    nonce: freAdmin.nonce,
+                    form_id: formId
+                },
+                success: function(response) {
+                    if (response.success && response.data.secret) {
+                        $('#fre-webhook-secret').val(response.data.secret);
+                        var $result = $('#fre-webhook-result');
+                        $result.html('<strong style="color: #00a32a;">Secret regenerated.</strong> Update your endpoint to match.')
+                            .css({ background: '#edfaef', borderLeft: '4px solid #00a32a', color: '#1d2327' })
+                            .show();
+                    } else {
+                        alert(response.data.message || 'Failed to regenerate secret.');
+                    }
+                },
+                error: function() {
+                    alert('An error occurred. Please try again.');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false);
+                }
+            });
+        },
+
+        /**
+         * Handle Copy Secret button click.
+         *
+         * @param {Event} e
+         */
+        handleCopySecret: function(e) {
+            e.preventDefault();
+
+            var secret = $('#fre-webhook-secret').val();
+            if (!secret) {
+                return;
+            }
+
+            var $btn = $(e.currentTarget);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(secret).then(function() {
+                    FREFormsManager.showCopyTooltip($btn, freAdmin.strings.copied || 'Copied!');
+                });
+            } else {
+                FREFormsManager.fallbackCopy(secret, $btn);
             }
         },
 
@@ -361,6 +603,8 @@
             var customCss = $('#fre-form-custom-css').val().trim();
             var webhookEnabled = $('#fre-webhook-enabled').is(':checked');
             var webhookUrl = $('#fre-webhook-url').val().trim();
+            var webhookSecret = $('#fre-webhook-secret').val().trim();
+            var webhookPreset = $('#fre-webhook-preset').val() || 'custom';
 
             // Client-side validation.
             if (!formId) {
@@ -429,11 +673,18 @@
                     config: config,
                     custom_css: customCss,
                     webhook_enabled: webhookEnabled ? '1' : '0',
-                    webhook_url: webhookUrl
+                    webhook_url: webhookUrl,
+                    webhook_secret: webhookSecret,
+                    webhook_preset: webhookPreset
                 },
                 success: function(response) {
                     if (response.success) {
                         FREFormsManager.showNotice($notices, 'success', response.data.message);
+
+                        // Update webhook secret field if server auto-generated one.
+                        if (response.data.form && response.data.form.webhook_secret) {
+                            $('#fre-webhook-secret').val(response.data.form.webhook_secret);
+                        }
 
                         // If adding new form, redirect to edit view.
                         if (!$('#fre-form-id').prop('readonly')) {
