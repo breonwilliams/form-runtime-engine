@@ -10,6 +10,7 @@
  * phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
  * phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
  * phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+ * phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
  * phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter
  */
 
@@ -284,7 +285,7 @@ class FRE_Webhook_Log {
             );
         } else {
             $total = (int) $this->wpdb->get_var(
-                "SELECT COUNT(*) FROM {$this->table}"
+                "SELECT COUNT(*) FROM {$this->table}" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix
             );
         }
 
@@ -324,9 +325,7 @@ class FRE_Webhook_Log {
      */
     public function get_status_counts() {
         $results = $this->wpdb->get_results(
-            "SELECT status, COUNT(*) as count
-             FROM {$this->table}
-             GROUP BY status",
+            "SELECT status, COUNT(*) as count FROM {$this->table} GROUP BY status", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix
             ARRAY_A
         );
 
