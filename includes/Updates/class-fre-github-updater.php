@@ -71,10 +71,18 @@ class FRE_GitHub_Updater {
     private $github_response = null;
 
     /**
+     * GitHub Personal Access Token for private repos.
+     *
+     * @var string
+     */
+    private $github_token = '';
+
+    /**
      * Constructor.
      */
     public function __construct() {
-        $this->version = FRE_VERSION;
+        $this->version      = FRE_VERSION;
+        $this->github_token = defined( 'FRE_GITHUB_TOKEN' ) ? FRE_GITHUB_TOKEN : '';
         $this->init_hooks();
     }
 
@@ -93,6 +101,14 @@ class FRE_GitHub_Updater {
 
         // Add custom message on plugins page.
         add_action( 'in_plugin_update_message-' . $this->plugin_file, array( $this, 'update_message' ), 10, 2 );
+
+        // Add auth headers for private repo downloads.
+        if ( ! empty( $this->github_token ) ) {
+            add_filter( 'http_request_args', array( $this, 'http_request_args' ), 10, 2 );
+        }
+
+        // Ensure correct directory name after extraction.
+        add_filter( 'upgrader_source_selection', array( $this, 'fix_source_dir' ), 10, 4 );
     }
 
     /**
@@ -215,11 +231,18 @@ class FRE_GitHub_Updater {
             $this->github_repo
         );
 
+        $headers = array(
+            'Accept'     => 'application/vnd.github.v3+json',
+            'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . home_url(),
+        );
+
+        // Add auth token for private repositories.
+        if ( ! empty( $this->github_token ) ) {
+            $headers['Authorization'] = 'token ' . $this->github_token;
+        }
+
         $response = wp_remote_get( $url, array(
-            'headers' => array(
-                'Accept'     => 'application/vnd.github.v3+json',
-                'User-Agent' => 'WordPress/' . get_bloginfo( 'version' ) . '; ' . home_url(),
-            ),
+            'headers' => $headers,
             'timeout' => 10,
         ) );
 
@@ -259,8 +282,10 @@ class FRE_GitHub_Updater {
     /**
      * Get the download URL from a release.
      *
-     * Prefers a ZIP asset attached to the release, falls back to
-     * the auto-generated zipball.
+     * Prefers a ZIP asset attached to the release (which has the correct
+     * directory structure for WordPress), falls back to the auto-generated
+     * zipball. For private repos, appends the auth token to the URL so
+     * WordPress can download it.
      *
      * @param object $release GitHub release data.
      * @return string Download URL.
@@ -270,13 +295,48 @@ class FRE_GitHub_Updater {
         if ( ! empty( $release->assets ) ) {
             foreach ( $release->assets as $asset ) {
                 if ( preg_match( '/\.zip$/i', $asset->name ) ) {
-                    return $asset->browser_download_url;
+                    $url = $asset->browser_download_url;
+
+                    // For private repos, use the API URL with auth token.
+                    if ( ! empty( $this->github_token ) ) {
+                        $url = $asset->url;
+                    }
+
+                    return $url;
                 }
             }
         }
 
         // Fall back to GitHub's auto-generated zipball.
         return $release->zipball_url;
+    }
+
+    /**
+     * Filter the HTTP request args for downloading the plugin package.
+     *
+     * Adds the GitHub auth token to the download request for private repos.
+     * This is necessary because WordPress downloads the package URL via
+     * wp_remote_get, and private repo assets require authentication.
+     *
+     * @param array  $args HTTP request arguments.
+     * @param string $url  The request URL.
+     * @return array Modified arguments.
+     */
+    public function http_request_args( $args, $url ) {
+        // Only modify requests to our GitHub repo.
+        if ( empty( $this->github_token ) ) {
+            return $args;
+        }
+
+        if ( false === strpos( $url, $this->github_repo ) && false === strpos( $url, 'github.com' ) ) {
+            return $args;
+        }
+
+        // Add auth token and accept header for asset downloads.
+        $args['headers']['Authorization'] = 'token ' . $this->github_token;
+        $args['headers']['Accept']        = 'application/octet-stream';
+
+        return $args;
     }
 
     /**
@@ -369,6 +429,47 @@ class FRE_GitHub_Updater {
         if ( 'update' === $options['action'] && 'plugin' === $options['type'] ) {
             delete_transient( $this->cache_key );
         }
+    }
+
+    /**
+     * Fix the extracted source directory name after download.
+     *
+     * GitHub's auto-generated zipballs extract to a folder like
+     * "breonwilliams-form-runtime-engine-abc1234" instead of
+     * "form-runtime-engine". This method renames it so WordPress
+     * recognizes it as the same plugin and replaces instead of
+     * creating a duplicate.
+     *
+     * @param string      $source        Path to the extracted source.
+     * @param string      $remote_source Path to the remote source.
+     * @param WP_Upgrader $upgrader      WP_Upgrader instance.
+     * @param array       $hook_extra    Extra arguments passed to hooked filters.
+     * @return string|WP_Error Corrected source path or WP_Error on failure.
+     */
+    public function fix_source_dir( $source, $remote_source, $upgrader, $hook_extra ) {
+        // Only act on our plugin.
+        if ( ! isset( $hook_extra['plugin'] ) || $hook_extra['plugin'] !== $this->plugin_file ) {
+            return $source;
+        }
+
+        global $wp_filesystem;
+
+        $expected_dir = trailingslashit( $remote_source ) . $this->slug . '/';
+
+        // If the source already has the correct name, no action needed.
+        if ( trailingslashit( $source ) === $expected_dir ) {
+            return $source;
+        }
+
+        // Rename the extracted directory to match the plugin slug.
+        if ( $wp_filesystem->move( $source, $expected_dir ) ) {
+            return $expected_dir;
+        }
+
+        return new WP_Error(
+            'rename_failed',
+            __( 'Unable to rename the plugin directory for Form Runtime Engine.', 'form-runtime-engine' )
+        );
     }
 
     /**

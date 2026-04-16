@@ -654,37 +654,50 @@ When releasing a new version, update the version number in **all** of these loca
 | `form-runtime-engine.php` | `FRE_VERSION` constant (line ~25) | `define( 'FRE_VERSION', '1.1.0' );` |
 | `CHANGELOG.md` | New entry at top | `## [1.1.0] - 2024-01-15` |
 
+### Private Repository Setup
+
+This plugin uses a private GitHub repository. For automatic updates to work on
+any WordPress site, a GitHub Personal Access Token must be configured:
+
+1. Go to GitHub → Settings → Developer Settings → Personal Access Tokens → Fine-grained tokens
+2. Create a token with **Contents: Read** permission for the `breonwilliams/form-runtime-engine` repo
+3. Add the token to `wp-config.php` on the WordPress site:
+   ```php
+   define( 'FRE_GITHUB_TOKEN', 'github_pat_your_token_here' );
+   ```
+
 ### Release Checklist
 
 Follow these steps to create a new release:
 
-1. **Update version numbers** in all locations listed above
+1. **Update version numbers** in all locations listed above (plus `README.md` Stable tag)
 2. **Update CHANGELOG.md** with new features, fixes, and changes
 3. **Commit changes:**
    ```bash
    git add -A
-   git commit -m "Release v1.1.0"
+   git commit -m "Release v1.2.0"
    ```
 4. **Create a git tag** (must include `v` prefix):
    ```bash
-   git tag v1.1.0
+   git tag v1.2.0
    ```
 5. **Push to GitHub with tags:**
    ```bash
    git push origin main --tags
    ```
-6. **Create GitHub Release** (choose one method):
-
-   **Option A: GitHub CLI**
+6. **Build the release ZIP** (ensures correct folder name for WordPress):
    ```bash
-   gh release create v1.1.0 --title "v1.1.0" --notes "See CHANGELOG.md for details"
+   ./bin/build-release.sh
+   ```
+7. **Create GitHub Release and attach the ZIP:**
+   ```bash
+   gh release create v1.2.0 build/form-runtime-engine.zip --title "v1.2.0" --notes "See CHANGELOG.md for details"
    ```
 
-   **Option B: GitHub Web UI**
-   - Go to repository → Releases → "Create a new release"
-   - Select the tag you just pushed
-   - Add release title and description
-   - Publish
+> **Important:** Always use the build script to create the zip and attach it to
+> the release. GitHub's auto-generated zipball uses a folder name like
+> `breonwilliams-form-runtime-engine-abc1234/` which causes WordPress to create
+> a duplicate plugin instead of replacing the existing one.
 
 ### CHANGELOG Format
 
