@@ -1,6 +1,7 @@
 # Development/Testing artifacts
 vendor/
 tests/
+build/
 bin/install-wp-tests.sh
 phpunit.xml
 .phpunit.result.cache
