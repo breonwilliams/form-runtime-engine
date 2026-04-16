@@ -428,6 +428,7 @@ class FRE_GitHub_Updater {
     public function clear_cache( $upgrader, $options ) {
         if ( 'update' === $options['action'] && 'plugin' === $options['type'] ) {
             delete_transient( $this->cache_key );
+            delete_site_transient( 'update_plugins' );
         }
     }
 
