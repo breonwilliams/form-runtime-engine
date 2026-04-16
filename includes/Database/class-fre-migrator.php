@@ -230,10 +230,8 @@ class FRE_Migrator {
         dbDelta( $sql_entry_meta );
         dbDelta( $sql_entry_files );
 
-        // Verify tables were created.
-        $health = $this->check_database_health();
-
-        return $health === true;
+        // Verify only the tables created by this migration.
+        return $this->verify_tables( array( 'entries', 'entry_meta', 'entry_files' ) );
     }
 
     /**
@@ -258,6 +256,38 @@ class FRE_Migrator {
         }
 
         return empty( $missing ) ? true : $missing;
+    }
+
+    /**
+     * Verify that specific tables exist.
+     *
+     * Used by individual migrations to confirm only the tables they
+     * are responsible for creating, avoiding false failures when later
+     * migrations haven't run yet.
+     *
+     * @param array $table_keys Array of table keys to check (e.g., 'entries', 'webhook_log').
+     * @return bool True if all specified tables exist.
+     */
+    private function verify_tables( $table_keys ) {
+        foreach ( $table_keys as $key ) {
+            if ( ! isset( $this->tables[ $key ] ) ) {
+                continue;
+            }
+
+            $table  = $this->tables[ $key ];
+            $exists = $this->wpdb->get_var(
+                $this->wpdb->prepare(
+                    'SHOW TABLES LIKE %s',
+                    $table
+                )
+            );
+
+            if ( $exists !== $table ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -448,14 +478,7 @@ class FRE_Migrator {
 
         dbDelta( $sql_webhook_log );
 
-        // Verify table was created.
-        $exists = $this->wpdb->get_var(
-            $this->wpdb->prepare(
-                'SHOW TABLES LIKE %s',
-                $this->tables['webhook_log']
-            )
-        );
-
-        return $exists === $this->tables['webhook_log'];
+        // Verify only the table created by this migration.
+        return $this->verify_tables( array( 'webhook_log' ) );
     }
 }

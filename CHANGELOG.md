@@ -5,6 +5,12 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-04-16
+
+### Fixed
+- Database migration fails on fresh installs: migration_1_0_0 incorrectly validated all tables including ones created by later migrations
+- Twilio clients table uses ON UPDATE CURRENT_TIMESTAMP which is incompatible with dbDelta on some MySQL versions
+
 ## [1.2.0] - 2026-04-16
 
 ### Added
