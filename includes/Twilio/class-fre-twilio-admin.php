@@ -308,7 +308,13 @@ class FRE_Twilio_Admin {
                                 </td>
                                 <td>
                                     <button type="button" class="button button-small fre-twilio-edit-client"
-                                            data-id="<?php echo esc_attr( $client['id'] ); ?>">
+                                            data-id="<?php echo esc_attr( $client['id'] ); ?>"
+                                            data-name="<?php echo esc_attr( $client['client_name'] ); ?>"
+                                            data-number="<?php echo esc_attr( $client['twilio_number'] ); ?>"
+                                            data-owner-phone="<?php echo esc_attr( $client['owner_phone'] ); ?>"
+                                            data-owner-email="<?php echo esc_attr( $client['owner_email'] ); ?>"
+                                            data-auto-reply="<?php echo esc_attr( $client['auto_reply_template'] ); ?>"
+                                            data-webhook-url="<?php echo esc_attr( $client['webhook_url'] ); ?>">
                                         <?php esc_html_e( 'Edit', 'form-runtime-engine' ); ?>
                                     </button>
                                     <button type="button" class="button button-small fre-twilio-toggle-client"
@@ -331,8 +337,8 @@ class FRE_Twilio_Admin {
 
         <!-- Add/Edit Client Modal -->
         <div id="fre-twilio-client-modal" style="display:none;">
-            <div class="fre-twilio-modal-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100000;">
-                <div style="position:relative;max-width:600px;margin:80px auto;background:#fff;padding:24px;border-radius:4px;">
+            <div class="fre-twilio-modal-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100000;overflow-y:auto;">
+                <div style="position:relative;max-width:600px;margin:80px auto;background:#fff;padding:24px;border-radius:4px;max-height:calc(100vh - 160px);overflow-y:auto;">
                     <h2 id="fre-twilio-modal-title"><?php esc_html_e( 'Add Client', 'form-runtime-engine' ); ?></h2>
                     <input type="hidden" id="fre-twilio-client-id" value="" />
 
@@ -408,6 +414,20 @@ class FRE_Twilio_Admin {
                 if (e.target === this) {
                     $('#fre-twilio-client-modal').hide();
                 }
+            });
+
+            // Edit client button.
+            $('.fre-twilio-edit-client').on('click', function() {
+                var $btn = $(this);
+                $('#fre-twilio-modal-title').text('Edit Client');
+                $('#fre-twilio-client-id').val($btn.data('id'));
+                $('#fre-twilio-client-name').val($btn.data('name'));
+                $('#fre-twilio-client-number').val($btn.data('number'));
+                $('#fre-twilio-owner-phone').val($btn.data('owner-phone'));
+                $('#fre-twilio-owner-email').val($btn.data('owner-email'));
+                $('#fre-twilio-auto-reply').val($btn.data('auto-reply'));
+                $('#fre-twilio-webhook-url').val($btn.data('webhook-url'));
+                $('#fre-twilio-client-modal').show();
             });
 
             // Save client.

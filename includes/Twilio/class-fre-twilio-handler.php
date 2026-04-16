@@ -202,14 +202,10 @@ class FRE_Twilio_Handler {
         $owner_phone  = $client['owner_phone'];
         $dial_timeout = apply_filters( 'fre_twilio_dial_timeout', self::DEFAULT_DIAL_TIMEOUT, $client );
 
-        // Build the call-status action URL with caller info in query params.
-        $action_url = add_query_arg(
-            array(
-                'caller'   => rawurlencode( $from_number ),
-                'call_sid' => rawurlencode( $call_sid ),
-            ),
-            rest_url( self::NAMESPACE . '/call-status' )
-        );
+        // Build the call-status action URL.
+        // No query params needed — Twilio sends From, To, CallSid, and
+        // DialCallStatus in the POST body of every status callback.
+        $action_url = rest_url( self::NAMESPACE . '/call-status' );
 
         // Return TwiML to dial the owner's phone.
         $twiml = sprintf(
@@ -248,14 +244,12 @@ class FRE_Twilio_Handler {
             return $this->error_response( $auth_check );
         }
 
-        // Extract status data.
+        // Extract status data — all fields come from Twilio's POST body.
         // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        $dial_status = isset( $_POST['DialCallStatus'] ) ? sanitize_text_field( wp_unslash( $_POST['DialCallStatus'] ) ) : '';
-        $to_number   = isset( $_POST['To'] ) ? sanitize_text_field( wp_unslash( $_POST['To'] ) ) : '';
-
-        // Get caller info from query params (passed from incoming-call action URL).
-        $caller_number = isset( $_GET['caller'] ) ? sanitize_text_field( wp_unslash( $_GET['caller'] ) ) : '';
-        $call_sid      = isset( $_GET['call_sid'] ) ? sanitize_text_field( wp_unslash( $_GET['call_sid'] ) ) : '';
+        $dial_status   = isset( $_POST['DialCallStatus'] ) ? sanitize_text_field( wp_unslash( $_POST['DialCallStatus'] ) ) : '';
+        $to_number     = isset( $_POST['To'] ) ? sanitize_text_field( wp_unslash( $_POST['To'] ) ) : '';
+        $caller_number = isset( $_POST['From'] ) ? sanitize_text_field( wp_unslash( $_POST['From'] ) ) : '';
+        $call_sid      = isset( $_POST['CallSid'] ) ? sanitize_text_field( wp_unslash( $_POST['CallSid'] ) ) : '';
 
         // Look up the client.
         $client = $this->get_client_by_number( $to_number );
