@@ -2,6 +2,16 @@
 
 A lightweight WordPress form engine that renders forms from configuration arrays.
 
+## Documentation Map
+
+| Topic | File |
+|-------|------|
+| Core API, field types, settings, hooks | This file (`CLAUDE.md`) |
+| Form patterns, examples, release procedures | `docs/CLAUDE.md` |
+| Security details, CSS validation | `includes/CLAUDE.md` |
+| Twilio missed-call text-back setup & architecture | `docs/twilio/twilio-setup.md` |
+| Google Sheets integration guide | `docs/google/google-sheets-setup.md` |
+
 ## Design System Integration
 
 When **AI Section Builder Modern** is active, forms automatically inherit brand styling:

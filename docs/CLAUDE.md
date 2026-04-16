@@ -2,6 +2,7 @@
 
 This file contains form patterns, advanced layout examples, integration guides, and release procedures.
 For core API reference, field types, and settings, see the root `CLAUDE.md`.
+For Twilio missed-call text-back setup, architecture, and troubleshooting, see `docs/twilio/twilio-setup.md`.
 
 ---
 
