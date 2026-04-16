@@ -75,6 +75,43 @@ class FRE_Twilio_Handler {
      */
     public function init() {
         add_action( 'rest_api_init', array( $this, 'register_routes' ) );
+        add_filter( 'rest_pre_serve_request', array( $this, 'serve_twiml_response' ), 10, 4 );
+    }
+
+    /**
+     * Intercept REST responses that contain TwiML and output raw XML.
+     *
+     * WordPress REST API always JSON-encodes response data, which corrupts
+     * TwiML XML. This filter detects TwiML responses (by Content-Type header)
+     * and sends the raw XML directly, bypassing JSON encoding.
+     *
+     * @param bool             $served  Whether the request has already been served.
+     * @param WP_HTTP_Response $result  Result to send to the client.
+     * @param WP_REST_Request  $request Request used to generate the response.
+     * @param WP_REST_Server   $server  Server instance.
+     * @return bool True if the request was served, false otherwise.
+     */
+    public function serve_twiml_response( $served, $result, $request, $server ) {
+        // Only intercept our own namespace.
+        $route = $request->get_route();
+        if ( strpos( $route, '/' . self::NAMESPACE . '/' ) !== 0 ) {
+            return $served;
+        }
+
+        // Check if this is a TwiML response (Content-Type: text/xml).
+        $headers = $result->get_headers();
+        if ( empty( $headers['Content-Type'] ) || strpos( $headers['Content-Type'], 'text/xml' ) === false ) {
+            return $served;
+        }
+
+        // Send headers.
+        $server->send_headers( $result->get_headers() );
+
+        // Output raw TwiML directly, bypassing JSON encoding.
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- TwiML is pre-escaped XML.
+        echo $result->get_data();
+
+        return true;
     }
 
     /**
@@ -582,18 +619,20 @@ class FRE_Twilio_Handler {
     }
 
     /**
-     * Return an error response.
+     * Return an error response as TwiML.
+     *
+     * Twilio always expects a TwiML response, even when authentication
+     * fails. Returning JSON would cause a "Document parse failure" (12100).
      *
      * @param WP_Error $error The error.
-     * @return WP_REST_Response
+     * @return WP_REST_Response TwiML error response.
      */
     private function error_response( WP_Error $error ) {
-        $data   = $error->get_error_data();
-        $status = isset( $data['status'] ) ? $data['status'] : 403;
+        FRE_Logger::error( 'Twilio webhook error: ' . $error->get_error_message() );
 
-        return new WP_REST_Response(
-            array( 'error' => $error->get_error_message() ),
-            $status
+        return $this->twiml_response(
+            '<?xml version="1.0" encoding="UTF-8"?>' .
+            '<Response><Say>An error occurred. Please try again later.</Say><Hangup/></Response>'
         );
     }
 }

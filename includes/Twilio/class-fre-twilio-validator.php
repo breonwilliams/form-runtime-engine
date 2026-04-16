@@ -110,7 +110,17 @@ class FRE_Twilio_Validator {
      * @return string The full request URL.
      */
     private static function get_request_url() {
-        $scheme = is_ssl() ? 'https' : 'http';
+        // Detect HTTPS — check multiple headers for reverse proxy/CDN setups
+        // (Bluehost, Cloudflare, load balancers, etc.).
+        $is_ssl = is_ssl();
+        if ( ! $is_ssl && isset( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) ) {
+            $is_ssl = ( 'https' === strtolower( sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) ) ) );
+        }
+        if ( ! $is_ssl && isset( $_SERVER['HTTP_X_FORWARDED_SSL'] ) ) {
+            $is_ssl = ( 'on' === strtolower( sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_SSL'] ) ) ) );
+        }
+
+        $scheme = $is_ssl ? 'https' : 'http';
 
         // Use HTTP_HOST which includes port if non-standard.
         $host = isset( $_SERVER['HTTP_HOST'] )
