@@ -83,6 +83,14 @@ class FRE_Autoloader {
 
         // Updates classes.
         'FRE_GitHub_Updater'      => 'Updates/class-fre-github-updater.php',
+
+        // Twilio classes.
+        'FRE_Twilio_Migrator'     => 'Twilio/class-fre-twilio-migrator.php',
+        'FRE_Twilio_Validator'    => 'Twilio/class-fre-twilio-validator.php',
+        'FRE_Twilio_Client'       => 'Twilio/class-fre-twilio-client.php',
+        'FRE_SMS_Sender'          => 'Twilio/class-fre-sms-sender.php',
+        'FRE_Twilio_Handler'      => 'Twilio/class-fre-twilio-handler.php',
+        'FRE_Twilio_Admin'        => 'Twilio/class-fre-twilio-admin.php',
     );
 
     /**

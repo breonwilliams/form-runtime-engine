@@ -5,6 +5,32 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-16
+
+### Added
+- Twilio missed-call text-back integration module (6 new classes)
+- Automatic SMS reply when a business owner misses a call
+- Owner notification via SMS and email for every missed call
+- Multi-client routing: map multiple Twilio numbers to different businesses
+- REST API endpoints for Twilio webhooks (incoming call, call status, incoming SMS, SMS status)
+- Twilio signature validation (HMAC-SHA1) on all incoming webhooks
+- Encrypted credential storage (AES-256-CBC) for Twilio Account SID and Auth Token
+- Rate limiting for outbound SMS (hourly per-client and daily global caps)
+- Admin UI: Twilio Text-Back settings page under Form Entries menu
+- Admin UI: Client management with add, edit, toggle, and delete operations
+- Admin UI: Test Connection button for Twilio credential validation
+- Virtual FRE form registration per Twilio client for unified lead pipeline
+- SMS conversation logging in dedicated fre_twilio_messages table
+- Inbound SMS forwarding from leads to business owners
+- SMS delivery status tracking via Twilio status callbacks
+- Missed-call leads appear in the same entries list and Google Sheets as form submissions
+- Source type metadata (_source_type: missed_call / sms_inbound) on Twilio-originated entries
+
+### Changed
+- Autoloader updated with Twilio class mappings
+- Main plugin initialization sequence now includes Twilio module bootstrap
+- Plugin activation now runs Twilio database migrations alongside core migrations
+
 ## [1.1.0] - 2026-04-11
 
 ### Added

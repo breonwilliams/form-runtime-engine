@@ -3,7 +3,7 @@
  * Plugin Name: Form Runtime Engine
  * Plugin URI: https://developer.developer.developer
  * Description: A lightweight WordPress form runtime engine that processes form submissions via configuration.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Requires at least: 5.0
  * Requires PHP: 7.4
  * Author: Developer
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin version.
-define( 'FRE_VERSION', '1.1.0' );
+define( 'FRE_VERSION', '1.2.0' );
 
 // Plugin directory path.
 define( 'FRE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -124,6 +124,10 @@ final class Form_Runtime_Engine {
         $migrator = new FRE_Migrator();
         $migrator->run_migrations();
 
+        // Run Twilio database migrations.
+        $twilio_migrator = new FRE_Twilio_Migrator();
+        $twilio_migrator->run_migrations();
+
         // Create upload directory with protection.
         $this->create_upload_directory();
 
@@ -184,6 +188,9 @@ final class Form_Runtime_Engine {
         // Register database-stored forms.
         FRE_Forms_Manager::register_db_forms();
 
+        // Initialize Twilio module (only if credentials are configured).
+        $this->init_twilio();
+
         /**
          * Fires after the Form Runtime Engine is fully initialized.
          *
@@ -197,6 +204,37 @@ final class Form_Runtime_Engine {
      */
     private function init_admin() {
         new FRE_Admin();
+    }
+
+    /**
+     * Initialize the Twilio integration module.
+     *
+     * Runs migrations if needed, registers virtual forms for active clients,
+     * initializes the REST API handler, and loads the admin UI.
+     */
+    private function init_twilio() {
+        // Always check for pending Twilio migrations (handles plugin updates).
+        $twilio_migrator = new FRE_Twilio_Migrator();
+        if ( $twilio_migrator->has_pending_migrations() ) {
+            $twilio_migrator->run_migrations();
+        }
+
+        // Register virtual forms for all active Twilio clients.
+        // This must happen after FRE_Forms_Manager::register_db_forms()
+        // so virtual forms are available to the webhook dispatcher.
+        FRE_Twilio_Admin::register_client_forms();
+
+        // Initialize the REST API handler (processes incoming calls/SMS from Twilio).
+        // Routes are always registered so Twilio can reach them; signature
+        // validation inside each handler rejects requests if credentials
+        // are missing or invalid.
+        $twilio_handler = new FRE_Twilio_Handler();
+        $twilio_handler->init();
+
+        // Initialize admin UI.
+        if ( is_admin() ) {
+            new FRE_Twilio_Admin();
+        }
     }
 
     /**
