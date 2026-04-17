@@ -90,6 +90,11 @@ class FRE_Webhook_Validator {
 
         $host = strtolower( $parsed['host'] );
 
+        // Strip brackets from IPv6 addresses in URLs (e.g., [::1] -> ::1).
+        if ( preg_match( '/^\[(.+)\]$/', $host, $matches ) ) {
+            $host = $matches[1];
+        }
+
         // Check blocked hostnames.
         if ( in_array( $host, self::$blocked_hosts, true ) ) {
             return new WP_Error( 'blocked_host', __( 'Webhook URL cannot point to localhost or loopback addresses.', 'form-runtime-engine' ) );
