@@ -60,7 +60,7 @@ class FRE_Admin {
         add_menu_page(
             __( 'Form Entries', 'form-runtime-engine' ),
             __( 'Form Entries', 'form-runtime-engine' ),
-            'manage_options',
+            FRE_Capabilities::MANAGE_FORMS,
             'fre-entries',
             array( $this, 'render_entries_page' ),
             'dashicons-feedback',
@@ -72,7 +72,7 @@ class FRE_Admin {
             null,
             __( 'Entry Details', 'form-runtime-engine' ),
             __( 'Entry Details', 'form-runtime-engine' ),
-            'manage_options',
+            FRE_Capabilities::MANAGE_FORMS,
             'fre-entry',
             array( $this, 'render_entry_page' )
         );
@@ -82,7 +82,7 @@ class FRE_Admin {
             'fre-entries',
             __( 'Export Entries', 'form-runtime-engine' ),
             __( 'Export', 'form-runtime-engine' ),
-            'manage_options',
+            FRE_Capabilities::MANAGE_FORMS,
             'fre-export',
             array( $this, 'render_export_page' )
         );
@@ -92,7 +92,7 @@ class FRE_Admin {
             'fre-entries',
             __( 'Manage Forms', 'form-runtime-engine' ),
             __( 'Forms', 'form-runtime-engine' ),
-            'manage_options',
+            FRE_Capabilities::MANAGE_FORMS,
             'fre-forms',
             array( 'FRE_Forms_Manager', 'render_page' )
         );
@@ -102,7 +102,7 @@ class FRE_Admin {
             'fre-entries',
             __( 'Settings', 'form-runtime-engine' ),
             __( 'Settings', 'form-runtime-engine' ),
-            'manage_options',
+            FRE_Capabilities::MANAGE_FORMS,
             'fre-settings',
             array( $this, 'render_settings_page' )
         );
@@ -185,7 +185,7 @@ class FRE_Admin {
      * Render settings page.
      */
     public function render_settings_page() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
         }
 
@@ -274,7 +274,7 @@ class FRE_Admin {
      */
     public function render_entries_page() {
         // Check user capability.
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
         }
 
@@ -343,7 +343,7 @@ class FRE_Admin {
      * Render single entry page.
      */
     public function render_entry_page() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
         }
 
@@ -361,7 +361,7 @@ class FRE_Admin {
      * Render export page.
      */
     public function render_export_page() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
         }
 
@@ -477,7 +477,7 @@ class FRE_Admin {
      * Handle CSV export action.
      */
     public function handle_csv_export() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'Unauthorized', 'form-runtime-engine' ) );
         }
 
@@ -500,7 +500,7 @@ class FRE_Admin {
      * AJAX: Mark entry as read.
      */
     public function ajax_mark_read() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
 
@@ -526,7 +526,7 @@ class FRE_Admin {
      * AJAX: Mark entry as unread.
      */
     public function ajax_mark_unread() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
 
@@ -552,7 +552,7 @@ class FRE_Admin {
      * AJAX: Delete entry.
      */
     public function ajax_delete_entry() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
 
@@ -578,7 +578,7 @@ class FRE_Admin {
      * AJAX: Mark entry as spam.
      */
     public function ajax_mark_spam() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
 
@@ -638,7 +638,7 @@ class FRE_Admin {
      * AJAX: Test Google Places API key.
      */
     public function ajax_test_google_api_key() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
         }
 

@@ -215,6 +215,208 @@ class FRE_Submission_Handler {
     }
 
     /**
+     * Process a submission programmatically, outside the AJAX request path.
+     *
+     * INTERNAL API — not exposed on any public surface yet. Added in the Phase 1
+     * Cowork connector refactor as the shared entry point the REST connector
+     * will call in Phase 2. The AJAX handler (`handle_submission()`) is NOT
+     * routed through this method and is not affected by it.
+     *
+     * Deliberate differences from the AJAX path:
+     *   - No nonce check. Auth is the caller's responsibility (the REST
+     *     connector validates via App Password + capability).
+     *   - No honeypot, no timing check, no idempotency transients. These
+     *     all depend on frontend-injected state that a connector-originated
+     *     submission cannot supply.
+     *   - No duplicate-submission detection. Connectors explicitly control
+     *     when they submit and can retry safely.
+     *   - No file upload handling in Phase 1. Connector-originated file
+     *     uploads are out of scope per the assessment document.
+     *   - Returns a structured result array rather than JSON. The caller is
+     *     responsible for translating to HTTP response format.
+     *
+     * Options:
+     *   - `dry_run` (bool): When true, runs validation and sanitization and
+     *     returns what would be stored, but does NOT create an entry, fire
+     *     `fre_entry_created`, send email, or dispatch webhooks. Default false.
+     *   - `skip_notifications` (bool): When true, creates the entry and fires
+     *     `fre_entry_created` (so external listeners like the webhook
+     *     dispatcher still run — Cowork often wants that), but skips the
+     *     built-in email notification send. Default false.
+     *   - `source` (string): Origin tag. Currently informational only;
+     *     reserved for future logging and analytics.
+     *
+     * @param string $form_id Form identifier.
+     * @param array  $data    Raw submission data keyed by field key.
+     * @param array  $options Processing options (see method body).
+     * @return array|WP_Error {
+     *     Structured result on success, WP_Error on failure.
+     *
+     *     @type bool   $dry_run    Whether this call skipped side effects.
+     *     @type int    $entry_id   Entry ID. 0 when dry_run or store_entries disabled.
+     *     @type array  $sanitized  The sanitized data that was (or would be) stored.
+     *     @type bool   $email_sent Whether the built-in email notification fired.
+     *     @type string $source     The source tag passed in options.
+     * }
+     */
+    public function process_submission( $form_id, array $data, array $options = array() ) {
+        $options = wp_parse_args(
+            $options,
+            array(
+                'dry_run'            => false,
+                'skip_notifications' => false,
+                'source'             => 'connector',
+            )
+        );
+
+        $form_id = sanitize_key( $form_id );
+        if ( '' === $form_id ) {
+            return new WP_Error( 'invalid_form_id', __( 'Form ID is required.', 'form-runtime-engine' ) );
+        }
+
+        // Look up the form config from the runtime registry. DB-stored forms
+        // are already registered by FRE_Forms_Repository::register_all_with_runtime_registry()
+        // on fre_init, so both PHP-registered and DB-stored forms work here.
+        $form_config = fre()->registry->get( $form_id );
+        if ( ! is_array( $form_config ) ) {
+            return new WP_Error(
+                'form_not_found',
+                __( 'Form configuration not found.', 'form-runtime-engine' ),
+                array( 'form_id' => $form_id )
+            );
+        }
+
+        /**
+         * Fires before programmatic submission processing begins.
+         *
+         * Mirrors `fre_before_submission_process` from the AJAX path so external
+         * listeners can react uniformly regardless of submission origin.
+         *
+         * @param string $form_id     Form ID.
+         * @param array  $form_config Form configuration.
+         * @param array  $options     Processing options.
+         */
+        do_action( 'fre_before_submission_process', $form_id, $form_config, $options );
+
+        // Translate clean field keys into the "fre_field_{key}" form the
+        // validator and sanitizer expect. Callers of process_submission use
+        // clean keys per the connector contract (docs/CONNECTOR_SPEC.md §9.9)
+        // because that is the natural shape for JSON APIs; the internal
+        // prefix exists only to avoid collisions with WordPress POST params
+        // on the AJAX path, which doesn't apply here.
+        $prefixed_data = $this->prefix_field_keys( $data, $form_config );
+
+        // Validate.
+        $validation = $this->validator->validate( $form_config, $prefixed_data );
+        if ( is_wp_error( $validation ) ) {
+            return $validation;
+        }
+
+        // Sanitize. The sanitizer returns a map keyed by clean field keys
+        // (it strips the prefix internally — see its signature), so no
+        // reverse translation is needed on the returned map.
+        $sanitized_data = $this->sanitizer->sanitize( $form_config, $prefixed_data );
+
+        // Dry run short-circuits here — return what would have been stored.
+        if ( ! empty( $options['dry_run'] ) ) {
+            return array(
+                'dry_run'    => true,
+                'entry_id'   => 0,
+                'sanitized'  => $sanitized_data,
+                'email_sent' => false,
+                'source'     => (string) $options['source'],
+            );
+        }
+
+        // Create the entry, honoring the form's store_entries setting.
+        $entry_id        = 0;
+        $store_entries   = ! isset( $form_config['settings']['store_entries'] )
+            || ! empty( $form_config['settings']['store_entries'] );
+
+        if ( $store_entries ) {
+            $entry_id = $this->entry_repo->create( $form_id, $sanitized_data );
+
+            if ( is_wp_error( $entry_id ) ) {
+                return $entry_id;
+            }
+
+            // FRE_Entry::create() fires `fre_entry_created` internally after
+            // the transaction commits. Listeners like the webhook dispatcher
+            // run from there — we do not re-fire it here.
+        }
+
+        // Email notification: skip if explicitly disabled or if the caller asked to.
+        $email_sent            = false;
+        $notifications_enabled = ! empty( $form_config['settings']['notification']['enabled'] );
+        if ( $notifications_enabled && empty( $options['skip_notifications'] ) && $entry_id ) {
+            $email_handler = new FRE_Email_Notification();
+            $email_sent    = (bool) $email_handler->send(
+                $entry_id,
+                $form_config,
+                $sanitized_data,
+                array() // No file uploads in the programmatic path.
+            );
+        }
+
+        return array(
+            'dry_run'    => false,
+            'entry_id'   => (int) $entry_id,
+            'sanitized'  => $sanitized_data,
+            'email_sent' => $email_sent,
+            'source'     => (string) $options['source'],
+        );
+    }
+
+    /**
+     * Translate clean field keys into the internal `fre_field_{key}` form.
+     *
+     * The connector API accepts clean keys (as documented in
+     * docs/CONNECTOR_SPEC.md §9.9) because that is the natural shape for a
+     * JSON payload. Internally the validator and sanitizer expect the
+     * `fre_field_*` prefix because the AJAX path receives data via $_POST
+     * and the prefix avoids collisions with WordPress-reserved POST params.
+     *
+     * This helper maps each field defined in the form config from its clean
+     * key to its prefixed name (via $field_type->get_name()), so overrides
+     * on specific field types are respected. Keys in $data that don't
+     * correspond to a known field are dropped — invalid keys should never
+     * reach the validator because doing so gives the validator false
+     * evidence of what the caller submitted.
+     *
+     * @param array $data        Data keyed by clean field keys.
+     * @param array $form_config Form configuration.
+     * @return array Data keyed by the names the validator/sanitizer expect.
+     */
+    private function prefix_field_keys( array $data, array $form_config ) {
+        $prefixed = array();
+        $fields   = isset( $form_config['fields'] ) && is_array( $form_config['fields'] ) ? $form_config['fields'] : array();
+
+        foreach ( $fields as $field ) {
+            if ( empty( $field['key'] ) || empty( $field['type'] ) ) {
+                continue;
+            }
+
+            $clean_key = $field['key'];
+            if ( ! array_key_exists( $clean_key, $data ) ) {
+                continue;
+            }
+
+            $field_class = FRE_Autoloader::get_field_class( $field['type'] );
+            if ( ! $field_class || ! class_exists( $field_class ) ) {
+                // Fall back to the abstract's default naming convention.
+                $prefixed[ 'fre_field_' . sanitize_key( $clean_key ) ] = $data[ $clean_key ];
+                continue;
+            }
+
+            $field_type        = new $field_class();
+            $name              = $field_type->get_name( $field );
+            $prefixed[ $name ] = $data[ $clean_key ];
+        }
+
+        return $prefixed;
+    }
+
+    /**
      * Verify nonce.
      *
      * @param string $form_id Form ID.

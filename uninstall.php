@@ -54,14 +54,46 @@ function fre_uninstall_cleanup() {
 
     // Delete options.
     delete_option( 'fre_db_version' );
+    delete_option( 'fre_plugin_version' );
     delete_option( 'fre_migration_error' );
     delete_option( 'fre_email_failures' );
+
+    // Delete database-stored forms.
+    // Previously leaked on uninstall — explicitly cleaned since the forms
+    // repository extraction.
+    delete_option( 'fre_client_forms' );
 
     // Delete transients.
     $wpdb->query(
         "DELETE FROM {$wpdb->options}
         WHERE option_name LIKE '_transient_fre_%'
         OR option_name LIKE '_transient_timeout_fre_%'"
+    );
+
+    // Revoke the plugin's custom capability from every role.
+    // Loaded lazily so uninstall still succeeds if the class is missing for
+    // any reason (e.g., partial file deletion before cleanup runs).
+    if ( class_exists( 'FRE_Capabilities' ) ) {
+        FRE_Capabilities::revoke_all_capabilities();
+    }
+
+    // Remove connector settings (toggles + per-user configuration markers).
+    if ( class_exists( 'FRE_Connector_Settings' ) ) {
+        FRE_Connector_Settings::delete_all();
+    }
+
+    // Remove the connector call log.
+    if ( class_exists( 'FRE_Connector_Log' ) ) {
+        FRE_Connector_Log::clear();
+    } else {
+        delete_option( 'fre_connector_call_log' );
+    }
+
+    // Clean up any connector rate-limit transients.
+    $wpdb->query(
+        "DELETE FROM {$wpdb->options}
+        WHERE option_name LIKE '_transient_fre_connector_rate_%'
+        OR option_name LIKE '_transient_timeout_fre_connector_rate_%'"
     );
 
     // Delete uploaded files.

@@ -111,15 +111,40 @@ final class Form_Runtime_Engine {
         // Register deactivation hook.
         register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
 
+        // Run plugin-version upgrade check on every load. Cheap no-op when
+        // versions match. Must fire before init() so capabilities and other
+        // upgrade state are in place by the time components boot. Uses
+        // priority 5 on plugins_loaded so it runs before our own init()
+        // handler (priority 10).
+        add_action( 'plugins_loaded', array( __CLASS__, 'run_version_upgrade_check' ), 5 );
+
         // Initialize plugin on plugins_loaded.
         add_action( 'plugins_loaded', array( $this, 'init' ) );
 
     }
 
     /**
+     * Run the plugin version upgrade check.
+     *
+     * Separated from init() so it can fire at an earlier priority and so
+     * tests can invoke it independently.
+     */
+    public static function run_version_upgrade_check() {
+        if ( class_exists( 'FRE_Upgrader' ) ) {
+            FRE_Upgrader::maybe_upgrade();
+        }
+    }
+
+    /**
      * Plugin activation.
      */
     public function activate() {
+        // Stamp version and grant default capabilities. Done first so that
+        // any subsequent failures in migrations still leave the caps in place.
+        if ( class_exists( 'FRE_Upgrader' ) ) {
+            FRE_Upgrader::on_activation();
+        }
+
         // Run database migrations.
         $migrator = new FRE_Migrator();
         $migrator->run_migrations();
@@ -177,7 +202,14 @@ final class Form_Runtime_Engine {
 
             // Initialize GitHub updater for update checks.
             new FRE_GitHub_Updater();
+
+            // Claude Cowork connector admin page (registers submenu + AJAX).
+            ( new FRE_Connector_Admin() )->init();
         }
+
+        // Claude Cowork connector REST API (registers routes on rest_api_init).
+        // Loaded unconditionally — permission callbacks gate everything.
+        ( new FRE_Connector_API() )->init();
 
         // Register AJAX handlers.
         $this->register_ajax_handlers();

@@ -1,0 +1,380 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/form-runtime-engine/form-schema.json",
+  "title": "Form Runtime Engine — Form Configuration",
+  "description": "Canonical JSON Schema for form configurations accepted by the Form Runtime Engine. Matches the rules enforced by FRE_JSON_Schema_Validator. This is the contract used by the Claude Cowork connector (Phase 2+) to generate form definitions; it is also suitable for editor integrations, validation tooling, and third-party form generators. Hand-authored in Phase 1 of the Cowork connector work; a future refactor will flip FRE_JSON_Schema_Validator to consume this document directly so the schema and the enforcement logic cannot drift.",
+
+  "type": "object",
+  "required": ["fields"],
+  "additionalProperties": true,
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Human-readable form title. Displayed in admin listings and, optionally, above the rendered form when settings.show_title is true."
+    },
+    "version": {
+      "type": "string",
+      "description": "Free-form version string maintained by the form author. Not enforced by the engine. Distinct from the connector-managed connector_version the repository bumps automatically."
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Every field defined in the form. Order matters — it drives render order in the default template.",
+      "items": { "$ref": "#/$defs/field" }
+    },
+    "settings": { "$ref": "#/$defs/settings" },
+    "steps": {
+      "type": "array",
+      "description": "Multi-step form definition. When present, every field should set its `step` property to one of the step keys defined here. Fields without a `step` assignment render before the first step.",
+      "items": { "$ref": "#/$defs/step" }
+    }
+  },
+
+  "$defs": {
+
+    "fieldType": {
+      "type": "string",
+      "enum": [
+        "text",
+        "email",
+        "tel",
+        "textarea",
+        "select",
+        "radio",
+        "checkbox",
+        "file",
+        "hidden",
+        "message",
+        "section",
+        "date",
+        "address"
+      ],
+      "description": "Supported field types. New types can be added via the `fre_field_types` filter, but connector-generated forms should stick to this list for portability."
+    },
+
+    "columnWidth": {
+      "type": "string",
+      "enum": ["1/2", "1/3", "2/3", "1/4", "3/4"],
+      "description": "Fractional column width for inline layouts."
+    },
+
+    "option": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Shorthand: when the value and label are identical, a bare string is accepted."
+        },
+        {
+          "type": "object",
+          "required": ["value"],
+          "additionalProperties": false,
+          "properties": {
+            "value": { "type": "string" },
+            "label": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "conditionRule": {
+      "type": "object",
+      "required": ["field"],
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Key of another field in this form whose value the rule reads."
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "equals",
+            "not_equals",
+            "contains",
+            "not_contains",
+            "is_empty",
+            "is_not_empty",
+            "is_checked",
+            "is_not_checked",
+            "greater_than",
+            "less_than",
+            ">=",
+            "<=",
+            "in",
+            "not_in"
+          ]
+        },
+        "value": {
+          "description": "Comparison value. Type depends on operator: scalar for equals/not_equals/contains/greater_than/less_than, array for in/not_in, absent for is_empty/is_not_empty/is_checked/is_not_checked."
+        }
+      }
+    },
+
+    "conditions": {
+      "type": "object",
+      "description": "Conditional visibility logic. The field is shown only when the rules evaluate to true under the specified logic.",
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/conditionRule" }
+        },
+        "logic": {
+          "type": "string",
+          "enum": ["and", "or"],
+          "default": "and",
+          "description": "How multiple rules combine. Default is `and` (all must match)."
+        }
+      }
+    },
+
+    "field": {
+      "type": "object",
+      "required": ["key", "type"],
+      "additionalProperties": true,
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Unique identifier within this form. Must start with a letter and contain only letters, numbers, underscores, or dashes. Snake_case is the project convention."
+        },
+        "type": { "$ref": "#/$defs/fieldType" },
+        "label": { "type": "string" },
+        "placeholder": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "css_class": { "type": "string" },
+        "default": {
+          "description": "Default value. Type matches the field's value type (string for text/email/tel/etc., array for multi-select checkboxes)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Help text rendered below the field."
+        },
+        "maxlength": { "type": "integer", "minimum": 1 },
+        "minlength": { "type": "integer", "minimum": 0 },
+        "readonly": { "type": "boolean" },
+        "disabled": { "type": "boolean" },
+        "autocomplete": { "type": "string" },
+        "column": { "$ref": "#/$defs/columnWidth" },
+        "section": {
+          "type": "string",
+          "description": "Key of a section-type field in this form that this field belongs to."
+        },
+        "step": {
+          "type": "string",
+          "description": "Key of a step in the form's top-level `steps` array that this field belongs to."
+        },
+        "conditions": { "$ref": "#/$defs/conditions" },
+        "options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/option" },
+          "description": "Choice list for select/radio fields, and for checkbox group fields."
+        },
+        "inline": {
+          "type": "boolean",
+          "description": "Render options inline (horizontally) instead of stacked. Applies to radio and checkbox groups."
+        },
+        "multiple": {
+          "type": "boolean",
+          "description": "Allow multiple selections. Applies to select (dropdown) and file."
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Textarea row count."
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Textarea column count."
+        },
+        "allowed_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File-field extension allow list (e.g. [\"pdf\", \"doc\", \"docx\"])."
+        },
+        "max_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "File-field maximum size in bytes. Default 5242880 (5 MB)."
+        },
+        "content": {
+          "type": "string",
+          "description": "HTML content for a message-type field. Sanitized via wp_kses_post at render time."
+        },
+        "style": {
+          "type": "string",
+          "enum": ["info", "warning", "success", "error"],
+          "description": "Visual treatment for a message-type field."
+        },
+        "min": {
+          "type": "string",
+          "format": "date",
+          "description": "Minimum date for a date-type field (YYYY-MM-DD)."
+        },
+        "max": {
+          "type": "string",
+          "format": "date",
+          "description": "Maximum date for a date-type field (YYYY-MM-DD)."
+        },
+        "country_restriction": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]{2}$"
+          },
+          "description": "ISO 3166-1 alpha-2 country codes (lowercase) to restrict Google Places autocomplete for an address-type field."
+        }
+      },
+      "allOf": [
+        {
+          "comment": "Select and radio fields MUST provide an options array. Checkbox fields MAY provide options (group) or omit them (single boolean).",
+          "if": {
+            "properties": {
+              "type": { "enum": ["select", "radio"] }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["options"],
+            "properties": {
+              "options": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "comment": "Message fields should carry either label or content — they exist to display information.",
+          "if": {
+            "properties": {
+              "type": { "const": "message" }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["label"] },
+              { "required": ["content"] }
+            ]
+          }
+        }
+      ]
+    },
+
+    "step": {
+      "type": "object",
+      "required": ["key"],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Unique step identifier referenced by fields via their `step` property."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title for the step, shown in progress indicators."
+        }
+      }
+    },
+
+    "notificationSettings": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "to": {
+          "description": "Recipient email address(es). String (comma-separated) or array. Template variables supported: {admin_email}.",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "subject": { "type": "string" },
+        "from_name": { "type": "string" },
+        "from_email": { "type": "string" },
+        "reply_to": {
+          "type": "string",
+          "description": "Reply-To header. Template variables supported: {field:<key>} to pull from a submitted field."
+        }
+      }
+    },
+
+    "spamProtectionSettings": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "honeypot": { "type": "boolean", "default": true },
+        "timing_check": { "type": "boolean", "default": true },
+        "min_submission_time": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 3,
+          "description": "Seconds a human should minimally take before submitting."
+        },
+        "rate_limit": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max": { "type": "integer", "minimum": 1 },
+            "window": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Window in seconds."
+            }
+          }
+        }
+      }
+    },
+
+    "multistepSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "show_progress": { "type": "boolean", "default": true },
+        "progress_style": {
+          "type": "string",
+          "enum": ["steps", "bar", "dots"],
+          "default": "steps"
+        },
+        "validate_on_next": { "type": "boolean", "default": true },
+        "show_step_titles": { "type": "boolean", "default": false }
+      }
+    },
+
+    "settings": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Form-level behavior and presentation settings. Unknown properties are ignored (validator warns).",
+      "properties": {
+        "submit_button_text": { "type": "string", "default": "Submit" },
+        "success_message": {
+          "type": "string",
+          "default": "Thank you for your submission."
+        },
+        "redirect_url": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL to redirect to after successful submission. Null/absent means no redirect."
+        },
+        "show_title": { "type": "boolean", "default": false },
+        "css_class": { "type": "string" },
+        "store_entries": { "type": "boolean", "default": true },
+        "notification": { "$ref": "#/$defs/notificationSettings" },
+        "spam_protection": { "$ref": "#/$defs/spamProtectionSettings" },
+        "multistep": { "$ref": "#/$defs/multistepSettings" },
+        "webhook_enabled": { "type": "boolean", "default": false },
+        "webhook_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Outbound webhook URL. Validated by FRE_Webhook_Validator (HTTPS, SSRF-protected)."
+        },
+        "theme_variant": {
+          "type": "string",
+          "enum": ["light", "dark", "auto"],
+          "default": "light"
+        }
+      }
+    }
+  }
+}

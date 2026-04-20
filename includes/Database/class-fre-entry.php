@@ -123,6 +123,39 @@ class FRE_Entry {
                 }
             }
 
+            // Stamp the form's connector_version onto the entry (if available).
+            //
+            // This enables downstream A/B analysis and iterative optimization:
+            // when the Cowork connector (Phase 2+) updates a form, its
+            // connector_version bumps monotonically, and every entry submitted
+            // against that form carries the version it was answered under.
+            //
+            // The field key is prefixed with an underscore (`_fre_form_version`)
+            // to mark it as internal metadata, matching the WordPress convention
+            // for hidden post meta. This also keeps it out of webhook payloads
+            // and CSV exports by default unless explicitly whitelisted.
+            //
+            // Only DB-stored forms have a connector_version; runtime-registered
+            // forms (via fre_register_form() in PHP code) do not, and their
+            // entries skip this stamp. The meta absence is the signal that the
+            // entry has no version context.
+            if ( class_exists( 'FRE_Forms_Repository' ) ) {
+                $form_record = FRE_Forms_Repository::get( $form_id );
+                if ( is_array( $form_record ) && ! empty( $form_record['connector_version'] ) ) {
+                    $version_meta_result = $this->add_meta(
+                        $entry_id,
+                        '_fre_form_version',
+                        (int) $form_record['connector_version']
+                    );
+
+                    if ( $version_meta_result === false ) {
+                        $this->wpdb->query( 'ROLLBACK' );
+                        FRE_Logger::error( 'DB Error: Form version stamp failed for form ' . sanitize_key( $form_id ) );
+                        throw new Exception( 'Database error' );
+                    }
+                }
+            }
+
             // Commit the transaction.
             $this->wpdb->query( 'COMMIT' );
 

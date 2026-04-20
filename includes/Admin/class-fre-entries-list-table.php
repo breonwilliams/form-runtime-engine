@@ -372,7 +372,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
      * Process bulk actions (Fix #8: CSRF protection - nonce check first).
      */
     public function process_bulk_action() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             return;
         }
 

@@ -12,6 +12,12 @@ A lightweight WordPress form engine that renders forms from configuration arrays
 | Twilio missed-call text-back setup & architecture | `docs/twilio/twilio-setup.md` |
 | Google Sheets integration guide | `docs/google/google-sheets-setup.md` |
 | **AISB token contract (Promptless WP integration)** | **`docs/AISB_TOKEN_CONTRACT.md`** |
+| **Form JSON Schema (canonical contract)** | **`docs/form-schema.json`** |
+| **Cowork connector assessment (Phase 1–4 plan)** | **`docs/COWORK_CONNECTOR_ASSESSMENT.md`** |
+| **Cowork connector REST API spec** | **`docs/CONNECTOR_SPEC.md`** |
+| **Cowork MCP connector setup & troubleshooting** | **`docs/MCP_CONNECTOR_SETUP.md`** |
+| **Cowork connector testing report (Phase 3 pressure test)** | **`docs/CONNECTOR_TESTING_REPORT.md`** |
+| **Promptless ↔ Form Engine end-to-end workflow** | **`docs/WORKFLOW_PROMPTLESS_INTEGRATION.md`** |
 
 ## Design System Integration
 

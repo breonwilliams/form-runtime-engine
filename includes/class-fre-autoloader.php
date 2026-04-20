@@ -29,6 +29,16 @@ class FRE_Autoloader {
         'FRE_Validator'           => 'Core/class-fre-validator.php',
         'FRE_Sanitizer'           => 'Core/class-fre-sanitizer.php',
         'FRE_Logger'              => 'Core/class-fre-logger.php',
+        'FRE_Capabilities'        => 'Core/class-fre-capabilities.php',
+        'FRE_Upgrader'            => 'Core/class-fre-upgrader.php',
+        'FRE_Forms_Repository'    => 'Core/class-fre-forms-repository.php',
+
+        // Connector classes (Phase 2+ Cowork connector).
+        'FRE_Connector_Settings'  => 'Connector/class-fre-connector-settings.php',
+        'FRE_Connector_Auth'      => 'Connector/class-fre-connector-auth.php',
+        'FRE_Connector_API'       => 'Connector/class-fre-connector-api.php',
+        'FRE_Connector_Admin'     => 'Connector/class-fre-connector-admin.php',
+        'FRE_Connector_Log'       => 'Connector/class-fre-connector-log.php',
 
         // Database classes.
         'FRE_Migrator'            => 'Database/class-fre-migrator.php',

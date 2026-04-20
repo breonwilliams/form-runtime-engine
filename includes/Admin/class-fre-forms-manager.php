@@ -19,13 +19,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Forms manager class.
+ *
+ * Admin UI + AJAX handlers for database-stored forms. All storage concerns
+ * delegate to FRE_Forms_Repository, which is the single CRUD path shared by
+ * the admin UI and the Cowork REST connector (Phase 2+). The static methods
+ * on this class are preserved as thin delegators so external callers of the
+ * old API — specifically the fre_get_db_form(), fre_save_db_form(), etc.
+ * wrapper functions in the main plugin file — continue to work unchanged.
  */
 class FRE_Forms_Manager {
 
     /**
      * Option key for storing forms.
+     *
+     * Kept as a class constant for backward compatibility with any legacy
+     * code that referenced it directly. The canonical source is
+     * FRE_Forms_Repository::OPTION_KEY; both point at the same option row.
+     *
+     * @var string
      */
-    const OPTION_KEY = 'fre_client_forms';
+    const OPTION_KEY = FRE_Forms_Repository::OPTION_KEY;
 
     /**
      * Get all saved forms from database.
@@ -33,7 +46,7 @@ class FRE_Forms_Manager {
      * @return array
      */
     public static function get_forms() {
-        return get_option( self::OPTION_KEY, array() );
+        return FRE_Forms_Repository::get_all();
     }
 
     /**
@@ -43,12 +56,17 @@ class FRE_Forms_Manager {
      * @return array|null
      */
     public static function get_form( $form_id ) {
-        $forms = self::get_forms();
-        return isset( $forms[ $form_id ] ) ? $forms[ $form_id ] : null;
+        return FRE_Forms_Repository::get( $form_id );
     }
 
     /**
      * Save a form to database.
+     *
+     * Thin wrapper around FRE_Forms_Repository::save() that preserves the
+     * positional-argument signature the admin AJAX handler and external
+     * callers rely on. New callers (including the Cowork REST connector)
+     * should use FRE_Forms_Repository::save() directly with a structured
+     * input array — particularly when they need to set `managed_by`.
      *
      * @param string $form_id         Form ID.
      * @param string $title           Form title.
@@ -61,100 +79,21 @@ class FRE_Forms_Manager {
      * @return array|WP_Error
      */
     public static function save_form( $form_id, $title, $json_config, $custom_css = '', $webhook_enabled = false, $webhook_url = '', $webhook_secret = '', $webhook_preset = 'custom' ) {
-        // Validate form ID.
-        if ( empty( $form_id ) ) {
-            return new WP_Error( 'empty_id', __( 'Form ID is required.', 'form-runtime-engine' ) );
-        }
-
-        if ( ! preg_match( '/^[a-z0-9\-_]+$/', $form_id ) ) {
-            return new WP_Error( 'invalid_id', __( 'Form ID must be lowercase alphanumeric with dashes or underscores only.', 'form-runtime-engine' ) );
-        }
-
-        // Validate JSON.
-        $config = json_decode( $json_config, true );
-
-        if ( json_last_error() !== JSON_ERROR_NONE ) {
-            return new WP_Error( 'invalid_json', __( 'Invalid JSON syntax: ', 'form-runtime-engine' ) . json_last_error_msg() );
-        }
-
-        // JSON Schema Validation (comprehensive validation).
-        $schema_result = FRE_JSON_Schema_Validator::validate( $config );
-        if ( ! $schema_result['valid'] ) {
-            return new WP_Error( 'schema_error', implode( ' ', $schema_result['errors'] ) );
-        }
-
-        // Log warnings (non-fatal issues).
-        if ( ! empty( $schema_result['warnings'] ) ) {
-            foreach ( $schema_result['warnings'] as $warning ) {
-                FRE_Logger::warning( 'Form Schema Warning [' . $form_id . ']: ' . $warning );
-            }
-        }
-
-        // CSS Validation (if provided).
-        if ( ! empty( $custom_css ) ) {
-            $css_result = FRE_CSS_Validator::validate( $custom_css );
-            if ( is_wp_error( $css_result ) ) {
-                return $css_result;
-            }
-            // Sanitize CSS.
-            $custom_css = FRE_CSS_Validator::sanitize( $custom_css );
-        }
-
-        // Webhook URL validation (if enabled and URL provided).
-        $webhook_enabled = (bool) $webhook_enabled;
-        if ( $webhook_enabled && ! empty( $webhook_url ) ) {
-            $webhook_result = FRE_Webhook_Validator::validate_and_sanitize( $webhook_url );
-            if ( is_wp_error( $webhook_result ) ) {
-                return $webhook_result;
-            }
-            $webhook_url = $webhook_result;
-        } elseif ( ! $webhook_enabled ) {
-            // Clear URL if webhook is disabled.
-            $webhook_url = '';
-        }
-
-        // Get existing forms.
-        $forms  = self::get_forms();
-        $is_new = ! isset( $forms[ $form_id ] );
-
-        // Use title from JSON if not provided.
-        if ( empty( $title ) && ! empty( $config['title'] ) ) {
-            $title = $config['title'];
-        }
-
-        // Handle webhook secret: preserve existing, auto-generate if newly enabled, or accept provided.
-        if ( ! empty( $webhook_secret ) ) {
-            // Use the provided secret (e.g., manually set or regenerated).
-            $webhook_secret = sanitize_text_field( $webhook_secret );
-        } elseif ( $webhook_enabled && ! $is_new && ! empty( $forms[ $form_id ]['webhook_secret'] ) ) {
-            // Preserve existing secret when editing.
-            $webhook_secret = $forms[ $form_id ]['webhook_secret'];
-        } elseif ( $webhook_enabled ) {
-            // Auto-generate a new secret when webhook is first enabled.
-            $webhook_secret = wp_generate_password( 32, false );
-        }
-
-        // Validate preset value.
-        $valid_presets  = array( 'google_sheets', 'zapier', 'make', 'custom' );
-        $webhook_preset = in_array( $webhook_preset, $valid_presets, true ) ? $webhook_preset : 'custom';
-
-        // Save form (CSS is already sanitized by FRE_CSS_Validator).
-        $forms[ $form_id ] = array(
-            'id'              => $form_id,
-            'title'           => sanitize_text_field( $title ),
-            'config'          => $json_config,
-            'custom_css'      => $custom_css,
-            'webhook_enabled' => $webhook_enabled,
-            'webhook_url'     => $webhook_url,
-            'webhook_secret'  => $webhook_secret,
-            'webhook_preset'  => $webhook_preset,
-            'created'         => $is_new ? time() : ( $forms[ $form_id ]['created'] ?? time() ),
-            'modified'        => time(),
+        return FRE_Forms_Repository::save(
+            $form_id,
+            array(
+                'title'           => $title,
+                'config'          => $json_config,
+                'custom_css'      => $custom_css,
+                'webhook_enabled' => (bool) $webhook_enabled,
+                'webhook_url'     => $webhook_url,
+                'webhook_secret'  => $webhook_secret,
+                'webhook_preset'  => $webhook_preset,
+                // No managed_by: repository defaults to 'admin' for new forms
+                // and preserves the existing value on updates, which is correct
+                // for the admin UI path.
+            )
         );
-
-        update_option( self::OPTION_KEY, $forms );
-
-        return $forms[ $form_id ];
     }
 
     /**
@@ -164,16 +103,7 @@ class FRE_Forms_Manager {
      * @return bool
      */
     public static function delete_form( $form_id ) {
-        $forms = self::get_forms();
-
-        if ( ! isset( $forms[ $form_id ] ) ) {
-            return false;
-        }
-
-        unset( $forms[ $form_id ] );
-        update_option( self::OPTION_KEY, $forms );
-
-        return true;
+        return FRE_Forms_Repository::delete( $form_id );
     }
 
     /**
@@ -182,27 +112,14 @@ class FRE_Forms_Manager {
      * Called on fre_init hook.
      */
     public static function register_db_forms() {
-        $forms = self::get_forms();
-
-        foreach ( $forms as $form_id => $form_data ) {
-            $config = json_decode( $form_data['config'], true );
-
-            if ( $config ) {
-                // Add title if not in config.
-                if ( ! empty( $form_data['title'] ) && empty( $config['title'] ) ) {
-                    $config['title'] = $form_data['title'];
-                }
-
-                fre_register_form( $form_id, $config );
-            }
-        }
+        FRE_Forms_Repository::register_all_with_runtime_registry();
     }
 
     /**
      * Render the forms management page.
      */
     public static function render_page() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
         }
 
@@ -668,7 +585,7 @@ class FRE_Forms_Manager {
      * AJAX: Save form.
      */
     public static function ajax_save_form() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
         }
 
@@ -701,7 +618,7 @@ class FRE_Forms_Manager {
      * AJAX: Delete form.
      */
     public static function ajax_delete_form() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
         }
 
@@ -728,7 +645,7 @@ class FRE_Forms_Manager {
      * Sends a test ping to the webhook URL and returns rich response data.
      */
     public static function ajax_test_webhook() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
         }
 
@@ -757,7 +674,7 @@ class FRE_Forms_Manager {
      * Generates a sample payload using the form's field definitions.
      */
     public static function ajax_preview_payload() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
         }
 
@@ -784,10 +701,11 @@ class FRE_Forms_Manager {
     /**
      * AJAX: Regenerate webhook secret for a form.
      *
-     * Generates a new 32-character secret and saves it to the form data.
+     * Delegates to FRE_Forms_Repository::regenerate_webhook_secret() which
+     * also bumps the form's connector_version and modified timestamp.
      */
     public static function ajax_regenerate_secret() {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
         }
 
@@ -799,23 +717,15 @@ class FRE_Forms_Manager {
             wp_send_json_error( array( 'message' => __( 'Form ID is required.', 'form-runtime-engine' ) ) );
         }
 
-        $form = self::get_form( $form_id );
-        if ( empty( $form ) ) {
-            wp_send_json_error( array( 'message' => __( 'Form not found.', 'form-runtime-engine' ) ) );
+        $result = FRE_Forms_Repository::regenerate_webhook_secret( $form_id );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( array( 'message' => $result->get_error_message() ) );
         }
-
-        // Generate new secret.
-        $new_secret = wp_generate_password( 32, false );
-
-        // Update the form data directly.
-        $forms = self::get_forms();
-        $forms[ $form_id ]['webhook_secret'] = $new_secret;
-        $forms[ $form_id ]['modified']       = time();
-        update_option( self::OPTION_KEY, $forms );
 
         wp_send_json_success( array(
             'message' => __( 'Webhook secret regenerated. Update your endpoint to match.', 'form-runtime-engine' ),
-            'secret'  => $new_secret,
+            'secret'  => $result,
         ) );
     }
 }

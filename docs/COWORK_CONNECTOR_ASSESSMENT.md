@@ -138,7 +138,7 @@ Mirror the Promptless pattern end to end:
 3. UI renders a one-line bash command that downloads our `form-engine-connector.js` MCP script and writes a `form-engine-wordpress` entry into `claude_desktop_config.json`.
 4. User pastes it into Terminal. Claude Desktop picks it up on next restart.
 5. Every REST call authenticates via HTTP Basic Auth using that App Password.
-6. Every REST permission callback checks: `is_user_logged_in()`, `current_user_can('manage_options')` (forms are admin-managed today; changing to a lower cap would be a behavioral shift for the admin UI too), and optional premium/licensing if we later gate this.
+6. Every REST permission callback checks three things: `is_user_logged_in()`, `current_user_can('fre_manage_forms')` (see §7.7 below — we are introducing this custom capability and using it uniformly across admin UI and connector), and the connector enable toggle (§7.9). There is **no** premium/licensing gate — the form engine is not a commercial plugin and has no tiered model. Auth is purely "authenticated user with the right capability on a site that has the connector enabled."
 
 Both MCP servers end up as two entries in the user's `claude_desktop_config.json`:
 
@@ -215,7 +215,33 @@ Mirror Promptless's per-user, per-endpoint transient-based rate limits. Sensible
 
 **Recommendation: adopt as-is. Tune later from telemetry.**
 
-### 7.7 Public spec document
+### 7.7 Introduce the `fre_manage_forms` custom capability
+
+Today the plugin checks `current_user_can('manage_options')` everywhere forms or entries are accessed. `manage_options` is WordPress's "super admin" capability — it grants access to every setting in WordPress, including the ability to install plugins and delete the site. Reusing it for form management violates the principle of least privilege and forecloses future delegation.
+
+Established WordPress plugins in the same category handle this uniformly by introducing their own capability: Gravity Forms uses `gform_full_access` (and an entire capability family for finer grain), WooCommerce uses `manage_woocommerce`, The Events Calendar uses `manage_tribe_events`. The pattern is: custom cap → granted to administrator role on activation → used in every permission check → available for admins to delegate to editors or custom roles when they need to.
+
+**Decision: introduce `fre_manage_forms`.** Grant it to the `administrator` role on plugin activation. Remove it on uninstall. Replace every `current_user_can('manage_options')` check across admin UI, AJAX handlers, and the new connector permission callbacks with `current_user_can('fre_manage_forms')`. No UI to delegate it in v1 — admins who want account managers or copy specialists to operate Cowork against the form engine can use any standard role editor (User Role Editor, Members, etc.) or a one-line `add_cap()` filter. A v2 could add a dedicated delegation UI if demand warrants.
+
+This is a small amount of work (one activation hook, ~15 call-site swaps, one uninstall hook) done once, versus a cross-cutting refactor later once the capability is assumed everywhere. The internal-use context does not change this recommendation — agency workflows where non-admins operate client sites are real even for one-operator shops the moment a second person joins.
+
+### 7.8 Publish a standalone JSON schema for form definitions
+
+Today the only contract for what constitutes a valid form JSON document is the `FRE_JSON_Schema_Validator` class. The rules live in PHP code. Cowork generates form JSON by reading `CLAUDE.md` prose and the validator source, which produces good but not perfect first-try outputs.
+
+The industry-standard approach — used by every mature tool-calling API, every OpenAPI-driven integration, and recommended by Anthropic's own MCP documentation — is to publish a machine-readable JSON Schema document that both the consumer (Cowork) and the producer (the validator) can reference. The measurable payoff in LLM-generated structured output is substantial: first-try validity rates on LLM-generated structured data consistently improve when a schema is provided alongside the prose, because the model can self-check against the schema during generation rather than discovering violations only at validation time.
+
+**Decision: ship `docs/form-schema.json` as part of this connector work.** Hand-author it in v1 to match the current validator's rules. Reference it from the MCP tool `inputSchema` fields — where the tool accepts a `config` parameter, its schema is a `$ref` or inlined copy of `form-schema.json`. This makes the tool definitions self-documenting and gives Cowork a concrete target to generate against.
+
+A follow-on refactor (not in v1 scope) can flip the dependency: make `FRE_JSON_Schema_Validator` *consume* the JSON Schema document as its rules source instead of hard-coding rules in PHP. That turns the schema into the single source of truth and eliminates the risk of validator and schema drifting apart. Worth doing, but after v1 ships.
+
+### 7.9 Explicit connector enable toggle, default off
+
+Mature WordPress plugins with external API surfaces almost uniformly default them to off and require explicit opt-in. Gravity Forms' REST API, Ninja Forms' API, WooCommerce's legacy REST, and dozens of others ship with a site-level toggle that gates the endpoints entirely. The reasoning is security surface: every installation having a live connector by default multiplies the attack surface across every site running the plugin, most of which don't need it.
+
+**Decision: add an "Enable Claude Cowork Connection" toggle to the admin Claude Connection page. Default off.** When off, every `/wp-json/fre/v1/connector/*` endpoint returns `403 connector_disabled` with a message pointing to the admin URL to enable. When on, permission callbacks fall through to the capability and auth checks. This is the "outer gate"; the entry-read toggle (§5, carried forward) is the "inner gate" for the most privacy-sensitive capability. Two gates, layered, each addressing a distinct threat model.
+
+### 7.10 Public spec document
 
 Publish a `CONNECTOR_SPEC.md` in the form engine docs folder that is the contract for the REST API. Same function as Promptless's — defines the namespace, routes, request/response shapes, error codes, rate limits, breaking-change policy. This is what Cowork-side tooling pins to.
 
@@ -232,7 +258,7 @@ Equal weight to what we're building: what we're *not*.
 - **No OAuth, no custom API keys, no JWT.** WP Application Passwords only.
 - **No multi-site support in v1.** Single-site installations only, same as Promptless v1.
 - **No image/file upload support via connector in v1.** Text forms only. File-field definitions can be created (that's just JSON), but connector-originated file uploads are a later phase.
-- **No entry deletion via connector in v1.** Read-only on the entries side; destructive actions stay in the admin UI behind `manage_options`.
+- **No entry deletion via connector in v1.** Read-only on the entries side; destructive actions stay in the admin UI behind `fre_manage_forms`.
 - **No bulk operations in v1.** Every tool call acts on one form or one entry at a time. Promptless does support batch-deploy, but it's coarse-grained (multiple pages' content in one call). For the form engine, Cowork can loop tool calls, and our rate limits are sized for that.
 
 ---
@@ -246,12 +272,14 @@ Four phases, each independently shippable and testable.
 The goal: make the codebase ready to host a connector without yet exposing one.
 
 - Extract `FRE_Forms_Repository` from `FRE_Forms_Manager`. Refactor existing AJAX handlers to call the repository. No behavior change.
+- Introduce the `fre_manage_forms` capability. Grant it to the `administrator` role on plugin activation; remove on uninstall. Replace every `current_user_can('manage_options')` check across admin UI, AJAX handlers, and anywhere form/entry access is gated. Migration path for existing installs: the activation hook runs on plugin update too, so existing admins acquire the capability on the next plugin load.
 - Add `managed_by` field to the per-form record. Default `'admin'` for all existing forms in the migration step. Render the admin badge (simple case) behind an internal flag.
 - Add the passive `version` bump on form updates. Add the entry-meta `form_version` column write path in `FRE_Entry::create()`.
 - Add `dry_run` and `skip_notifications` support paths inside the submission pipeline, *but* gate them behind an internal-only flag. AJAX submission handler unchanged.
-- Ship tests for each refactor. No user-visible change this phase.
+- Hand-author `docs/form-schema.json` to match the current validator's rules. Reference it from `CLAUDE.md`. Validator is unchanged in this phase; the schema is the documented contract only.
+- Ship tests for each refactor, plus a capability-migration test that verifies admins keep their form-management access after the `manage_options` → `fre_manage_forms` swap.
 
-Exit criteria: `FRE_Forms_Repository` passes unit tests matching the old AJAX behavior. Admin UI functions identically.
+Exit criteria: `FRE_Forms_Repository` passes unit tests matching the old AJAX behavior. Admin UI functions identically. Administrator users have `fre_manage_forms`. `docs/form-schema.json` exists and validates a known-good form config.
 
 ### Phase 2 — REST API + connector auth
 
@@ -259,12 +287,12 @@ The goal: the REST API exists, authenticates, and is usable from curl. No Claude
 
 - Register the `/wp-json/fre/v1/connector/*` namespace.
 - Implement the ten routes above, each calling the repository or entry query builder.
-- Implement `FRE_Connector_Auth` permission callbacks (Basic Auth via App Password, capability check, optional rate limit).
+- Implement `FRE_Connector_Auth` permission callbacks with three concentric checks: connector enable toggle, `is_user_logged_in()`, `current_user_can('fre_manage_forms')`.
 - Implement per-user per-route rate limiting with the table from §7.6.
-- Implement the "Claude Connection" admin page: generate/revoke App Password, show setup command, entry-read toggle, link to spec.
-- Write `CONNECTOR_SPEC.md`.
+- Implement the "Claude Connection" admin page: the connector enable toggle (default off), generate/revoke App Password, show setup command (Phase 3), entry-read toggle, link to spec.
+- Write `CONNECTOR_SPEC.md` referencing `form-schema.json` as the source of truth for form config shape.
 
-Exit criteria: a curl session can preflight, list, read, create, update, delete a form, list entries, get an entry, and run a dry-run submission. All with HTTP Basic Auth. Unauthenticated calls return 401. Rate-limit exceeded returns 429.
+Exit criteria: a curl session with the toggle enabled can preflight, list, read, create, update, delete a form, list entries, get an entry, and run a dry-run submission. All with HTTP Basic Auth. Unauthenticated calls return 401. Calls with the toggle off return 403 `connector_disabled`. Rate-limit exceeded returns 429.
 
 ### Phase 3 — MCP server + Claude Desktop integration
 
@@ -283,7 +311,7 @@ Exit criteria: a fresh site with the form engine plugin + Claude Desktop can be 
 The goal: operate it.
 
 - Log every connector call (route, user ID, response code, duration) to an internal log table or `error_log()` behind a debug flag.
-- Add preflight checks that surface useful diagnostic state (DB tables present, free/premium status if we gate, entry-read toggle state, last 5 connector call outcomes).
+- Add preflight checks that surface useful diagnostic state (DB tables present, connector enable toggle state, entry-read toggle state, last 5 connector call outcomes, current user's capability status).
 - Document ModSecurity and host-specific workarounds in `MCP_CONNECTOR_SETUP.md`.
 - Cross-host testing: BlueHost, GoDaddy, Kinsta, SiteGround, generic VPS. Catalog host-specific issues.
 - Document the Promptless ↔ Form Engine end-to-end workflow for Cowork documentation.
@@ -317,14 +345,44 @@ Mitigation: `FRE_Entry_Query` is indexed-query-backed; pagination is already che
 
 ---
 
-## 11. Open Questions (for decision before Phase 2)
+## 11. Resolved Decisions
 
-These are the points where I want explicit confirmation or a decision before coding the REST layer.
+The four items originally listed here as open questions were resolved on 2026-04-20. Each decision and its reasoning is recorded below so future maintainers can understand why these choices were made and when to revisit them.
 
-1. **Premium gate or free-tier feature?** Promptless gates its connector behind premium. Form Runtime Engine does not currently have a tiered licensing model. Do we want to gate the connector to paying customers only (requires a licensing layer), to logged-in admins only (current plan), or something else?
-2. **Entry retention policy on form delete.** When Cowork deletes a form, what happens to its entries? Promptless's reset explicitly deletes pages, so the question doesn't arise there. For us: (a) keep entries (recommend), (b) soft-delete the form and keep entries accessible, (c) cascade-delete entries. Recommending (a) — orphan entries remain queryable but their form_id no longer resolves, which is already the behavior if an admin deletes a form today.
-3. **Capability level.** Stay on `manage_options` (admin-only), or introduce a connector-specific capability like `fre_manage_forms` that can be mapped to editors for agency workflows where a non-admin user operates Cowork?
-4. **Schema emission by Cowork.** Do we ship a JSON schema document (`docs/form-schema.json`) that Cowork is expected to conform to, or is the `FRE_JSON_Schema_Validator` the only contract? Shipping a standalone schema is more friction upfront but dramatically improves Cowork's ability to generate valid forms on the first try.
+### 11.1 No premium gate — authenticated capability check only
+
+The form engine is not a commercial plugin. It is internal tooling supporting the user's web-development agency workflow. Adding a licensing layer (Freemius, EDD, or equivalent) would introduce a non-trivial dependency and ongoing operational burden with no business justification.
+
+**Decision:** no premium or payment gate of any kind. Access to the connector is controlled by three concentric checks: (1) the connector is enabled site-wide (§7.9 toggle), (2) the requester is authenticated via WordPress Application Password over HTTP Basic Auth, (3) the authenticated user has the `fre_manage_forms` capability (§7.7). That is the complete auth model.
+
+**When to revisit:** if the form engine is ever distributed publicly or commercialized. Not on the current horizon.
+
+### 11.2 Entry retention on form delete — preserve by default
+
+The consensus pattern across mature form plugins is separation of concerns between form definition and submission data. Gravity Forms moves deleted forms to trash and keeps entries separately accessible. Typeform soft-deletes with a recovery window. HubSpot and Formstack preserve submissions across form lifecycle events by default. The common principle: lead data is irreversibly expensive to lose, so destruction requires explicit intent — never a side effect of a form being deleted.
+
+**Decision:** deleting a form via the connector removes the form record from `wp_options['fre_client_forms']` but leaves all associated entries in `wp_fre_entries`, `wp_fre_entry_meta`, and `wp_fre_entry_files` untouched. The orphan entries become unresolvable by form lookup (the `form_id` column still holds the deleted form's ID, but no form config matches) and remain queryable via the admin entries UI and the entry query builder. The delete response includes the count of preserved entries so Cowork and the requesting user know data was kept:
+
+```json
+{
+  "success": true,
+  "form_id": "old-quote-form",
+  "entries_preserved": 47,
+  "message": "Form deleted. 47 associated entries have been preserved and remain accessible in the admin Entries view."
+}
+```
+
+Entry deletion remains a manual administrative action behind `fre_manage_forms` in the admin UI, explicitly out of connector scope for v1. This matches industry best practice (destructive actions on lead data require explicit human intent, not agent-initiated side effects).
+
+**When to revisit:** never, absent a compelling data-hygiene argument. The current behavior of admin-initiated form deletes already preserves entries; we're maintaining continuity.
+
+### 11.3 Custom capability `fre_manage_forms` — see §7.7
+
+Full reasoning is in §7.7. Short form: replacing `manage_options` with `fre_manage_forms` across the plugin is a small, one-time investment that enforces least-privilege and enables future non-admin delegation without a cross-cutting refactor. Agency workflows where account managers or copy specialists operate Cowork on client sites are real the moment a second person joins the team, so designing for this now is cheaper than retrofitting later.
+
+### 11.4 Standalone `form-schema.json` shipped with the connector — see §7.8
+
+Full reasoning is in §7.8. Short form: published JSON Schema documents measurably improve first-try validity of LLM-generated structured output, and serve as the contract Cowork pins to. Hand-author in v1 to match the current validator; a follow-on refactor flips `FRE_JSON_Schema_Validator` to consume the schema as its source so there is never drift between "what Cowork is told" and "what the server enforces."
 
 ---
 

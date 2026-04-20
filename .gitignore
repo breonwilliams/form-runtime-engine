@@ -18,3 +18,6 @@ composer-setup.php
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local release builds (zips for hosted-site testing before a real GitHub release)
+release/
