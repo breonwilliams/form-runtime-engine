@@ -13,6 +13,13 @@
  * Neo-Brutalist treatment. Form fields, ghost buttons, and message alerts
  * remain minimal for usability.
  *
+ * ⚠  PUBLIC CONTRACT: Every `--aisb-*` token referenced in this file is part
+ * of the documented integration contract with the Promptless WP plugin. Before
+ * adding, removing, or renaming any `--aisb-*` reference, read and update:
+ *     docs/AISB_TOKEN_CONTRACT.md
+ * Every `var(--aisb-*, ...)` MUST include a fallback so standalone installs
+ * still render correctly when the plugin is inactive.
+ *
  * @package FormRuntimeEngine
  */
 

@@ -12,6 +12,13 @@
    2. Falls back to sensible defaults for standalone use
 
    When AISB is active, forms automatically inherit brand styling.
+
+   ⚠  PUBLIC CONTRACT: Every `--aisb-*` token referenced below is part of the
+   documented integration contract with the Promptless WP plugin. Before adding,
+   removing, or renaming any `--aisb-*` reference in this file, read and update:
+       docs/AISB_TOKEN_CONTRACT.md
+   Every `var(--aisb-*, ...)` MUST include a fallback so standalone installs
+   still render correctly when the plugin is inactive.
    ========================================================================== */
 
 :root {

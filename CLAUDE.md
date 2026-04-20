@@ -11,10 +11,11 @@ A lightweight WordPress form engine that renders forms from configuration arrays
 | Security details, CSS validation | `includes/CLAUDE.md` |
 | Twilio missed-call text-back setup & architecture | `docs/twilio/twilio-setup.md` |
 | Google Sheets integration guide | `docs/google/google-sheets-setup.md` |
+| **AISB token contract (Promptless WP integration)** | **`docs/AISB_TOKEN_CONTRACT.md`** |
 
 ## Design System Integration
 
-When **AI Section Builder Modern** is active, forms automatically inherit brand styling:
+When **AI Section Builder Modern** (Promptless WP) is active, forms automatically inherit brand styling:
 - **Colors**: Primary, text, background, border colors from AISB global settings
 - **Typography**: Heading and body fonts from AISB typography settings
 - **Border Radius**: Button and card radius from AISB design tokens
@@ -22,6 +23,8 @@ When **AI Section Builder Modern** is active, forms automatically inherit brand 
 - **Neo-Brutalist Mode**: Bold borders and box shadows when enabled in AISB settings
 
 Forms work perfectly standalone with sensible defaults when AISB is not active.
+
+> **Integration contract:** The exact set of `--aisb-*` CSS custom properties this plugin reads — along with fallbacks, minimum compatible producer version, and deprecation rules — is documented in **[`docs/AISB_TOKEN_CONTRACT.md`](docs/AISB_TOKEN_CONTRACT.md)**. Do not introduce new `--aisb-*` token references (in CSS, JS, or PHP) without updating that contract first. Do not remove a listed token without following the retirement procedure documented there.
 
 ## System Requirements
 
