@@ -5,6 +5,44 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-20
+
+### Added
+- Claude Cowork MCP connector — Claude Desktop can now create, update, delete, and read forms on this site, plus read submission entries when explicitly allowed. Full agency-pipeline integration with the Promptless WP plugin.
+- REST API namespace `/wp-json/fre/v1/connector/` exposing 9 endpoints: preflight, list/get/create/update/delete forms, list/get entries, and programmatic test-submit.
+- Claude Connection admin page under Form Entries with connector enable toggle, entry-read toggle, and App Password generate/revoke flow. Auto-generates a one-line bash setup command that installs the MCP server into Claude Desktop.
+- MCP server script (`form-engine-connector.js`) — Node.js stdio bridge between Claude Desktop and this plugin's REST API. Forked from the Promptless connector with ModSecurity-friendly User-Agent, explicit Content-Length, and Content-Length/newline message-framing auto-detection preserved verbatim.
+- Custom capability `fre_manage_forms` granted to the administrator role on plugin activation/upgrade. Replaces hardcoded `manage_options` at 22 form and entry management call sites so access can be delegated to non-admin roles in the future without a cross-cutting refactor.
+- `FRE_Forms_Repository` — pure CRUD data-access layer extracted from `FRE_Forms_Manager`. The admin UI and REST connector both route through it, so they can never diverge.
+- `FRE_Upgrader` — version-check pattern that runs on every `plugins_loaded`. Handles fresh installs, upgrades, and downgrades; stamps `fre_plugin_version` option so the connector's preflight can surface it.
+- `FRE_Capabilities` — centralised capability constant and grant/revoke helpers used across the plugin lifecycle.
+- `FRE_Connector_Settings` — storage for the two-gate security design (connector-enabled toggle + entry-read toggle, both default off).
+- `FRE_Connector_Auth` — REST permission callback stack with per-user per-route rate limiting via WP transients.
+- `FRE_Connector_API` — REST controller registering all 9 routes under `rest_api_init`.
+- `FRE_Connector_Admin` — Claude Connection admin page, AJAX handlers for toggles and Application Password management, MCP script download endpoint.
+- `FRE_Connector_Log` — bounded ring buffer of recent connector REST calls (method, route, user_id, status, duration_ms). Captured automatically via `rest_pre_dispatch`/`rest_post_dispatch` filters scoped to the connector namespace. Opt-out via `fre_connector_log_enabled` filter.
+- `FRE_Submission_Handler::process_submission()` — programmatic submission path used by the connector's test-submit endpoint. Supports `dry_run` (validate only, no DB write, no side effects) and `skip_notifications` (write entry but suppress email) options.
+- Form records now carry a `managed_by` field (`admin` or `connector:cowork`) so hand-authored forms are distinguishable from connector-created ones.
+- Form records now carry a `connector_version` integer that bumps monotonically on every save. Every submission is stamped with `_fre_form_version` entry meta matching the form's version at the time, enabling A/B analysis across form iterations.
+- Enriched preflight response includes diagnostics block: stored plugin version, database table health check, and last 5 connector call outcomes. Designed for remote troubleshooting from a Cowork session.
+- New documentation:
+  - `docs/CONNECTOR_SPEC.md` — public REST API contract (v1).
+  - `docs/MCP_CONNECTOR_SETUP.md` — operator setup guide and host-specific troubleshooting (Authorization header passthrough, ModSecurity, Node path detection).
+  - `docs/CONNECTOR_TESTING_REPORT.md` — real artifact of the production pressure test on getflowmint.com.
+  - `docs/WORKFLOW_PROMPTLESS_INTEGRATION.md` — end-to-end agency pipeline that emerges when both connectors are installed.
+  - `docs/COWORK_CONNECTOR_ASSESSMENT.md` — architectural rationale document.
+  - `docs/form-schema.json` — canonical JSON Schema for form configurations. Referenced by the MCP tool definitions so Cowork has a concrete target when generating form JSON.
+  - `docs/AISB_TOKEN_CONTRACT.md` — design-token contract documenting which `--aisb-*` CSS custom properties this plugin consumes from the Promptless WP plugin.
+
+### Changed
+- Form CRUD now routes through `FRE_Forms_Repository`. The `FRE_Forms_Manager` static methods (`save_form`, `get_form`, `get_forms`, `delete_form`, `register_db_forms`) are preserved as thin delegators so every existing caller — including the `fre_save_db_form` wrapper functions, the renderer, and the webhook dispatcher — continues to work unchanged.
+- `FRE_Entry::create()` now stamps the submitting form's `connector_version` onto the entry as `_fre_form_version` meta, inside the same DB transaction as the entry insert.
+- `uninstall.php` now cleans up the new connector options (`fre_plugin_version`, `fre_client_forms`, connector toggles, rate-limit transients, call log) and revokes the `fre_manage_forms` capability from every role.
+
+### Fixed
+- `uninstall.php` previously leaked the `fre_client_forms` option on uninstall — a pre-existing bug discovered during the refactor and addressed as part of the cleanup sweep.
+- Delete-form response message now uses `_n()` for proper pluralization ("1 associated entry has been preserved" vs "N associated entries have been preserved").
+
 ## [1.2.5] - 2026-04-16
 
 ### Fixed

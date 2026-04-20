@@ -3,7 +3,7 @@
  * Plugin Name: Form Runtime Engine
  * Plugin URI: https://developer.developer.developer
  * Description: A lightweight WordPress form runtime engine that processes form submissions via configuration.
- * Version: 1.2.5
+ * Version: 1.3.0
  * Requires at least: 5.0
  * Requires PHP: 7.4
  * Author: Developer
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin version.
-define( 'FRE_VERSION', '1.2.5' );
+define( 'FRE_VERSION', '1.3.0' );
 
 // Plugin directory path.
 define( 'FRE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
