@@ -126,6 +126,20 @@ class FRE_Renderer {
             $classes[] = 'fre-form--' . $theme_variant;
         }
 
+        // Appearance modifier — opt-in form-level surface treatment. When
+        // settings.appearance.surface is set to "card", the form root gets
+        // the .fre-form--surface-card class, which applies a token-aware
+        // background / border / radius / padding in CSS. Default ("none")
+        // leaves the form flat against its parent section background. Works
+        // uniformly across single-step and multi-step forms because the class
+        // sits on the <form> root, outside the progress indicator and step
+        // nav. See FRE_KNOWLEDGE_MAP.md §Form surface / visual treatment.
+        $appearance = isset( $settings['appearance'] ) && is_array( $settings['appearance'] ) ? $settings['appearance'] : array();
+        $surface    = isset( $appearance['surface'] ) ? (string) $appearance['surface'] : 'none';
+        if ( 'card' === $surface ) {
+            $classes[] = 'fre-form--surface-card';
+        }
+
         // Check for file fields to set enctype.
         $has_file_field = $this->has_file_field( $form );
 

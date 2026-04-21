@@ -41,7 +41,10 @@ const TOOLS = [
   {
     name: "formengine_preflight",
     description:
-      "Verify the Form Runtime Engine connector is reachable and report its state. Returns plugin version, API version, whether the connector is enabled, whether entry-read access is permitted, and the authenticated user's capabilities. Always call this first before invoking other tools so failures surface with a clear cause.",
+      "Verify the Form Runtime Engine connector is reachable and report its state. MUST be called first in any session that will use this connector. " +
+      "Returns a digest of critical rules inline (critical_rules, field_hints for all 13 field types, universal_field_properties) AND a `schema_reference_url` pointing at the comprehensive markdown rulebook. " +
+      "ALWAYS WebFetch that URL before creating or updating forms — it covers column layouts (1/2, 1/3, 2/3, 1/4, 3/4 as strings), conditional visibility, multistep forms, settings (theme_variant, notifications, spam_protection, webhook), and the drift patterns that cause silent failures. " +
+      "Also returns plugin_version, connector_api_version, connector_enabled, entry_read_enabled, authenticated_as, user_capabilities, and diagnostics (database health, recent calls).",
     inputSchema: {
       type: "object",
       properties: {},
@@ -86,7 +89,11 @@ const TOOLS = [
   {
     name: "formengine_create_form",
     description:
-      "Create a new form. The 'config' argument must be a JSON STRING (not an object) conforming to the Form Runtime Engine form schema — see docs/form-schema.json on the site. Forms created through this tool are automatically tagged managed_by='connector:cowork' and start at connector_version=1. Returns the created record, including the shortcode to embed the form (e.g. [fre_form id=\"contact\"]). Conflicts on an existing ID return form_exists (409); use formengine_update_form instead.",
+      "Create a new form. BEFORE your first create in a session, call `formengine_preflight` and WebFetch the returned `schema_reference_url` — that markdown document covers column layouts (1/2, 1/3, 2/3, 1/4, 3/4 as strings), the 13 field types and their required properties, conditional visibility, multistep forms, settings (theme_variant for dark backgrounds, notifications, webhooks), and common drift patterns that the raw JSON schema doesn't explain. " +
+      "The 'config' argument MUST be a JSON STRING (not an object) conforming to the Form Runtime Engine form schema. JSON.stringify your config object before passing it in. " +
+      "Forms created through this tool are automatically tagged managed_by='connector:cowork' and start at connector_version=1. " +
+      "Returns the created record, including the shortcode to embed the form (e.g. [fre_form id=\"contact\"]). " +
+      "Conflicts on an existing ID return form_exists (409); use formengine_update_form instead.",
     inputSchema: {
       type: "object",
       properties: {
@@ -127,7 +134,10 @@ const TOOLS = [
   {
     name: "formengine_update_form",
     description:
-      "Update an existing form. All fields except form_id are optional — omitted fields retain their current values. The connector_version bumps on every update. managed_by is immutable through this API; origin set at create time is preserved. If you only need to regenerate the webhook secret, use the admin UI (secret rotation is intentionally not exposed via the API).",
+      "Update an existing form. BEFORE your first update in a session, call `formengine_preflight` and WebFetch the returned `schema_reference_url` — the markdown rulebook covers every rule you need to avoid silent regressions when editing forms. " +
+      "All fields except form_id are optional — omitted fields retain their current values. If you supply a new `config`, it MUST be a JSON STRING (not an object) and it REPLACES the existing config; include every field/step/setting you want to preserve. " +
+      "The connector_version bumps on every update. managed_by is immutable through this API; origin set at create time is preserved. " +
+      "If you only need to regenerate the webhook secret, use the admin UI (secret rotation is intentionally not exposed via the API).",
     inputSchema: {
       type: "object",
       properties: {

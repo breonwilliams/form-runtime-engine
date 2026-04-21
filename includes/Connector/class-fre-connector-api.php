@@ -161,6 +161,22 @@ class FRE_Connector_API {
             )
         );
 
+        // Schema reference — the canonical markdown rulebook for connector
+        // consumers. Returned as raw text/markdown so an MCP client can
+        // WebFetch + read it directly. Public route: rules are not sensitive,
+        // and the content is identical to what ships in the plugin repository.
+        // Gating it behind auth would block the legitimate "read rules before
+        // first deploy" flow.
+        register_rest_route(
+            $ns,
+            "/{$base}/schema",
+            array(
+                'methods'             => WP_REST_Server::READABLE,
+                'callback'            => array( $this, 'handle_schema_document' ),
+                'permission_callback' => '__return_true',
+            )
+        );
+
         // 9.2 List forms.
         register_rest_route(
             $ns,
@@ -312,18 +328,213 @@ class FRE_Connector_API {
                 : array(),
         );
 
+        $schema_reference_url = rest_url( self::NAMESPACE_PREFIX . '/' . self::ROUTE_BASE . '/schema' );
+        $rulebook             = self::get_connector_rulebook( $schema_reference_url );
+
         return $this->success( array(
-            'plugin_version'        => defined( 'FRE_VERSION' ) ? FRE_VERSION : null,
-            'connector_api_version' => 'v1',
-            'connector_enabled'     => FRE_Connector_Settings::is_enabled(),
-            'entry_read_enabled'    => FRE_Connector_Settings::is_entry_read_enabled(),
-            'authenticated_as'      => $user ? $user->user_login : null,
-            'user_capabilities'     => array(
+            'plugin_version'            => defined( 'FRE_VERSION' ) ? FRE_VERSION : null,
+            'connector_api_version'     => 'v1',
+            'connector_enabled'         => FRE_Connector_Settings::is_enabled(),
+            'entry_read_enabled'        => FRE_Connector_Settings::is_entry_read_enabled(),
+            'authenticated_as'          => $user ? $user->user_login : null,
+            'user_capabilities'         => array(
                 FRE_Capabilities::MANAGE_FORMS => current_user_can( FRE_Capabilities::MANAGE_FORMS ),
             ),
-            'schema_document_url'   => plugins_url( 'docs/form-schema.json', dirname( __DIR__, 2 ) . '/form-runtime-engine.php' ),
-            'diagnostics'           => $diagnostics,
+
+            // JSON Schema — the authoritative machine contract used by the
+            // server-side validator. Consumers that want strict shape rules
+            // can fetch this directly. Kept at the original key for backwards
+            // compatibility with existing connector clients.
+            'schema_document_url'       => plugins_url( 'docs/form-schema.json', dirname( __DIR__, 2 ) . '/form-runtime-engine.php' ),
+
+            // Human-friendly rulebook — the comprehensive markdown document
+            // that explains field types, column layouts, conditional
+            // visibility, multi-step forms, settings, and drift patterns.
+            // ALWAYS read this before creating or updating forms.
+            'schema_reference_url'      => $schema_reference_url,
+            'read_first'                 => $rulebook['read_first'],
+            'critical_rules'             => $rulebook['critical_rules'],
+            'field_hints'                => $rulebook['field_hints'],
+            'universal_field_properties' => $rulebook['universal_field_properties'],
+            'settings_hints'             => $rulebook['settings_hints'],
+
+            'diagnostics'                => $diagnostics,
         ) );
+    }
+
+    /**
+     * Build the inline connector rulebook digest returned from /preflight.
+     *
+     * This is the same pattern Promptless WP's connector uses: consumers that
+     * only read the preflight response still get the handful of rules that
+     * cause 90% of silent-failure bugs, while the exhaustive rulebook lives
+     * at the markdown endpoint referenced by schema_reference_url.
+     *
+     * KEEP THIS IN SYNC with docs/FRE_KNOWLEDGE_MAP.md. The markdown file is
+     * the canonical expandable source — this inline digest is a summary.
+     *
+     * @param string $schema_reference_url URL of the markdown rulebook endpoint.
+     * @return array{read_first:string,critical_rules:array,field_hints:array,universal_field_properties:array,settings_hints:array}
+     */
+    public static function get_connector_rulebook( $schema_reference_url ) {
+        return array(
+            'read_first' => sprintf(
+                /* translators: %s: URL of the FRE markdown rulebook */
+                'This list is a summary. The AUTHORITATIVE and COMPREHENSIVE rulebook is the markdown document at %s. Fetch it (WebFetch the URL) and read it before creating or updating any form. It covers every field type, universal field properties, the column layout system, conditional visibility, multi-step forms, settings (notifications, webhooks, theme_variant), and the drift patterns that cause silent failures.',
+                $schema_reference_url
+            ),
+
+            'critical_rules' => array(
+                'config_is_string' => 'The `config` parameter on formengine_create_form and formengine_update_form must be a JSON STRING, not an object. JSON.stringify your config before passing it in. Passing an object will fail schema validation with "invalid_json".',
+                'column_values'    => 'The `column` property on a field accepts only these exact string values: "1/2", "1/3", "2/3", "1/4", "3/4". Not "half", not 0.5, not 50. Any other value will silently render the field at full width.',
+                'options_required' => 'Fields of type "select", "radio", and checkbox groups MUST include a non-empty `options` array. Each option may be a string (value and label are the same) or an object {"value": "...", "label": "..."}. A select or radio without options will fail schema validation.',
+                'form_id_regex'    => 'Form IDs must match ^[a-z0-9\\-_]+$. Lowercase letters, digits, hyphens, and underscores only. The ID becomes the shortcode attribute and URL path segment.',
+                'section_before_reference' => 'To group fields into a section, first define a field of type "section" with a unique key. Then set `"section": "<that-key>"` on each field that belongs to the group. Referencing a section key that was never defined results in orphan fields rendering outside any section.',
+                'step_before_reference' => 'For multi-step forms, first define a `steps` array at the top level where each element is {"key":"...","title":"..."}. Then set `"step": "<that-key>"` on every field. Fields without a `step` when `steps` is defined appear on the first step.',
+                'theme_variant_for_dark_backgrounds' => 'When embedding a form inside an AISB section with a dark background, set settings.theme_variant = "dark" (or "auto" to inherit from the parent AISB section). Default is "light" and will render poorly on dark backgrounds.',
+                'webhook_secret_rotation' => 'Webhook secrets are admin-only. The connector API never exposes or accepts them. Use the Forms Manager admin UI to rotate. The connector can toggle webhook_enabled and set webhook_url, but not the signing secret.',
+                'managed_by_immutable' => 'Forms created via this connector are tagged managed_by = "connector:cowork" at create time. This origin tag is IMMUTABLE — PATCH requests cannot change it. Use the managed_by filter on formengine_list_forms to avoid modifying admin-authored forms.',
+                'entry_read_gate' => 'formengine_list_entries and formengine_get_entry require the site administrator to have explicitly enabled entry-read access on the Form Entries → Claude Connection admin page. Without it, these endpoints return 403 entry_access_disabled. Preflight reports the current state in `entry_read_enabled`.',
+                'test_submit_dry_run' => 'formengine_test_submit writes a real entry and may dispatch webhooks / send notifications by default. Pass options.dry_run = true to validate-only without any side effects. Pass options.skip_notifications = true to write a real entry (e.g. for webhook testing) but suppress the email.',
+                'form_surface_options' => 'A form can render as a flat element on its parent section background (default) OR as a card with its own surface, border, and padding. Two routes: (1) FORM-LEVEL — set settings.appearance.surface = "card" to wrap the whole form in a token-aware card; preferred for simple single-surface forms. (2) FIELD-LEVEL — use one or more fields of type "section" to wrap grouped fields in cards; use when a form needs multiple grouped regions (e.g. a "Contact info" card above a "Message" card in the same form). When settings.appearance.surface = "card" is set, inner section cards are flattened automatically to avoid nested-card artifacts. Both routes inherit colors from the parent AISB section\'s theme variant. Vocabulary: "card", "surface", "wrapper", "container around the form" all refer to this feature.',
+                'honeypot_field_name_dynamic' => 'The spam-protection honeypot field name is NOT static. When a form is rendered, FRE generates a per-form honeypot name of the form `_fre_website_url_<hmac-suffix>`. Never hard-code that field into a test submission — the server rejects any submission that fills it. formengine_test_submit handles this correctly when called via the connector; the warning is for any direct REST consumers that might imitate form posts.',
+                'min_submission_time_enforcement' => 'settings.spam_protection.min_submission_time defaults to 3 seconds. Submissions posted within that window are silently rejected as likely-bot. Relevant when using formengine_test_submit without options.dry_run immediately after creating a form — add a small delay in automated test flows or pass dry_run=true.',
+                'aisb_token_inheritance' => 'When AI Section Builder Modern (Promptless WP) is active, FRE forms automatically inherit brand design tokens — primary / text / background / border colors, heading and body fonts, button and card border-radius, neo-brutalist mode if enabled — via CSS custom properties (--aisb-*). Forms inside an .aisb-section--dark ancestor automatically flip to dark mode without needing settings.theme_variant = "dark" (though setting it is still recommended for clarity). See schema_reference_url and docs/AISB_TOKEN_CONTRACT.md for the full token list.',
+            ),
+
+            'field_hints' => array(
+                'text'     => array(
+                    'required_properties' => array( 'key', 'type', 'label' ),
+                    'optional_properties' => array( 'placeholder', 'required', 'maxlength', 'minlength', 'pattern', 'default', 'description', 'readonly', 'disabled', 'autocomplete', 'css_class' ),
+                    'notes'               => 'Standard text input. Labels are required for accessibility. `pattern` accepts a regex string for client+server validation.',
+                ),
+                'email'    => array(
+                    'required_properties' => array( 'key', 'type', 'label' ),
+                    'optional_properties' => array( 'placeholder', 'required', 'default', 'description' ),
+                    'notes'               => 'Validated client- and server-side. Prefer key "email" for cross-form automation reuse.',
+                ),
+                'tel'      => array(
+                    'required_properties' => array( 'key', 'type', 'label' ),
+                    'optional_properties' => array( 'placeholder', 'required', 'pattern', 'description' ),
+                    'notes'               => 'Phone number input. Prefer key "phone". If `pattern` is not provided, FRE auto-applies "[0-9+\\-\\s\\(\\)]+" so typical US / international formats validate out of the box. Pass an explicit `pattern` to tighten or relax this.',
+                ),
+                'textarea' => array(
+                    'required_properties' => array( 'key', 'type', 'label' ),
+                    'optional_properties' => array( 'placeholder', 'required', 'rows', 'cols', 'maxlength', 'minlength', 'description' ),
+                    'notes'               => 'Multi-line text. Default rows = 5.',
+                ),
+                'select'   => array(
+                    'required_properties' => array( 'key', 'type', 'label', 'options' ),
+                    'optional_properties' => array( 'placeholder', 'required', 'multiple', 'default', 'description' ),
+                    'notes'               => 'Dropdown. `options` must be non-empty. Options may be strings or {value,label} objects. Placeholder renders as the empty first option.',
+                ),
+                'radio'    => array(
+                    'required_properties' => array( 'key', 'type', 'label', 'options' ),
+                    'optional_properties' => array( 'required', 'inline', 'default', 'description' ),
+                    'notes'               => 'Radio button group. `options` must be non-empty. Use inline=true for horizontal layout.',
+                ),
+                'checkbox' => array(
+                    'required_properties' => array( 'key', 'type', 'label' ),
+                    'optional_properties' => array( 'options', 'required', 'inline', 'description' ),
+                    'notes'               => 'Single checkbox WITHOUT options is a yes/no toggle (stores "1" when checked). WITH options it becomes a multi-select checkbox group.',
+                ),
+                'file'     => array(
+                    'required_properties' => array( 'key', 'type', 'label' ),
+                    'optional_properties' => array( 'required', 'multiple', 'allowed_types', 'max_size', 'description' ),
+                    'notes'               => 'File upload. Default allowed_types: pdf,jpg,jpeg,png,gif,doc,docx. Default max_size: 5242880 (5MB in bytes). allowed_types is an array of lowercase extensions without the dot.',
+                ),
+                'hidden'   => array(
+                    'required_properties' => array( 'key', 'type' ),
+                    'optional_properties' => array( 'default' ),
+                    'notes'               => 'Not rendered to the user. Value taken from `default`.',
+                ),
+                'message'  => array(
+                    'required_properties' => array( 'key', 'type' ),
+                    'optional_properties' => array( 'label', 'content', 'style' ),
+                    'notes'               => 'Display-only (not submitted). At minimum supply either `label` or `content` (or both) — an empty message field renders nothing. style: "info" (default), "warning", "success", "error". `content` is sanitized via wp_kses_post().',
+                ),
+                'section'  => array(
+                    'required_properties' => array( 'key', 'type' ),
+                    'optional_properties' => array( 'label', 'description', 'css_class' ),
+                    'notes'               => 'VISUAL container AND structural group. Renders as a card with surface background, border, and padding (inherits AISB design tokens). Reference it from other fields via their `section` property (see critical_rules.section_before_reference). Use the section field when a form needs multiple grouped regions; use settings.appearance.surface = "card" instead when the whole form should be one card (see critical_rules.form_surface_options).',
+                ),
+                'date'     => array(
+                    'required_properties' => array( 'key', 'type', 'label' ),
+                    'optional_properties' => array( 'required', 'min', 'max', 'default', 'description' ),
+                    'notes'               => 'Native HTML5 date picker. min/max/default are YYYY-MM-DD strings. Validation enforced client- and server-side.',
+                ),
+                'address'  => array(
+                    'required_properties' => array( 'key', 'type', 'label' ),
+                    'optional_properties' => array( 'required', 'placeholder', 'country_restriction', 'description' ),
+                    'notes'               => 'Google Places autocomplete. REQUIRES the admin to configure a Google Places API key in Form Entries → Settings. Auto-stores parsed components in hidden fields suffixed _street_number, _route, _locality, _administrative_area_level_1, _postal_code, _country, _formatted_address, _lat, _lng. country_restriction is an array of ISO 3166-1 alpha-2 codes.',
+                ),
+            ),
+
+            'universal_field_properties' => array(
+                'identity'    => array( 'key', 'type', 'label', 'placeholder', 'required' ),
+                'layout'      => array( 'column', 'section', 'step', 'css_class' ),
+                'behavior'    => array( 'default', 'description', 'conditions', 'readonly', 'disabled' ),
+                'constraints' => array( 'maxlength', 'minlength', 'min', 'max' ),
+                'notes'       => 'column accepts strings "1/2"|"1/3"|"2/3"|"1/4"|"3/4". conditions is an object {rules:[{field,operator,value}], logic:"and"|"or"}. See schema_reference_url for operator list.',
+            ),
+
+            'settings_hints' => array(
+                'theme_variant'     => 'Form styling mode: "light" (default) | "dark" | "auto" (inherits from parent AISB section). Set "dark" when embedding in a dark section. Forms inside an .aisb-section--dark ancestor auto-inherit dark mode even without this flag, but setting it explicitly is recommended.',
+                'appearance'        => 'settings.appearance.surface: "none" (default — fields sit on the parent section background) | "card" (form renders as a token-aware card with surface background, border, radius, and padding). Works for every form type. Synonyms users reach for: "card", "surface", "wrapper", "container". See critical_rules.form_surface_options for the full explanation of this versus using the section field type.',
+                'webhook'           => 'settings.webhook_enabled + settings.webhook_url enable external dispatch. Use HTTPS endpoints. The signing secret is admin-only and NOT exposed via this API.',
+                'notifications'     => 'settings.notification is an object {enabled, to, subject, from_name, from_email, reply_to}. Defaults: enabled=true, to={admin_email}, subject="New Form Submission", from_name={site_name}, from_email={admin_email}. Template variables available anywhere in these strings: {admin_email}, {site_name}, {site_url}, {form_title}, {field:key} (substitutes the submitted value of the field whose key is "key"). reply_to defaults to {field:email} when an email field exists.',
+                'spam_protection'   => 'settings.spam_protection.honeypot and .timing_check default to true. settings.spam_protection.min_submission_time defaults to 3 seconds — submissions faster than that are silently rejected. Rate limit default: 5 submissions per 3600 seconds (1 hour) per IP. The honeypot field name is dynamically generated per form (see critical_rules.honeypot_field_name_dynamic).',
+                'multistep'         => 'settings.multistep.progress_style: "steps" (default) | "bar" | "dots". settings.multistep.show_progress (default true) and .show_step_titles (default false) and .validate_on_next (default true) are also available. Only meaningful when a `steps` array is defined.',
+                'success_behavior'  => 'Set settings.redirect_url for post-submit redirect, or settings.success_message for inline confirmation (default: "Thank you for your submission.").',
+                'presentation_flags' => 'settings.show_title (default false) — show form title above the form. settings.css_class — custom CSS class on the <form> element, applied alongside the built-in fre-form--* modifiers.',
+            ),
+        );
+    }
+
+    /**
+     * GET /schema — serve the markdown rulebook as raw text/markdown.
+     *
+     * Bypasses WordPress's REST JSON serialization so clients that WebFetch
+     * this endpoint receive raw markdown, not a JSON-quoted string. Returning
+     * a WP_REST_Response here would cause WordPress to json_encode() the body,
+     * which breaks the advertised text/markdown Content-Type.
+     *
+     * Exits after writing the body — nothing else should run on this request.
+     *
+     * @param WP_REST_Request $request REST request (unused).
+     * @return void|WP_REST_Response Returns a 404 response only on failure.
+     */
+    public function handle_schema_document( $request ) {
+        // Candidate paths, in priority order. The comprehensive FRE knowledge
+        // map is the canonical rulebook; the JSON Schema is a fallback for
+        // strict-shape use cases but doesn't cover the drift patterns or
+        // design-intent rules that consumers need to avoid silent failures.
+        $candidates = array();
+        if ( defined( 'FRE_PLUGIN_DIR' ) ) {
+            $candidates[] = FRE_PLUGIN_DIR . 'docs/FRE_KNOWLEDGE_MAP.md';
+        }
+        // Relative fallback for unusual installs where FRE_PLUGIN_DIR isn't set.
+        $candidates[] = dirname( __DIR__, 2 ) . '/docs/FRE_KNOWLEDGE_MAP.md';
+
+        foreach ( $candidates as $path ) {
+            if ( file_exists( $path ) && is_readable( $path ) ) {
+                $content = file_get_contents( $path );
+                if ( false !== $content ) {
+                    nocache_headers();
+                    status_header( 200 );
+                    header( 'Content-Type: text/markdown; charset=utf-8' );
+                    header( 'X-Content-Type-Options: nosniff' );
+                    echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown file content served raw by design.
+                    exit;
+                }
+            }
+        }
+
+        return new WP_Error(
+            'schema_document_not_found',
+            __( 'The schema document could not be located on the server.', 'form-runtime-engine' ),
+            array( 'status' => 404 )
+        );
     }
 
     /**

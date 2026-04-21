@@ -91,6 +91,13 @@ class FRE_JSON_Schema_Validator {
         'notification',
         'spam_protection',
         'multistep',
+        // Presentation flags (recognised but not strictly shape-validated
+        // here — the renderer ignores unknown values gracefully).
+        'show_title',
+        'theme_variant',
+        'webhook_enabled',
+        'webhook_url',
+        'appearance',
     );
 
     /**
