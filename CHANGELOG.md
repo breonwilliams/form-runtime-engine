@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `handle_preflight` now returns `settings_hints` alongside the other rulebook sections. Previously the hints were assembled by `get_connector_rulebook()` but omitted from the preflight response, effectively gating them behind the `/schema` markdown fetch.
 - **Column-stack threshold lowered from 479px to 399px** so 2-column layouts no longer collapse prematurely when the form is inside a card (the card's internal padding reduces the inline-size the container query measures by ~72px, which at the old threshold caused sub-pixel-rounded boundary fires on ~550px-wide forms). The new threshold reflects the true "too narrow for 2-col" point (columns < 180px). The legacy `@media` fallback used by browsers without container-query support was adjusted from 600px to 500px to match.
 
+### Phase 2A P1 polish (additive)
+- **Actionable validation errors.** Save-path `WP_Error` responses (`empty_id`, `invalid_id`, `empty_config`, `invalid_json`, `schema_error`, `delete_failed`) now carry a `hint` field explaining how to correct the shape, alongside the existing `status` and `field` data. Mirrors Promptless WP's `invalid_pricing_features_shape` error pattern. A Cowork session reading the 400 can act on the hint without fetching external documentation.
+- **Visual-settings reminder in create/update tool descriptions.** `formengine_create_form` now calls out `settings.theme_variant` (light/dark for parent-section match) and `settings.appearance.surface` (flat vs. card wrapper) as key visual decisions at point-of-call, so consumer sessions see the relevant knobs without having to WebFetch the full rulebook for every invocation. `formengine_update_form` reminds consumers to preserve both settings when replacing `config` (since config replacement is total).
+- **Workflow cross-reference.** `formengine_create_form` and `formengine_update_form` descriptions now cite `docs/WORKFLOW_PROMPTLESS_INTEGRATION.md` so consumers working on sites with both plugins find the end-to-end cross-plugin flow.
+
 ## [1.3.0] - 2026-04-20
 
 ### Added

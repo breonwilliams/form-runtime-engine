@@ -943,19 +943,52 @@ class FRE_Connector_API {
     }
 
     /**
-     * Ensure a save-path WP_Error has an HTTP status attached.
+     * Ensure a save-path WP_Error has an HTTP status AND an actionable hint.
      *
      * The repository returns codes like `empty_id`, `invalid_id`, `empty_config`,
-     * `invalid_json`, `schema_error` — all of which should surface as 400s.
+     * `invalid_json`, `schema_error` — all of which should surface as 400s. For
+     * each known code, attach a `hint` field to the error data describing how
+     * the consumer can correct the shape. A Cowork session reading the 400
+     * response can then act on the hint without having to fetch external
+     * documentation mid-flow.
+     *
+     * See Promptless WP's `invalid_pricing_features_shape` error pattern for
+     * the equivalent convention on that connector.
      *
      * @param WP_Error $error Repository error.
      * @return WP_Error
      */
     private function enrich_save_error( WP_Error $error ) {
         $data = $error->get_error_data();
+        $code = $error->get_error_code();
+
+        // Every save-path error should surface as a 400 unless the repository
+        // explicitly set a different status.
         if ( ! isset( $data['status'] ) ) {
             $error->add_data( array( 'status' => 400 ) );
         }
+
+        // Attach a corrective hint per known code. Cowork sessions read these
+        // to reshape the payload without a round-trip to the markdown rulebook.
+        $hints = array(
+            'empty_id'      => 'Form ID is required. Provide a non-empty `id` parameter matching ^[a-z0-9\\-_]+$ (lowercase alphanumerics, hyphens, underscores).',
+            'invalid_id'    => 'Form ID must match ^[a-z0-9\\-_]+$. Lowercase letters, digits, hyphens, and underscores only. Examples: "contact", "book-a-demo", "newsletter_signup".',
+            'empty_config'  => 'The `config` parameter is required and must be a non-empty JSON string describing the form. At minimum: {"fields": [{"key": "email", "type": "email", "label": "Email"}]}.',
+            'invalid_json'  => 'The `config` parameter must be a valid JSON STRING, not a JavaScript/Python object. Call JSON.stringify(yourConfigObject) before passing it in. The top-level shape is {"title": ..., "fields": [...], "settings": {...}}.',
+            'schema_error'  => 'The form config failed JSON Schema validation. Check that every field has a `key` and `type`; select/radio fields have a non-empty `options` array; column values are one of "1/2"/"1/3"/"2/3"/"1/4"/"3/4"; and the `settings` object only uses known keys. Call formengine_preflight and WebFetch schema_reference_url for the complete rulebook.',
+            'delete_failed' => 'Form deletion failed server-side. The form may be protected by a filter or another plugin. Try again or remove via the WordPress admin Forms Manager.',
+        );
+
+        if ( isset( $hints[ $code ] ) ) {
+            // Preserve any existing data — in particular the `status` we just
+            // set above and any field-path data the validator attached — and
+            // add the hint alongside it.
+            $current = $error->get_error_data();
+            $current = is_array( $current ) ? $current : array();
+            $current['hint'] = $hints[ $code ];
+            $error->add_data( $current );
+        }
+
         return $error;
     }
 

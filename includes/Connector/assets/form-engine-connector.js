@@ -91,6 +91,8 @@ const TOOLS = [
     description:
       "Create a new form. BEFORE your first create in a session, call `formengine_preflight` and WebFetch the returned `schema_reference_url` — that markdown document covers column layouts (1/2, 1/3, 2/3, 1/4, 3/4 as strings), the 13 field types and their required properties, conditional visibility, multistep forms, settings (theme_variant for dark backgrounds, notifications, webhooks), and common drift patterns that the raw JSON schema doesn't explain. " +
       "The 'config' argument MUST be a JSON STRING (not an object) conforming to the Form Runtime Engine form schema. JSON.stringify your config object before passing it in. " +
+      "KEY VISUAL SETTINGS to decide up front: (a) `settings.theme_variant` — set to \"dark\" when the form will be embedded in a dark-background section (a Promptless hero with theme_variant:\"dark\", for example), \"light\" otherwise. Defaults to light; skipping this produces light-theme inputs on dark backgrounds, which fails accessibility contrast. (b) `settings.appearance.surface` — set to \"card\" to wrap the form in a token-aware card (background, border, radius, padding) that inherits design tokens from the parent AISB section. Default \"none\" leaves the form flat on the section background. " +
+      "If you're building forms for a site that ALSO uses Promptless WP (AI Section Builder Modern), see docs/WORKFLOW_PROMPTLESS_INTEGRATION.md for the end-to-end deployment flow — the FRE shortcode goes into a Promptless hero's `shortcode_content` field with `media_type: \"shortcode\"` so the form renders as the hero's primary visual element. " +
       "Forms created through this tool are automatically tagged managed_by='connector:cowork' and start at connector_version=1. " +
       "Returns the created record, including the shortcode to embed the form (e.g. [fre_form id=\"contact\"]). " +
       "Conflicts on an existing ID return form_exists (409); use formengine_update_form instead.",
@@ -136,6 +138,8 @@ const TOOLS = [
     description:
       "Update an existing form. BEFORE your first update in a session, call `formengine_preflight` and WebFetch the returned `schema_reference_url` — the markdown rulebook covers every rule you need to avoid silent regressions when editing forms. " +
       "All fields except form_id are optional — omitted fields retain their current values. If you supply a new `config`, it MUST be a JSON STRING (not an object) and it REPLACES the existing config; include every field/step/setting you want to preserve. " +
+      "KEY VISUAL SETTINGS to preserve or change intentionally: `settings.theme_variant` (\"light\"|\"dark\"|\"auto\" — match the parent section) and `settings.appearance.surface` (\"none\"|\"card\" — toggle the form-level card wrapper). Changing these is cheap; forgetting to carry them forward when replacing config silently reverts to defaults. " +
+      "If you're working on a site that ALSO uses Promptless WP, consult docs/WORKFLOW_PROMPTLESS_INTEGRATION.md for the cross-plugin workflow. " +
       "The connector_version bumps on every update. managed_by is immutable through this API; origin set at create time is preserved. " +
       "If you only need to regenerate the webhook secret, use the admin UI (secret rotation is intentionally not exposed via the API).",
     inputSchema: {
