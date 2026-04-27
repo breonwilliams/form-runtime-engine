@@ -200,18 +200,26 @@ class FRE_Field_Radio extends FRE_Field_Type_Abstract {
             return '';
         }
 
-        $options = isset( $field['options'] ) ? $field['options'] : array();
+        // Delegate to the central resolver so admin views, emails, and
+        // exports all share one source of truth for value → label.
+        return esc_html( self::resolve_display_value( $value, $field ) );
+    }
 
-        foreach ( $options as $option ) {
-            if ( is_array( $option ) ) {
-                if ( isset( $option['value'] ) && (string) $option['value'] === (string) $value ) {
-                    return esc_html( isset( $option['label'] ) ? $option['label'] : $value );
-                }
-            } elseif ( (string) $option === (string) $value ) {
-                return esc_html( $option );
-            }
+    /**
+     * Format value for CSV export (label, not raw value).
+     *
+     * Mirrors select / checkbox-group behavior so CSV columns are
+     * human-readable.
+     *
+     * @param mixed $value Raw value.
+     * @param array $field Field configuration.
+     * @return string
+     */
+    public function format_csv_value( $value, array $field ) {
+        if ( $this->is_empty( $value ) ) {
+            return '';
         }
 
-        return esc_html( $value );
+        return self::resolve_display_value( $value, $field );
     }
 }

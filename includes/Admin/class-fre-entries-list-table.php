@@ -138,7 +138,9 @@ class FRE_Entries_List_Table extends WP_List_Table {
             ? $this->preloaded_meta[ $item['id'] ]
             : array();
 
-        $summary_html = $this->build_entry_summary( $fields, $view_url );
+        // Pass form config so summary can resolve select/radio values to labels.
+        $form_config  = fre()->registry->get( $item['form_id'] );
+        $summary_html = $this->build_entry_summary( $fields, $view_url, $form_config );
 
         // Entry ID (muted).
         $entry_id_html = sprintf(
@@ -176,17 +178,28 @@ class FRE_Entries_List_Table extends WP_List_Table {
     /**
      * Build entry summary HTML from field data.
      *
-     * @param array  $fields   Field data.
-     * @param string $view_url URL to view the entry.
+     * @param array      $fields      Field data.
+     * @param string     $view_url    URL to view the entry.
+     * @param array|null $form_config Form configuration (for value→label resolution and field labels).
      * @return string
      */
-    private function build_entry_summary( $fields, $view_url ) {
+    private function build_entry_summary( $fields, $view_url, $form_config = null ) {
         if ( empty( $fields ) ) {
             return sprintf(
                 '<a class="row-title" href="%s"><em>%s</em></a>',
                 esc_url( $view_url ),
                 esc_html__( 'No data', 'form-runtime-engine' )
             );
+        }
+
+        // Build a fast field_key => field_config map (for labels + option lookups).
+        $field_map = array();
+        if ( ! empty( $form_config['fields'] ) && is_array( $form_config['fields'] ) ) {
+            foreach ( $form_config['fields'] as $f ) {
+                if ( ! empty( $f['key'] ) ) {
+                    $field_map[ $f['key'] ] = $f;
+                }
+            }
         }
 
         $summary = array();
@@ -197,35 +210,40 @@ class FRE_Entries_List_Table extends WP_List_Table {
                 break;
             }
 
-            // Fix #15: Properly escape array values before imploding.
-            if ( is_array( $value ) ) {
-                $value = implode( ', ', array_map( 'esc_html', array_map( 'strval', $value ) ) );
+            // Resolve to human-readable display value when we know the field's options.
+            // For unknown fields (no form_config or orphan keys), fall back to plain stringification.
+            if ( isset( $field_map[ $key ] ) ) {
+                $display = FRE_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $key ] );
+                $label   = ! empty( $field_map[ $key ]['label'] )
+                    ? $field_map[ $key ]['label']
+                    : ucfirst( str_replace( '_', ' ', $key ) );
             } else {
-                $value = (string) $value;
+                $display = is_array( $value )
+                    ? implode( ', ', array_map( 'strval', $value ) )
+                    : (string) $value;
+                $label   = ucfirst( str_replace( '_', ' ', $key ) );
             }
 
-            // Truncate long values.
-            if ( strlen( $value ) > 50 ) {
-                $value = substr( $value, 0, 47 ) . '...';
+            // Truncate long values for the summary line.
+            if ( strlen( $display ) > 50 ) {
+                $display = substr( $display, 0, 47 ) . '...';
             }
 
-            if ( ! empty( $value ) ) {
-                $label = ucfirst( str_replace( '_', ' ', $key ) );
-
+            if ( $display !== '' ) {
                 if ( $count === 0 ) {
                     // First field: make it the clickable title.
                     $summary[] = sprintf(
                         '<a class="row-title" href="%s"><strong>%s:</strong> %s</a>',
                         esc_url( $view_url ),
                         esc_html( $label ),
-                        esc_html( $value )
+                        esc_html( $display )
                     );
                 } else {
                     // Subsequent fields: regular text.
                     $summary[] = sprintf(
                         '<strong>%s:</strong> %s',
                         esc_html( $label ),
-                        esc_html( $value )
+                        esc_html( $display )
                     );
                 }
                 $count++;

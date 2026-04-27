@@ -190,6 +190,10 @@ class FRE_Webhook_Dispatcher {
         // Build timestamp in ISO 8601 format.
         $timestamp = gmdate( 'c' );
 
+        // Webhook preset (google_sheets|zapier|make|custom) — drives the
+        // smart default for option-label resolution in sanitize_data_for_payload.
+        $webhook_preset = isset( $form_data['webhook_preset'] ) ? $form_data['webhook_preset'] : 'custom';
+
         // Build the payload.
         $payload = array(
             'event'     => 'form_submission',
@@ -202,7 +206,7 @@ class FRE_Webhook_Dispatcher {
                 'id'           => $entry_id,
                 'submitted_at' => $timestamp,
             ),
-            'data'      => self::sanitize_data_for_payload( $data ),
+            'data'      => self::sanitize_data_for_payload( $data, $form_config, $webhook_preset ),
             'files'     => $files_payload,
             'site'      => array(
                 'name' => get_bloginfo( 'name' ),
@@ -224,14 +228,78 @@ class FRE_Webhook_Dispatcher {
     /**
      * Sanitize data for webhook payload.
      *
-     * Ensures sensitive fields are not accidentally exposed.
+     * Strips internal/honeypot fields, then optionally resolves option values
+     * (e.g. "home_services") to their human-readable labels (e.g.
+     * "Home services (HVAC, plumbing, roofing, etc.)") for select / radio /
+     * checkbox-with-options fields.
      *
-     * @param array $data Entry field data.
-     * @return array Sanitized data.
+     * Resolution decision (in priority order):
+     *   1. Explicit per-form `settings.webhook_resolve_option_labels` boolean
+     *      setting takes precedence when present.
+     *   2. Otherwise, fall back to a preset-aware default — the
+     *      "google_sheets" preset enables label resolution by default
+     *      (the destination is typically a human-reviewed lead tracker
+     *      where labels are easier to scan), while "zapier", "make", and
+     *      "custom" default to raw values (those typically feed
+     *      machine-readable integrations that prefer stable identifiers
+     *      that don't break when option labels are renamed).
+     *   3. The `fre_webhook_resolve_option_labels` filter lets sites override
+     *      the resolved decision programmatically (e.g. to apply different
+     *      logic per form).
+     *
+     * Storage and the admin entries table always continue to hold raw
+     * values — only the outbound webhook payload changes.
+     *
+     * @param array  $data           Entry field data (raw stored values).
+     * @param array  $form_config    Parsed form configuration (fields + settings).
+     * @param string $webhook_preset The webhook preset for this form.
+     * @return array Sanitized data, possibly with labels resolved.
      */
-    private static function sanitize_data_for_payload( $data ) {
+    private static function sanitize_data_for_payload( $data, $form_config = array(), $webhook_preset = 'custom' ) {
         $sanitized = array();
 
+        // Step 1: determine whether to resolve labels.
+        $explicit_setting = isset( $form_config['settings']['webhook_resolve_option_labels'] )
+            ? (bool) $form_config['settings']['webhook_resolve_option_labels']
+            : null;
+
+        if ( $explicit_setting !== null ) {
+            $resolve_labels = $explicit_setting;
+        } else {
+            // Smart default: human-readable destinations get labels by default,
+            // machine destinations get raw values by default.
+            $resolve_labels = ( $webhook_preset === 'google_sheets' );
+        }
+
+        /**
+         * Filter whether to resolve option values to labels in the webhook payload.
+         *
+         * Use this to override the default resolution logic globally or per form.
+         *
+         * @param bool   $resolve_labels Whether to resolve labels.
+         * @param array  $form_config    Parsed form configuration.
+         * @param string $webhook_preset The webhook preset (google_sheets|zapier|make|custom).
+         * @param array  $data           Raw entry data being processed.
+         */
+        $resolve_labels = (bool) apply_filters(
+            'fre_webhook_resolve_option_labels',
+            $resolve_labels,
+            $form_config,
+            $webhook_preset,
+            $data
+        );
+
+        // Step 2: build a fast field-key -> field-config lookup map for label resolution.
+        $field_map = array();
+        if ( $resolve_labels && ! empty( $form_config['fields'] ) && is_array( $form_config['fields'] ) ) {
+            foreach ( $form_config['fields'] as $field ) {
+                if ( ! empty( $field['key'] ) ) {
+                    $field_map[ $field['key'] ] = $field;
+                }
+            }
+        }
+
+        // Step 3: process each field.
         foreach ( $data as $key => $value ) {
             // Skip internal fields.
             if ( strpos( $key, '_fre_' ) === 0 ) {
@@ -243,7 +311,18 @@ class FRE_Webhook_Dispatcher {
                 continue;
             }
 
-            // Handle arrays (e.g., checkbox groups).
+            // Resolve to human-readable label when configured AND we have
+            // field config for this key. resolve_display_value handles
+            // select / radio / checkbox-with-options (option-label lookup),
+            // single checkbox (Yes/No), and falls through to plain
+            // stringification for other field types.
+            if ( $resolve_labels && isset( $field_map[ $key ] ) ) {
+                $sanitized[ $key ] = FRE_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $key ] );
+                continue;
+            }
+
+            // Default: stringify (preserves existing raw-value behavior for
+            // unknown fields and for label-resolution-disabled forms).
             if ( is_array( $value ) ) {
                 $sanitized[ $key ] = array_map( 'strval', $value );
             } else {

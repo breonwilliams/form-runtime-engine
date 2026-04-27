@@ -170,7 +170,14 @@ class FRE_Email_Notification {
     /**
      * Parse template variables.
      *
-     * Supports: {field:key}, {admin_email}, {site_name}, {site_url}, {entry_id}
+     * Supports: {field:key}, {admin_email}, {site_name}, {site_url}, {form_title}
+     *
+     * For select / radio / checkbox-with-options fields the {field:key}
+     * placeholder resolves to the human-readable option label rather than
+     * the raw stored value (e.g. "Home services (HVAC, plumbing, roofing,
+     * etc.)" instead of "home_services"). Resolution is delegated to
+     * FRE_Field_Type_Abstract::resolve_display_value() so every display
+     * site shares one source of truth.
      *
      * @param string $template    Template string.
      * @param array  $entry_data  Entry data.
@@ -178,16 +185,33 @@ class FRE_Email_Notification {
      * @return string Parsed string.
      */
     private function parse_template( $template, array $entry_data, array $form_config = array() ) {
+        // Build a fast field_key => field_config map for label lookups.
+        $field_map = array();
+        if ( ! empty( $form_config['fields'] ) && is_array( $form_config['fields'] ) ) {
+            foreach ( $form_config['fields'] as $field ) {
+                if ( ! empty( $field['key'] ) ) {
+                    $field_map[ $field['key'] ] = $field;
+                }
+            }
+        }
+
         // Replace field placeholders.
         $template = preg_replace_callback(
             '/\{field:([^}]+)\}/',
-            function( $matches ) use ( $entry_data ) {
+            function( $matches ) use ( $entry_data, $field_map ) {
                 $field_key = $matches[1];
-                if ( isset( $entry_data[ $field_key ] ) ) {
-                    $value = $entry_data[ $field_key ];
-                    return is_array( $value ) ? implode( ', ', $value ) : $value;
+                if ( ! isset( $entry_data[ $field_key ] ) ) {
+                    return '';
                 }
-                return '';
+                $value = $entry_data[ $field_key ];
+
+                // Resolve to human-readable label when we know the field's options.
+                if ( isset( $field_map[ $field_key ] ) ) {
+                    return FRE_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $field_key ] );
+                }
+
+                // Fallback when no field config (legacy callers without form_config).
+                return is_array( $value ) ? implode( ', ', array_map( 'strval', $value ) ) : (string) $value;
             },
             $template
         );
@@ -270,19 +294,22 @@ class FRE_Email_Notification {
                         continue;
                     }
 
-                    $value = isset( $entry_data[ $field['key'] ] ) ? $entry_data[ $field['key'] ] : '';
+                    $raw_value = isset( $entry_data[ $field['key'] ] ) ? $entry_data[ $field['key'] ] : '';
 
-                    // Format value.
-                    if ( is_array( $value ) ) {
-                        $value = implode( ', ', $value );
-                    }
+                    // Skip empty optional fields (test against raw value before label resolution).
+                    $is_empty = is_array( $raw_value )
+                        ? empty( array_filter( $raw_value, function( $v ) { return $v !== '' && $v !== null; } ) )
+                        : ( $raw_value === '' || $raw_value === null );
 
-                    // Skip empty optional fields.
-                    if ( empty( $value ) && empty( $field['required'] ) ) {
+                    if ( $is_empty && empty( $field['required'] ) ) {
                         continue;
                     }
 
-                    $label = ! empty( $field['label'] ) ? $field['label'] : ucfirst( $field['key'] );
+                    // Resolve raw value to human-readable display text once.
+                    // resolve_display_value handles select/radio/checkbox-with-options
+                    // (value → label) and single checkbox ("1" → "Yes" / "" → "No").
+                    $display_value = FRE_Field_Type_Abstract::resolve_display_value( $raw_value, $field );
+                    $label         = ! empty( $field['label'] ) ? $field['label'] : ucfirst( $field['key'] );
                     ?>
                     <tr>
                         <td style="padding: 10px; border-bottom: 1px solid #eee; vertical-align: top; width: 30%; font-weight: 600; color: #555;">
@@ -290,14 +317,12 @@ class FRE_Email_Notification {
                         </td>
                         <td style="padding: 10px; border-bottom: 1px solid #eee; vertical-align: top;">
                             <?php
-                            if ( $field['type'] === 'email' && ! empty( $value ) ) {
-                                echo '<a href="mailto:' . esc_attr( $value ) . '">' . esc_html( $value ) . '</a>';
+                            if ( $field['type'] === 'email' && $display_value !== '' ) {
+                                echo '<a href="mailto:' . esc_attr( $display_value ) . '">' . esc_html( $display_value ) . '</a>';
                             } elseif ( $field['type'] === 'textarea' ) {
-                                echo nl2br( esc_html( $value ) );
-                            } elseif ( $field['type'] === 'checkbox' && empty( $field['options'] ) ) {
-                                echo $value ? esc_html__( 'Yes', 'form-runtime-engine' ) : esc_html__( 'No', 'form-runtime-engine' );
+                                echo nl2br( esc_html( $display_value ) );
                             } else {
-                                echo esc_html( $value ?: '-' );
+                                echo esc_html( $display_value !== '' ? $display_value : '-' );
                             }
                             ?>
                         </td>

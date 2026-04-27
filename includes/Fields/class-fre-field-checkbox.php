@@ -326,53 +326,32 @@ class FRE_Field_Checkbox extends FRE_Field_Type_Abstract {
     /**
      * Format value for display.
      *
+     * Delegates to the central resolver so admin views, emails, and
+     * exports all share one source of truth. Handles both single-checkbox
+     * (Yes/No toggle) and checkbox-group (comma-joined labels) cases via
+     * resolve_display_value().
+     *
      * @param mixed $value Raw value.
      * @param array $field Field configuration.
      * @return string
      */
     public function format_value( $value, array $field ) {
+        // For checkbox groups with no value, suppress output.
         $options = isset( $field['options'] ) ? $field['options'] : array();
-
-        // Single checkbox.
-        if ( empty( $options ) ) {
-            return ! empty( $value )
-                ? esc_html__( 'Yes', 'form-runtime-engine' )
-                : esc_html__( 'No', 'form-runtime-engine' );
-        }
-
-        // Checkbox group.
-        if ( $this->is_empty( $value ) ) {
+        if ( ! empty( $options ) && $this->is_empty( $value ) ) {
             return '';
         }
 
-        $values = is_array( $value ) ? $value : array( $value );
-        $labels = array();
-
-        foreach ( $values as $val ) {
-            $found = false;
-            foreach ( $options as $option ) {
-                if ( is_array( $option ) ) {
-                    if ( isset( $option['value'] ) && (string) $option['value'] === (string) $val ) {
-                        $labels[] = isset( $option['label'] ) ? $option['label'] : $val;
-                        $found    = true;
-                        break;
-                    }
-                } elseif ( (string) $option === (string) $val ) {
-                    $labels[] = $option;
-                    $found    = true;
-                    break;
-                }
-            }
-            if ( ! $found ) {
-                $labels[] = $val;
-            }
-        }
-
-        return esc_html( implode( ', ', $labels ) );
+        return esc_html( self::resolve_display_value( $value, $field ) );
     }
 
     /**
-     * Format value for CSV.
+     * Format value for CSV export.
+     *
+     * Single checkbox renders as "Yes"/"No"; checkbox groups render as
+     * comma-joined option labels (previously returned raw option values,
+     * which produced CSV columns full of internal keys like "tech,design"
+     * instead of "Technology, Design").
      *
      * @param mixed $value Raw value.
      * @param array $field Field configuration.
@@ -380,17 +359,10 @@ class FRE_Field_Checkbox extends FRE_Field_Type_Abstract {
      */
     public function format_csv_value( $value, array $field ) {
         $options = isset( $field['options'] ) ? $field['options'] : array();
-
-        // Single checkbox.
-        if ( empty( $options ) ) {
-            return ! empty( $value ) ? 'Yes' : 'No';
+        if ( ! empty( $options ) && $this->is_empty( $value ) ) {
+            return '';
         }
 
-        // Checkbox group.
-        if ( is_array( $value ) ) {
-            return implode( ', ', $value );
-        }
-
-        return (string) $value;
+        return self::resolve_display_value( $value, $field );
     }
 }

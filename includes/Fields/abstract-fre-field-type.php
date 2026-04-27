@@ -186,6 +186,87 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
     }
 
     /**
+     * Resolve a stored field value to its human-readable display string.
+     *
+     * Single source of truth for the "value → label" translation that
+     * select / radio / checkbox-with-options fields require. Returns
+     * PLAIN TEXT — does NOT escape for HTML; callers in HTML contexts
+     * must wrap the result in esc_html().
+     *
+     * Behavior by field type:
+     * - select / radio / checkbox (with options): looks up the option
+     *   label for the stored value. For multi-value (array) inputs,
+     *   resolves each element and joins with ", ". Falls back to the
+     *   raw value for orphan options (option was deleted/renamed after
+     *   submission) so admins still see something rather than nothing.
+     * - checkbox WITHOUT options: returns "Yes" / "No" (single toggle).
+     * - All other types: returns the value as a string (arrays joined
+     *   with ", ").
+     *
+     * Filterable via `fre_field_display_value` so site owners or
+     * extensions can customize translation (e.g., localize labels,
+     * inject icons, redact sensitive option values).
+     *
+     * @param mixed $value Raw stored value.
+     * @param array $field Field configuration.
+     * @return string Plain-text display value (NOT html-escaped).
+     */
+    public static function resolve_display_value( $value, array $field ) {
+        $type    = isset( $field['type'] ) ? $field['type'] : 'text';
+        $options = isset( $field['options'] ) ? $field['options'] : array();
+        $result  = '';
+
+        // Single checkbox (no options) renders as a Yes/No toggle.
+        if ( $type === 'checkbox' && empty( $options ) ) {
+            $result = ! empty( $value )
+                ? __( 'Yes', 'form-runtime-engine' )
+                : __( 'No', 'form-runtime-engine' );
+        } elseif ( in_array( $type, array( 'select', 'radio', 'checkbox' ), true ) && ! empty( $options ) ) {
+            // Build value → label map once for this lookup.
+            $map = array();
+            foreach ( $options as $option ) {
+                if ( is_array( $option ) ) {
+                    $option_value = isset( $option['value'] ) ? (string) $option['value'] : '';
+                    $option_label = isset( $option['label'] ) ? (string) $option['label'] : $option_value;
+                    $map[ $option_value ] = $option_label;
+                } else {
+                    $map[ (string) $option ] = (string) $option;
+                }
+            }
+
+            // Multi-value (multi-select / checkbox group).
+            if ( is_array( $value ) ) {
+                $labels = array();
+                foreach ( $value as $val ) {
+                    $key      = (string) $val;
+                    $labels[] = isset( $map[ $key ] ) ? $map[ $key ] : $key;
+                }
+                $result = implode( ', ', $labels );
+            } else {
+                $key    = (string) $value;
+                $result = isset( $map[ $key ] ) ? $map[ $key ] : $key;
+            }
+        } elseif ( is_array( $value ) ) {
+            // Generic array stringification for any other field type.
+            $result = implode( ', ', array_map( 'strval', $value ) );
+        } else {
+            $result = (string) $value;
+        }
+
+        /**
+         * Filter the resolved display value for a field.
+         *
+         * Extensions can use this to localize labels, redact sensitive
+         * option values from notifications, or inject custom formatting.
+         *
+         * @param string $result The resolved display string.
+         * @param mixed  $value  The raw stored value.
+         * @param array  $field  Field configuration.
+         */
+        return (string) apply_filters( 'fre_field_display_value', $result, $value, $field );
+    }
+
+    /**
      * Check if a value is empty.
      *
      * @param mixed $value Value to check.

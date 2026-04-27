@@ -57,19 +57,22 @@ $form_title = ! empty( $form_config['title'] ) ? $form_config['title'] : __( 'Ne
                         continue;
                     }
 
-                    $value = isset( $entry_data[ $field['key'] ] ) ? $entry_data[ $field['key'] ] : '';
+                    $raw_value = isset( $entry_data[ $field['key'] ] ) ? $entry_data[ $field['key'] ] : '';
 
-                    // Format value.
-                    if ( is_array( $value ) ) {
-                        $value = implode( ', ', $value );
-                    }
+                    // Skip empty optional fields (test against raw value before label resolution).
+                    $is_empty = is_array( $raw_value )
+                        ? empty( array_filter( $raw_value, function( $v ) { return $v !== '' && $v !== null; } ) )
+                        : ( $raw_value === '' || $raw_value === null );
 
-                    // Skip empty optional fields.
-                    if ( $value === '' && empty( $field['required'] ) ) {
+                    if ( $is_empty && empty( $field['required'] ) ) {
                         continue;
                     }
 
-                    $label = ! empty( $field['label'] ) ? $field['label'] : ucfirst( str_replace( '_', ' ', $field['key'] ) );
+                    // Resolve raw value to human-readable display text.
+                    // resolve_display_value handles select/radio/checkbox-with-options
+                    // (value → label) and single checkbox ("1" → "Yes" / "" → "No").
+                    $display_value = FRE_Field_Type_Abstract::resolve_display_value( $raw_value, $field );
+                    $label         = ! empty( $field['label'] ) ? $field['label'] : ucfirst( str_replace( '_', ' ', $field['key'] ) );
                     ?>
                     <tr>
                         <td style="padding: 12px 0; border-bottom: 1px solid #eeeeee; vertical-align: top; width: 35%; font-weight: 600; color: #555555;">
@@ -77,17 +80,15 @@ $form_title = ! empty( $form_config['title'] ) ? $form_config['title'] : __( 'Ne
                         </td>
                         <td style="padding: 12px 0 12px 15px; border-bottom: 1px solid #eeeeee; vertical-align: top; color: #333333;">
                             <?php
-                            if ( $field['type'] === 'email' && ! empty( $value ) ) {
-                                echo '<a href="mailto:' . esc_attr( $value ) . '" style="color: #0073aa; text-decoration: none;">' . esc_html( $value ) . '</a>';
-                            } elseif ( $field['type'] === 'tel' && ! empty( $value ) ) {
-                                $tel_digits = preg_replace( '/[^0-9+]/', '', $value );
-                                echo '<a href="tel:' . esc_attr( $tel_digits ) . '" style="color: #0073aa; text-decoration: none;">' . esc_html( $value ) . '</a>';
+                            if ( $field['type'] === 'email' && $display_value !== '' ) {
+                                echo '<a href="mailto:' . esc_attr( $display_value ) . '" style="color: #0073aa; text-decoration: none;">' . esc_html( $display_value ) . '</a>';
+                            } elseif ( $field['type'] === 'tel' && $display_value !== '' ) {
+                                $tel_digits = preg_replace( '/[^0-9+]/', '', $display_value );
+                                echo '<a href="tel:' . esc_attr( $tel_digits ) . '" style="color: #0073aa; text-decoration: none;">' . esc_html( $display_value ) . '</a>';
                             } elseif ( $field['type'] === 'textarea' ) {
-                                echo nl2br( esc_html( $value ) );
-                            } elseif ( $field['type'] === 'checkbox' && empty( $field['options'] ) ) {
-                                echo $value ? esc_html__( 'Yes', 'form-runtime-engine' ) : esc_html__( 'No', 'form-runtime-engine' );
+                                echo nl2br( esc_html( $display_value ) );
                             } else {
-                                echo esc_html( $value !== '' ? $value : '-' );
+                                echo esc_html( $display_value !== '' ? $display_value : '-' );
                             }
                             ?>
                         </td>

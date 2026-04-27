@@ -5,6 +5,29 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Email notifications now show option labels instead of raw values for select/radio/checkbox-with-options fields.** Previously a "What kind of business do you run?" select with a stored value of `home_services` rendered as `home_services` in the notification email; it now resolves to its option label (e.g. `Home services (HVAC, plumbing, roofing, etc.)`). Fix applied in **three** places: (1) `parse_template()` for `{field:key}` substitutions used in subjects, from-name, and reply-to; (2) `render_default_template()` inline fallback when no override template is present; (3) **`templates/email/notification.php`** — the actual override template that ships with the plugin. The original audit pass missed (3) because the inline fallback uses identical-looking code, leading to a partial first attempt where the email subject resolved labels but the body still showed raw values. Both code paths now route through `FRE_Field_Type_Abstract::resolve_display_value()`. (Reported during FlowMint pressure test of `flowmint-book-a-demo`.)
+- **Admin "Form Entries" list summary now shows option labels** for the first two summary fields shown in the Entry column. Previously rendered raw values for the same reason as the email notification bug. Now passes the form config through to `build_entry_summary()` and resolves via the central helper.
+- **CSV export of select / radio fields now contains labels.** The abstract base class's `format_csv_value()` returned raw values, and `FRE_Field_Select` / `FRE_Field_Radio` did not override it (only `FRE_Field_Checkbox` did, and only for the single-checkbox Yes/No case — the checkbox-group path also returned raw values). All three field types now produce label-resolved CSV output.
+
+### Added
+- `FRE_Field_Type_Abstract::resolve_display_value( $value, $field )` — single source of truth for translating a stored value to its human-readable display string. Plain-text output (callers in HTML contexts wrap in `esc_html`). Handles select / radio / checkbox-with-options (option-label lookup), single checkbox (Yes/No), and falls back to plain stringification for other field types. Orphan values (option deleted/renamed after submission) fall back to the raw value rather than empty so admins still see something.
+- `fre_field_display_value` filter — hooked from `resolve_display_value()` so extensions can localize labels, redact sensitive option values from notifications, or inject custom formatting without forking the field classes.
+- **Preset-aware option-label resolution in webhook payloads.** The webhook dispatcher now resolves option values to human-readable labels for the `google_sheets` preset by default, while the `zapier`, `make`, and `custom` presets continue to emit raw values by default (machines that filter on stable identifiers prefer that). The smart default reflects the typical destination: Google Sheets is overwhelmingly used as a human-reviewed lead tracker where labels are easier to scan, whereas the other presets typically feed integrations that prefer stable IDs. Storage and the admin entries table always continue to hold raw values — only the outbound webhook payload changes.
+- New per-form setting `settings.webhook_resolve_option_labels` (boolean) — explicit override for the smart default. Set `true` to force label resolution regardless of preset, `false` to force raw values regardless of preset. Omit to use the preset-aware default.
+- New filter `fre_webhook_resolve_option_labels` — gives sites a programmatic override for the resolution decision. Receives `$resolve_labels`, `$form_config`, `$webhook_preset`, and `$data`. Useful for running different logic per-form or applying a global policy across all forms on a site without editing every form's settings.
+
+### Changed
+- `FRE_Webhook_Dispatcher::sanitize_data_for_payload()` signature expanded from `($data)` to `($data, $form_config = array(), $webhook_preset = 'custom')` to support the new resolution logic. Callers within the dispatcher have been updated. Direct external callers (rare — this is a private static method) would need to pass the new args. The default-argument-values keep it backward-compatible at the call-site level.
+
+### Changed
+- `FRE_Field_Select::format_value()`, `FRE_Field_Radio::format_value()`, `FRE_Field_Checkbox::format_value()` and `FRE_Field_Checkbox::format_csv_value()` now delegate to `FRE_Field_Type_Abstract::resolve_display_value()`. Output is identical for existing callers; the refactor removes three independent value→label implementations in favor of one. New filter point applies uniformly across all four call sites.
+
+### Architecture notes
+- Webhook payload (`FRE_Webhook_Dispatcher::sanitize_data_for_payload()`) intentionally still emits raw values, not labels — webhooks feed downstream integrations (Google Sheets, CRMs, custom endpoints) that typically prefer stable machine identifiers. Sites that want resolved labels in webhook payloads can hook the existing `fre_webhook_payload` filter and run their own resolution against `FRE_Field_Type_Abstract::resolve_display_value()`.
+
 ## [1.4.0] - 2026-04-21
 
 ### Added
