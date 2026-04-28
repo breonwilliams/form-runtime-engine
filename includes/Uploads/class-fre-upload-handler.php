@@ -111,6 +111,39 @@ class FRE_Upload_Handler {
     private const FILE_PERMISSIONS = 0644;
 
     /**
+     * Minimum byte size enforced per extension for binary formats whose magic
+     * bytes are short and easily forged.
+     *
+     * Defense-in-depth against polyglot uploads. The dangerous-pattern scan
+     * runs on every uploaded file and catches PHP / shell / JS payloads, and
+     * randomized UUID filenames + Apache's default handler config prevent
+     * non-PHP uploads from executing. This min-size check is the additional
+     * belt-and-suspenders signal that "your magic bytes match but your file
+     * is too small to actually be one of these formats" — a 50-byte file
+     * pretending to be a 500KB embroidery pattern is suspicious regardless
+     * of what its first 3 bytes say.
+     *
+     * Defaults reflect each format's structural floor:
+     *   ai  — Illustrator files are PDF or PostScript; even minimal headers
+     *         are well over 1KB once metadata + version block are included.
+     *   eps — Encapsulated PostScript needs at minimum %!PS-Adobe-X.X EPSF-X.X
+     *         header + bounding box comment; ~100 bytes is the realistic floor.
+     *   dst — Tajima embroidery files have a 512-byte fixed header alone
+     *         before any stitch data. 500 bytes is the conservative minimum.
+     *
+     * Override per site via the `fre_min_file_sizes` filter — useful for
+     * format variants the plugin doesn't ship with (e.g., .pes embroidery,
+     * .cdr CorelDRAW) that are registered via the `fre_mime_map` filter.
+     *
+     * @since 1.5.0
+     */
+    private const MIN_FILE_SIZES = array(
+        'ai'  => 1024,
+        'eps' => 100,
+        'dst' => 500,
+    );
+
+    /**
      * Default maximum file size (10MB).
      *
      * @var int
@@ -550,6 +583,39 @@ class FRE_Upload_Handler {
         $magic_validation = $this->mime_validator->verify_magic_bytes( $file_path, $ext );
         if ( is_wp_error( $magic_validation ) ) {
             return $magic_validation;
+        }
+
+        // Enforce minimum file size for formats with short / easily-forged
+        // magic bytes (1.5.0). Defense-in-depth against polyglot uploads:
+        // a tiny "DST" file whose only validity signal is a 3-byte LA: header
+        // is suspicious regardless of the rest of the validation chain.
+        /**
+         * Filter the per-extension minimum file size enforcement table.
+         *
+         * Map of lowercase extension → minimum byte size. Keys not in the
+         * returned map are not size-checked (existing behavior). Useful for
+         * extending the protection to custom formats registered via
+         * `fre_mime_map` (e.g., `pes` for Brother embroidery, `cdr` for
+         * CorelDRAW vector files).
+         *
+         * @since 1.5.0
+         *
+         * @param array $min_sizes Map of extension → minimum bytes.
+         */
+        $min_sizes = (array) apply_filters( 'fre_min_file_sizes', self::MIN_FILE_SIZES );
+        if ( isset( $min_sizes[ $ext ] ) ) {
+            $actual_size = filesize( $file_path );
+            if ( $actual_size !== false && $actual_size < (int) $min_sizes[ $ext ] ) {
+                return new WP_Error(
+                    'file_too_small',
+                    sprintf(
+                        /* translators: 1: file extension (e.g. AI, EPS, DST), 2: minimum size in human-readable form */
+                        __( 'File appears too small to be a valid %1$s file (minimum %2$s).', 'form-runtime-engine' ),
+                        strtoupper( $ext ),
+                        size_format( (int) $min_sizes[ $ext ] )
+                    )
+                );
+            }
         }
 
         // Fix #10: Validate SVG content for XSS if SVG uploads are enabled.

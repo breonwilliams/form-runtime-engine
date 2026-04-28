@@ -98,6 +98,40 @@ Configure in form settings:
 ),
 ```
 
+### File Upload Validation
+
+Defense-in-depth chain run on every uploaded file (in order, fail-closed at any step):
+
+1. **Filename sanitization** — null-byte stripping, RTL/LTR/zero-width Unicode character removal (prevents `image.gpj[RTL]php.` visual spoofing), homograph detection in extensions (Cyrillic vs Latin lookalikes), 255-character cap.
+2. **Blocked extensions** — `.php`, `.phtml`, `.phar`, `.shtml`, `.htaccess`, `.htpasswd`, `.env`, `.ini`, `.conf`, etc., **including double-extension detection** (`shell.php.dst` is blocked even though `.dst` is allowed).
+3. **MIME validation** — extension must match the file's detected MIME type via `finfo`.
+4. **Dangerous-pattern scan** — chunked file scan for `<?php`, `<?=`, `<%`, `<script`, `eval(`, `exec(`, `system(`, `passthru(`, base64-encoded PHP (`PD9waHA`), `preg_replace` with `/e` modifier, `mb_ereg_replace` with `e`, and other code-execution patterns. Catches polyglot uploads regardless of how the magic bytes look.
+5. **Magic-byte verification** — first N bytes must match a known signature for the extension. Built-in coverage for images (jpg/jpeg/png/gif/webp/bmp), documents (pdf/doc/docx/xls/xlsx/ppt/pptx/odt/ods), archives (zip/rar), audio/video (mp3/mp4/wav), and design formats (`.ai` accepts both PDF and PostScript headers, `.eps` matches `%!PS-Adobe`, `.dst` matches the Tajima `LA:` label header).
+6. **Minimum file size** — defense-in-depth against polyglot uploads with short magic bytes. Defaults: `.ai` ≥ 1024 B, `.eps` ≥ 100 B, `.dst` ≥ 500 B. Filterable via `fre_min_file_sizes` for sites that register custom formats (e.g., `.pes` Brother embroidery, `.cdr` CorelDRAW).
+7. **Maximum file size** — per-field `max_size` enforcement (default 5 MB).
+8. **SVG content scan** — when SVGs are allowed, scans for `<script>`, event handlers, `javascript:` URLs, `<foreignObject>`, `<embed>`, `<object>`, `<iframe>`, XXE entities, and similar XSS vectors.
+9. **TOCTOU-protected rename** — file moves from quarantine to its final UUID-named location; rename fails closed if the target path already exists or is a symlink.
+10. **Restrictive permissions** — uploaded files get mode `0644` (matches WordPress core media; web-server readable so direct URL access works for emailed download links and webhook consumers like Zapier). Override via the `fre_uploaded_file_permissions` filter — sites running suEXEC that prefer the stricter `0600` can return that mode.
+
+The quarantine directory itself (`uploads/fre-uploads/`) ships with a generated `.htaccess` denying all access plus an `index.php` silencer plus a `web.config` for IIS — even if a malicious file somehow lands there, it cannot be served or executed by URL.
+
+**Extending validation for custom formats:**
+
+```php
+// Architects accepting AutoCAD .dwg files
+add_filter( 'fre_mime_map', function ( $map ) {
+    $map['dwg'] = array( 'application/acad', 'image/vnd.dwg', 'application/octet-stream' );
+    return $map;
+} );
+
+add_filter( 'fre_min_file_sizes', function ( $min ) {
+    $min['dwg'] = 2048; // 2KB — minimal valid DWG header is well over this
+    return $min;
+} );
+```
+
+When an extension has no stable magic-byte signature (truly arbitrary binary), return an empty array from the `fre_magic_bytes` filter to skip strict signature verification — validation falls back to extension+MIME match plus the dangerous-pattern scan, which is still strong.
+
 ### Webhook Security
 
 - **HMAC-SHA256 signing**: Per-form secrets, sent as `X-FRE-Signature: sha256={hash}` header
@@ -106,6 +140,7 @@ Configure in form settings:
 - **Payload filtering**: Honeypot/timing fields excluded from webhook payloads
 - **Non-blocking dispatch**: Webhooks sent asynchronously to avoid slowing form submission
 - **Retry with backoff**: Failed webhooks retry up to 3 times (5min, 30min, 2hr)
+- **File URL exposure**: Each `files[]` entry includes a `file_url` for downstream automations to fetch. Filenames are randomized UUIDs — URLs aren't enumerable, but they ARE permanent until the file is deleted. Webhook destinations (Zapier especially) log payloads, so URLs persist in those destinations' history. For sensitive uploads, use the `fre_webhook_file_url` filter to generate signed/expiring URLs (see the "Sensitive uploads" section in the root `CLAUDE.md` for a working `hash_hmac()` example).
 
 ### Webhook Log Database Table
 

@@ -310,6 +310,20 @@ array(
 )
 ```
 
+**Built-in support for design formats** — `.ai` (Adobe Illustrator), `.eps` (Encapsulated PostScript), and `.dst` (Tajima embroidery) validate cleanly out of the box. Useful for screen-printing, embroidery, and agency clients without per-site MIME hacks. To accept them, just add the extensions to `allowed_types`:
+
+```php
+array(
+    'key'           => 'design_upload',
+    'type'          => 'file',
+    'label'         => 'Upload Design / Logo',
+    'allowed_types' => array( 'png', 'jpg', 'jpeg', 'pdf', 'ai', 'eps', 'dst' ),
+    'max_size'      => 26214400,        // 25MB — design files run large
+)
+```
+
+For other custom formats (`.dwg` for architects, `.raw` / `.cr2` / `.nef` for photographers, `.pes` for Brother embroidery), register the extension via the `fre_mime_map` filter — see Hooks Reference below. Defense-in-depth includes a per-format minimum file-size check (`.ai` ≥ 1KB, `.eps` ≥ 100B, `.dst` ≥ 500B by default; filterable via `fre_min_file_sizes`) to block trivial polyglot uploads.
+
 ### hidden
 Hidden field.
 ```php
@@ -486,6 +500,8 @@ For consistency across forms and reusable automations, use these standard field 
 | `multistep.validate_on_next` | `true` | Validate fields before next step |
 | `webhook_enabled` | `false` | Enable webhook for form submissions |
 | `webhook_url` | `null` | URL to send form data (Zapier, Make, etc.) |
+| `webhook_preset` | `"custom"` | One of `google_sheets`, `zapier`, `make`, `custom`. Drives the smart default for option-label resolution: `google_sheets` resolves labels by default, others emit raw values |
+| `webhook_resolve_option_labels` | `null` | Explicit override for option-label resolution in webhook payloads. `true` forces labels regardless of preset, `false` forces raw values, `null` (omit) uses the preset-aware default |
 | `theme_variant` | `"light"` | Theme mode: `light`, `dark`, or `auto` (inherits from AISB section) |
 
 ### Full Settings Structure
@@ -590,6 +606,28 @@ Enable webhooks to send form submissions to external services like Zapier, Make,
 }
 ```
 
+**Option-label resolution by preset.** For select / radio / checkbox-with-options fields, the same submission produces different `data` shapes depending on the form's `webhook_preset`. Consider a form with a `business_type` select whose option `home_services` has the label `Home services (HVAC, plumbing, roofing, etc.)`:
+
+```json
+// webhook_preset: "zapier" | "make" | "custom" — RAW values (default)
+"data": {
+  "name": "Maya Chen",
+  "business_type": "home_services",
+  "best_time": "morning"
+}
+
+// webhook_preset: "google_sheets" — RESOLVED labels (default)
+"data": {
+  "name": "Maya Chen",
+  "business_type": "Home services (HVAC, plumbing, roofing, etc.)",
+  "best_time": "Morning"
+}
+```
+
+The smart default reflects the typical destination: Google Sheets feeds a human-reviewed lead tracker where labels are easier to scan, while Zapier / Make / custom typically feed CRM mappings or filters that prefer stable identifiers that don't break when option labels are renamed. Override per-form with `settings.webhook_resolve_option_labels` (`true` forces labels regardless of preset, `false` forces raw values regardless), or globally via the `fre_webhook_resolve_option_labels` filter.
+
+Storage and the admin entries table always hold raw values — only the outbound payload changes.
+
 **Security Features:**
 - HMAC-SHA256 request signing (per-form secret, `X-FRE-Signature` header)
 - SSRF protection (blocks private IP ranges)
@@ -602,6 +640,41 @@ Enable webhooks to send form submissions to external services like Zapier, Make,
 - Auto-generated webhook secret with copy/regenerate buttons
 - Test Connection button with rich response display (HTTP status, latency, response body)
 - Preview Payload button showing sample JSON based on form fields
+
+### Sensitive uploads — signed URLs via `fre_webhook_file_url`
+
+By default, uploaded files are stored in `wp-content/uploads/` with randomized UUID filenames and served at world-readable URLs. The webhook payload's `files[].file_url` points at those direct URLs so consumers like Zapier and Make can fetch the artwork to copy it into Drive, S3, or wherever the workflow needs it.
+
+Two consequences worth knowing:
+
+1. **The URL is permanently valid as long as the file lives on disk.** Anyone who learns the URL can fetch the file. The randomized UUID makes URLs unguessable, but they're not unforgettable — once a webhook destination logs the URL, it persists in that destination's logs.
+2. **Webhook destinations log payloads.** Zapier retains task history with full payload contents (default 30 days, longer on paid plans). Make and most CRMs do similar. Anyone with access to those logs has access to every customer's uploaded files via the URLs in the logs.
+
+For typical lead capture (contact forms, quote requests, low-sensitivity artwork) this is fine. For sensitive industries — healthcare intake, legal document submission, financial onboarding, identity verification — generate signed/expiring URLs by hooking the `fre_webhook_file_url` filter:
+
+```php
+// Hash-based signed URL — fetchable for 1 hour, then a 403.
+add_filter( 'fre_webhook_file_url', function ( $url, $file ) {
+    if ( empty( $url ) ) {
+        return $url;
+    }
+
+    $expires = time() + HOUR_IN_SECONDS;
+    $signature = hash_hmac( 'sha256', $url . '|' . $expires, wp_salt( 'auth' ) );
+
+    return add_query_arg(
+        array(
+            'expires'   => $expires,
+            'signature' => $signature,
+        ),
+        $url
+    );
+}, 10, 2 );
+```
+
+Pair this with a small `template_redirect` action that validates the signature and 403s expired/invalid requests before WordPress serves the file. Or push the file to S3 / Cloudflare R2 / Backblaze B2 with a presigned URL generated through their SDK — same pattern, the filter just returns the presigned URL instead of a hash-signed local URL.
+
+For one-time consumers like a Zap that copies the file into Drive immediately, a 1-hour signed URL is plenty: the Zap fetches it within seconds, after which the URL stops working and any later log access yields nothing.
 
 ## Template Variables
 
@@ -628,8 +701,19 @@ do_action( 'fre_init', $plugin_instance );
 // After form registered
 do_action( 'fre_form_registered', $form_id, $config );
 
-// After form entry created (webhook dispatcher listens here)
+// After form entry row is created (fires inside the entry insert
+// transaction — files are NOT yet attached). Kept for backward
+// compatibility; for downstream listeners that need the complete entry
+// shape including uploaded files, prefer fre_submission_complete below.
 do_action( 'fre_entry_created', $entry_id, $form_id, $data );
+
+// After a submission has been fully processed: sanitized, conditional
+// orphan values stripped, entry stored, and uploaded files attached —
+// but BEFORE the notification email is sent. The webhook dispatcher
+// listens here so file_url is populated in the payload. Use this for
+// any listener that needs files (CRM sync, Slack notifications with
+// file thumbnails, file move/copy automations).
+do_action( 'fre_submission_complete', $entry_id, $form_id, $sanitized_data );
 
 // After notification sent
 do_action( 'fre_notification_sent', $sent, $entry_id, $form_config, $entry_data );
@@ -647,19 +731,93 @@ do_action( 'fre_webhook_failed', $wp_error, $url, $payload, $entry_id, $form_id 
 ### Filters
 
 ```php
-// Modify webhook payload before sending
-$payload = apply_filters( 'fre_webhook_payload', $payload, $entry_id, $form_id, $data );
-
-// Modify webhook request arguments
-$args = apply_filters( 'fre_webhook_request_args', $args, $url, $payload, $entry_id, $form_id );
-```
-
-```php
 // Modify valid field types
 $types = apply_filters( 'fre_field_types', array( 'text', 'email', ... ) );
 
 // Modify notification body before sending
 $body = apply_filters( 'fre_notification_body', $body, $form_config, $entry_data, $entry_id );
+
+// Modify webhook payload before sending (last hook before HTTP dispatch)
+$payload = apply_filters( 'fre_webhook_payload', $payload, $entry_id, $form_id, $data );
+
+// Modify webhook request arguments (headers, timeout, sslverify, etc.)
+$args = apply_filters( 'fre_webhook_request_args', $args, $url, $payload, $entry_id, $form_id );
+```
+
+#### Display & rendering
+
+```php
+// Override how a stored value resolves to its human-readable display string.
+// Called everywhere FRE renders to humans: email body, email subject template
+// vars, admin entries list summary, admin entry detail, CSV export, webhook
+// payloads when label resolution is enabled. Use to localize labels, redact
+// sensitive option values from notifications, or inject custom formatting.
+$display = apply_filters( 'fre_field_display_value', $display, $value, $field );
+
+// Override the "skip empty optional fields" decision for a notification email.
+// Default true (current behavior). Return false to render every field with an
+// em-dash placeholder for empty values — useful when emails feed downstream
+// tooling that expects a fixed table shape.
+$hide = apply_filters( 'fre_email_hide_empty_fields', $hide, $form_config );
+
+// Override a field's computed visibility. Layered on top of the form's
+// declared `conditions` block — return false to hide a field that would
+// otherwise be visible. Same evaluator runs in the validator (skip
+// required-check), submission strip (drop orphan value before storage),
+// and email template (omit the row entirely). One filter point closes
+// the visibility decision across every surface.
+$visible = apply_filters( 'fre_field_is_visible', $visible, $field, $form_config, $data );
+```
+
+#### Webhook label resolution
+
+```php
+// Override the per-form webhook label-resolution decision. By default,
+// the google_sheets preset resolves option values to labels (the
+// destination is a human-reviewed lead tracker); zapier/make/custom
+// presets default to raw values (typically machine-readable
+// integrations). Per-form `settings.webhook_resolve_option_labels`
+// boolean takes precedence; this filter is the runtime override.
+$resolve = apply_filters( 'fre_webhook_resolve_option_labels', $resolve, $form_config, $webhook_preset, $data );
+```
+
+#### File upload validation
+
+```php
+// Extend the extension → MIME types map (e.g. add .dwg for architects,
+// .raw for photographers, .pes for Brother embroidery). The plugin
+// ships with .ai, .eps, .dst defaults for screen-printing and
+// embroidery clients.
+$mime_map = apply_filters( 'fre_mime_map', $mime_map );
+
+// Extend the magic-byte signatures used by verify_magic_bytes(). Receives
+// the array for a given extension. Return an empty array to skip strict
+// signature verification for an extension and fall back to the
+// dangerous-pattern scan (useful for binary formats with no stable header).
+$signatures = apply_filters( 'fre_magic_bytes', $signatures, $extension );
+
+// Extend or tighten the per-extension minimum file-size enforcement.
+// Defense-in-depth against polyglot uploads with short magic bytes.
+// Default: ai => 1024, eps => 100, dst => 500. Add custom formats here.
+$min_sizes = apply_filters( 'fre_min_file_sizes', $min_sizes );
+
+// Override the file mode applied to uploaded files. Default 0644 matches
+// WordPress core media; sites running suEXEC where 0600 still works can
+// return the stricter mode here.
+$perms = apply_filters( 'fre_uploaded_file_permissions', $perms, $final_path );
+```
+
+#### Webhook file URL (sensitive uploads)
+
+```php
+// Override the resolved file_url before it ships in a webhook payload.
+// Default returns the direct uploads URL. Hook this to generate signed
+// HMAC URLs (limit lifetime to ~1 hour for one-time consumers like a
+// Zap that copies the file into Drive) or presigned S3/R2/B2 URLs for
+// sites that store customer artwork off the WordPress filesystem.
+// See "Sensitive uploads" section above for a working hash_hmac
+// example.
+$url = apply_filters( 'fre_webhook_file_url', $url, $file );
 ```
 
 ## API Functions

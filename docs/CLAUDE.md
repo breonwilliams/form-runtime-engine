@@ -358,6 +358,82 @@ This example demonstrates steps, sections, columns, and conditional logic workin
 }
 ```
 
+### Pattern: CRM-bound form with structurally-consistent emails
+
+Use case: a B2B intake form whose submissions feed a CRM via Zapier. The internal sales team also wants the notification email to look identical for every prospect — every field rendered, even unfilled ones — so they can scan the email at a glance without missing anything. Two settings drive this:
+
+- `hide_empty_fields: false` — render every field with an em-dash (`—`) placeholder for empty values instead of skipping (matches the visual structure across submissions; required when emails feed downstream tooling that expects a fixed table shape).
+- `webhook_resolve_option_labels: true` — force option-label resolution in the webhook payload so the CRM stores `"Home services (HVAC, plumbing, roofing, etc.)"` instead of `"home_services"`. Useful when the CRM's view of the data is inspected by humans (sales, support) rather than filtered by other software.
+
+```json
+{
+  "title": "Intake — High-Touch Onboarding",
+  "fields": [
+    {"key": "name", "type": "text", "label": "Full name", "required": true, "column": "1/2"},
+    {"key": "email", "type": "email", "label": "Work email", "required": true, "column": "1/2"},
+    {"key": "company", "type": "text", "label": "Company", "required": true},
+    {
+      "key": "business_type",
+      "type": "select",
+      "label": "Business type",
+      "required": true,
+      "options": [
+        {"value": "saas", "label": "SaaS / Software"},
+        {"value": "agency", "label": "Agency / Consulting"},
+        {"value": "ecom", "label": "E-commerce / DTC"},
+        {"value": "services", "label": "Professional services"}
+      ]
+    },
+    {"key": "team_size", "type": "select", "label": "Team size",
+     "options": [
+       {"value": "solo", "label": "Just me"},
+       {"value": "2_10", "label": "2–10"},
+       {"value": "11_50", "label": "11–50"},
+       {"value": "50_plus", "label": "50+"}
+     ]},
+    {"key": "notes", "type": "textarea", "label": "Anything specific?", "rows": 4}
+  ],
+  "settings": {
+    "hide_empty_fields": false,
+    "webhook_enabled": true,
+    "webhook_url": "https://hooks.zapier.com/...",
+    "webhook_preset": "zapier",
+    "webhook_resolve_option_labels": true,
+    "notification": {
+      "enabled": true,
+      "to": "sales@example.com",
+      "subject": "New intake from {field:name} ({field:business_type})"
+    }
+  }
+}
+```
+
+A SaaS prospect who skips `team_size` and `notes` produces this email body:
+
+| Field | Value |
+|---|---|
+| Full name | Maya Chen |
+| Work email | maya@company.com |
+| Company | ExampleCo |
+| Business type | SaaS / Software |
+| Team size | — |
+| Anything specific? | — |
+
+…and this Zapier payload `data` block (raw text fields, resolved option labels because the form opted in):
+
+```json
+"data": {
+  "name": "Maya Chen",
+  "email": "maya@company.com",
+  "company": "ExampleCo",
+  "business_type": "SaaS / Software",
+  "team_size": "",
+  "notes": ""
+}
+```
+
+Default behavior (omit both settings) skips empty rows from the email and emits raw `business_type: "saas"` to Zapier — fine for most lead capture, but this pattern is the right shape when downstream consumers expect human-readable values.
+
 ## Common Patterns (PHP)
 
 For forms registered via code.

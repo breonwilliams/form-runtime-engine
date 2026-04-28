@@ -269,6 +269,15 @@ Email notifications sent on successful submission.
 - `to` — single address (comma-separated for multiple) or array of addresses. `{admin_email}` template token supported.
 - `subject`, `from_name`, `from_email` — standard email headers
 - `reply_to` — supports `{field:<key>}` template tokens to pull values from the submission (example above sets Reply-To to the submitter's email)
+- Template tokens (`{field:<key>}`) resolve **option labels** for select/radio/checkbox-with-options fields, not raw values — so `{field:business_type}` substitutes `Home services (HVAC, plumbing, roofing, etc.)` rather than `home_services`.
+
+**Empty-field rendering** — by default, optional fields with empty values are skipped from the body table (keeps notifications scannable). Per-form override:
+
+```json
+"hide_empty_fields": false
+```
+
+When `false`, every field renders with an em-dash (`—`) placeholder for empty values. Useful when emails feed downstream tooling that expects a fixed table shape (e.g., a parser that pulls field values by row index). Required fields with empty values are always rendered — they signal a data integrity issue. Conditionally-hidden fields (whose `conditions` block evaluates false) are ALWAYS skipped regardless of this flag because they were never visible to the submitter.
 
 ### 7.4 Spam protection
 
@@ -294,7 +303,17 @@ Email notifications sent on successful submission.
 ```
 
 - `webhook_url` — HTTPS endpoint that receives submission payload POSTed as JSON. SSRF-protected at send time (private IP ranges rejected).
-- `webhook_preset` — `"custom"` (default), `"google_sheets"`, `"zapier"`, `"make"`. Preset affects payload shape.
+- `webhook_preset` — `"custom"` (default), `"google_sheets"`, `"zapier"`, `"make"`. Preset drives the smart default for option-label resolution: **`google_sheets` resolves option values to labels** in the payload (the destination is typically a human-reviewed lead tracker where labels are easier to scan), while **`zapier`, `make`, `custom` emit raw values** by default (those typically feed machine-readable integrations that prefer stable identifiers that don't break when option labels are renamed).
+
+**Per-form override:**
+
+```json
+"webhook_resolve_option_labels": true
+```
+
+`true` forces label resolution regardless of preset. `false` forces raw values regardless of preset. Omit to use the preset-aware default.
+
+**File uploads in webhook payloads** — the payload's `files` array carries one entry per uploaded file with `field_key`, `file_name`, `file_size`, `mime_type`, and `file_url`. The URL is publicly fetchable (uses randomized UUID filenames for non-enumerability) so downstream automations can copy the file into Drive, S3, etc. The webhook fires on the `fre_submission_complete` action — AFTER files are attached to the entry — so `file_url` is always populated. For sensitive industries (healthcare, legal, financial), generate signed/expiring URLs via the `fre_webhook_file_url` filter.
 
 **Webhook secrets:** NOT exposed via API. Use the admin UI for secret rotation.
 
