@@ -32,6 +32,7 @@ class FRE_Autoloader {
         'FRE_Capabilities'        => 'Core/class-fre-capabilities.php',
         'FRE_Upgrader'            => 'Core/class-fre-upgrader.php',
         'FRE_Forms_Repository'    => 'Core/class-fre-forms-repository.php',
+        'FRE_Conditions'          => 'Core/class-fre-conditions.php',
 
         // Connector classes (Phase 2+ Cowork connector).
         'FRE_Connector_Settings'  => 'Connector/class-fre-connector-settings.php',

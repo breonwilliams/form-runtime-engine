@@ -477,6 +477,7 @@ For consistency across forms and reusable automations, use these standard field 
 | `notification.enabled` | `true` | Send email notifications |
 | `notification.to` | `"{admin_email}"` | Recipient email(s) |
 | `notification.subject` | `"New Form Submission"` | Email subject line |
+| `hide_empty_fields` | `true` | Skip empty optional fields in notification email body. Set `false` to render every field with `—` placeholder for empty values |
 | `spam_protection.honeypot` | `true` | Enable honeypot field |
 | `spam_protection.timing_check` | `true` | Reject fast submissions |
 | `spam_protection.min_submission_time` | `3` | Minimum seconds before submission |
@@ -510,6 +511,8 @@ fre_register_form( 'contact', array(
             'from_email' => '{admin_email}',
             'reply_to'   => '{field:email}',        // Reply to submitter
         ),
+
+        'hide_empty_fields' => true,                // Skip empty optional fields in email body. Set false to render every field with em-dash placeholder.
 
         'spam_protection' => array(
             'honeypot'            => true,
@@ -576,7 +579,8 @@ Enable webhooks to send form submissions to external services like Zapier, Make,
       "field_key": "resume",
       "file_name": "resume.pdf",
       "file_size": 12345,
-      "mime_type": "application/pdf"
+      "mime_type": "application/pdf",
+      "file_url": "https://example.com/wp-content/uploads/fre-uploads/2026/04/abc123-resume.pdf"
     }
   ],
   "site": {

@@ -136,6 +136,13 @@ class FRE_Submission_Handler {
             // Step 7: Sanitize field values.
             $sanitized_data = $this->sanitizer->sanitize( $form_config, $_POST );
 
+            // Step 7b: Strip orphan values from conditionally-hidden fields.
+            // Frontend may keep stale values in DOM/state when a field's
+            // visibility flips false; the server is authoritative, so we
+            // remove those values here before storage so every downstream
+            // consumer (email, webhook, sheet, CSV, admin) sees a clean payload.
+            $sanitized_data = FRE_Conditions::strip_hidden_field_values( $form_config, $sanitized_data );
+
             // Step 8: Store entry (if enabled).
             $entry_id = null;
             if ( ! empty( $form_config['settings']['store_entries'] ) ) {
@@ -169,6 +176,27 @@ class FRE_Submission_Handler {
                         $this->entry_repo->add_file( $entry_id, $file_data, $field_key );
                     }
                 }
+            }
+
+            /**
+             * Fires after a form submission has been fully processed —
+             * sanitized, stored, files attached, but BEFORE the notification
+             * email is sent. Distinct from `fre_entry_created` which fires
+             * inside the entry insert transaction before files exist.
+             *
+             * Webhook dispatch listens here so the payload can include
+             * file_url for any uploaded files. Other listeners that need the
+             * complete entry (e.g., CRM sync that also wants attachments)
+             * should subscribe to this action instead of fre_entry_created.
+             *
+             * @since 1.5.0
+             *
+             * @param int    $entry_id       Entry ID (0 if store_entries disabled).
+             * @param string $form_id        Form ID.
+             * @param array  $sanitized_data Sanitized field values.
+             */
+            if ( $entry_id ) {
+                do_action( 'fre_submission_complete', $entry_id, $form_id, $sanitized_data );
             }
 
             // Step 10: Send email notification.
@@ -317,6 +345,12 @@ class FRE_Submission_Handler {
         // reverse translation is needed on the returned map.
         $sanitized_data = $this->sanitizer->sanitize( $form_config, $prefixed_data );
 
+        // Strip orphan values from conditionally-hidden fields. Mirrors the
+        // public AJAX path; ensures the connector test-submit endpoint and
+        // any future programmatic submission entry point produce identical
+        // clean data for storage and downstream notifications/webhooks.
+        $sanitized_data = FRE_Conditions::strip_hidden_field_values( $form_config, $sanitized_data );
+
         // Dry run short-circuits here — return what would have been stored.
         if ( ! empty( $options['dry_run'] ) ) {
             return array(
@@ -341,8 +375,14 @@ class FRE_Submission_Handler {
             }
 
             // FRE_Entry::create() fires `fre_entry_created` internally after
-            // the transaction commits. Listeners like the webhook dispatcher
-            // run from there — we do not re-fire it here.
+            // the transaction commits — kept for backward-compat listeners.
+            //
+            // Fire `fre_submission_complete` to mirror the AJAX path (where
+            // it fires AFTER files are attached). The connector's programmatic
+            // path doesn't process files in Phase 1, so there's nothing to
+            // wait for and we can fire it immediately. This keeps webhook
+            // dispatch consistent across both submission entry points.
+            do_action( 'fre_submission_complete', $entry_id, $form_id, $sanitized_data );
         }
 
         // Email notification: skip if explicitly disabled or if the caller asked to.

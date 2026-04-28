@@ -91,7 +91,24 @@ class FRE_Upload_Handler {
      *
      * @var int
      */
-    private const FILE_PERMISSIONS = 0600;
+    /**
+     * Default file mode applied to uploaded files after they pass validation
+     * and are moved into the public uploads directory.
+     *
+     * 0644 (owner read/write, group/other read-only) matches WordPress core's
+     * default for uploaded media and ensures the web server (which on most
+     * shared / managed hosting runs as a different system user from the
+     * PHP/account user) can read the file to serve it. The earlier 0600
+     * default broke direct URL access to uploaded files — emails with
+     * download links and webhook consumers (Zapier, Make) fetching the
+     * file_url both received 403 Forbidden.
+     *
+     * Sites on configurations where 0600 works correctly (e.g., suEXEC
+     * with PHP and Apache running as the same user) and that want the
+     * tighter posture can override via the `fre_uploaded_file_permissions`
+     * filter.
+     */
+    private const FILE_PERMISSIONS = 0644;
 
     /**
      * Default maximum file size (10MB).
@@ -326,10 +343,29 @@ class FRE_Upload_Handler {
             return new WP_Error( 'move_failed', __( 'Failed to complete upload.', 'form-runtime-engine' ) );
         }
 
-        // Fix #11: Set more restrictive permissions (owner read/write only).
-        // On shared hosting, 0644 allows other local users to read uploaded files.
-        if ( ! chmod( $final_path, self::FILE_PERMISSIONS ) ) {
-            FRE_Logger::warning( 'Failed to set restrictive file permissions for ' . $final_path );
+        /**
+         * Filter the file permissions applied to uploaded files after they
+         * are moved into the public uploads directory.
+         *
+         * Default 0644 (matching WordPress core) ensures the web server can
+         * read the file across the broadest range of hosting configurations.
+         * Sites running suEXEC with PHP and Apache as the same user can
+         * tighten via this filter (e.g., return 0600) without breaking URL
+         * access on hosts that need the broader read bit.
+         *
+         * @since 1.5.0
+         *
+         * @param int    $permissions Octal file mode (default 0644).
+         * @param string $final_path  Absolute path of the uploaded file.
+         */
+        $permissions = (int) apply_filters( 'fre_uploaded_file_permissions', self::FILE_PERMISSIONS, $final_path );
+
+        if ( ! chmod( $final_path, $permissions ) ) {
+            FRE_Logger::warning( sprintf(
+                'Failed to set file permissions (%o) for %s',
+                $permissions,
+                $final_path
+            ) );
         }
 
         // Determine MIME type of final file.

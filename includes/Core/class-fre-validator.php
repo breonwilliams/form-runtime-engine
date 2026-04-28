@@ -59,9 +59,12 @@ class FRE_Validator {
             }
 
             // Server-side condition evaluation is authoritative.
-            // Fields with conditions that evaluate to false (hidden) skip validation.
+            // Fields whose conditions evaluate to false (hidden) skip validation.
+            // The submission handler additionally strips hidden field values
+            // from the sanitized data before storage so storage / email /
+            // webhook / sheet / CSV never see orphan values.
             // Note: Client _fre_hidden_fields hint removed - server-side is authoritative.
-            if ( ! empty( $field['conditions'] ) && ! $this->evaluate_conditions( $field['conditions'], $form_config, $data ) ) {
+            if ( ! FRE_Conditions::field_is_visible( $field, $form_config, $data ) ) {
                 continue;
             }
 
@@ -223,147 +226,19 @@ class FRE_Validator {
     /**
      * Evaluate conditions for a field (server-side verification).
      *
+     * @deprecated 1.5.0 Delegates to FRE_Conditions::evaluate_conditions().
+     *                  Kept as a thin shim for any external code that may have
+     *                  reflected on the previous private method (none expected;
+     *                  this was always a private helper) and for backward-
+     *                  compat with downstream forks. New code should call
+     *                  FRE_Conditions directly.
+     *
      * @param array $conditions   Conditions configuration.
      * @param array $form_config  Form configuration.
      * @param array $data         Submitted data.
      * @return bool True if conditions are met (field should be shown/validated).
      */
     private function evaluate_conditions( array $conditions, array $form_config, array $data ) {
-        if ( empty( $conditions['rules'] ) || ! is_array( $conditions['rules'] ) ) {
-            return true;
-        }
-
-        $logic = isset( $conditions['logic'] ) ? $conditions['logic'] : 'and';
-        $results = array();
-
-        foreach ( $conditions['rules'] as $rule ) {
-            $results[] = $this->evaluate_rule( $rule, $form_config, $data );
-        }
-
-        if ( $logic === 'or' ) {
-            return in_array( true, $results, true );
-        }
-
-        // Default: 'and' logic.
-        return ! in_array( false, $results, true );
-    }
-
-    /**
-     * Evaluate a single condition rule.
-     *
-     * @param array $rule        Rule configuration.
-     * @param array $form_config Form configuration.
-     * @param array $data        Submitted data.
-     * @return bool True if rule is met.
-     */
-    private function evaluate_rule( array $rule, array $form_config, array $data ) {
-        if ( empty( $rule['field'] ) || ! isset( $rule['operator'] ) ) {
-            return true;
-        }
-
-        $field_key = $rule['field'];
-        $operator  = $rule['operator'];
-        $value     = isset( $rule['value'] ) ? $rule['value'] : '';
-
-        // Get the field value from submitted data.
-        $field_value = $this->get_submitted_field_value( $field_key, $form_config, $data );
-
-        switch ( $operator ) {
-            case 'equals':
-            case '==':
-            case '=':
-                return $field_value === $value;
-
-            case 'not_equals':
-            case '!=':
-            case '<>':
-                return $field_value !== $value;
-
-            case 'contains':
-                return strpos( strtolower( (string) $field_value ), strtolower( (string) $value ) ) !== false;
-
-            case 'not_contains':
-                return strpos( strtolower( (string) $field_value ), strtolower( (string) $value ) ) === false;
-
-            case 'is_empty':
-            case 'empty':
-                return $field_value === '' || $field_value === null ||
-                       ( is_array( $field_value ) && empty( $field_value ) );
-
-            case 'is_not_empty':
-            case 'not_empty':
-                return $field_value !== '' && $field_value !== null &&
-                       ! ( is_array( $field_value ) && empty( $field_value ) );
-
-            case 'is_checked':
-            case 'checked':
-                return $field_value === true || $field_value === '1' || $field_value === 'on';
-
-            case 'is_not_checked':
-            case 'not_checked':
-                return $field_value === false || $field_value === '' || $field_value === '0';
-
-            case 'greater_than':
-            case '>':
-                return floatval( $field_value ) > floatval( $value );
-
-            case 'less_than':
-            case '<':
-                return floatval( $field_value ) < floatval( $value );
-
-            case 'greater_than_or_equals':
-            case '>=':
-                return floatval( $field_value ) >= floatval( $value );
-
-            case 'less_than_or_equals':
-            case '<=':
-                return floatval( $field_value ) <= floatval( $value );
-
-            case 'in':
-                return is_array( $value ) && in_array( $field_value, $value, true );
-
-            case 'not_in':
-                return ! is_array( $value ) || ! in_array( $field_value, $value, true );
-
-            default:
-                return true;
-        }
-    }
-
-    /**
-     * Get a field's submitted value.
-     *
-     * @param string $field_key   Field key.
-     * @param array  $form_config Form configuration.
-     * @param array  $data        Submitted data.
-     * @return mixed Field value.
-     */
-    private function get_submitted_field_value( $field_key, array $form_config, array $data ) {
-        // Find the field configuration.
-        $field_config = null;
-        foreach ( $form_config['fields'] as $field ) {
-            if ( $field['key'] === $field_key ) {
-                $field_config = $field;
-                break;
-            }
-        }
-
-        if ( ! $field_config ) {
-            return '';
-        }
-
-        $field_type = $this->get_field_instance( $field_config['type'] );
-        if ( ! $field_type ) {
-            return '';
-        }
-
-        $name = $field_type->get_name( $field_config );
-
-        // Check for checkbox value (boolean).
-        if ( $field_config['type'] === 'checkbox' && empty( $field_config['options'] ) ) {
-            return isset( $data[ $name ] );
-        }
-
-        return isset( $data[ $name ] ) ? $data[ $name ] : '';
+        return FRE_Conditions::evaluate_conditions( $conditions, $form_config, $data );
     }
 }

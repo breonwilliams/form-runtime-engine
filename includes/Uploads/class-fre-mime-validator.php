@@ -53,6 +53,23 @@ class FRE_Mime_Validator {
         'zip'  => array( array( 0x50, 0x4B, 0x03, 0x04 ), array( 0x50, 0x4B, 0x05, 0x06 ) ),
         'rar'  => array( array( 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07 ) ),        // Rar!
 
+        // Design file formats (added 1.5.0 for screen-printing / embroidery / agency clients).
+        // Modern .ai files (Illustrator CS3+, ~2007) are PDF-compatible and start with %PDF.
+        // Legacy .ai files use the PostScript header %!PS-Adobe.
+        'ai'   => array(
+            array( 0x25, 0x50, 0x44, 0x46 ),                                   // %PDF (modern AI)
+            array( 0x25, 0x21, 0x50, 0x53 ),                                   // %!PS (legacy PostScript-based AI)
+        ),
+        // EPS (Encapsulated PostScript) always starts with %!PS-Adobe.
+        'eps'  => array( array( 0x25, 0x21, 0x50, 0x53 ) ),                    // %!PS
+        // DST (Tajima embroidery) starts with "LA:" header followed by metadata.
+        // Some older DST files have alternate headers — the verify_magic_bytes
+        // method gracefully passes when no signature matches if the entry's
+        // not in this table at all, so worst case for an unusual variant is
+        // we skip magic-byte verification and rely on extension + dangerous
+        // pattern scan. Conservative default below covers standard Tajima output.
+        'dst'  => array( array( 0x4C, 0x41, 0x3A ) ),                          // LA:
+
         // Audio/Video.
         'mp3'  => array(
             array( 0x49, 0x44, 0x33 ),                                          // ID3
@@ -154,7 +171,42 @@ class FRE_Mime_Validator {
         'webm' => array( 'video/webm' ),
         'mov'  => array( 'video/quicktime' ),
         'avi'  => array( 'video/x-msvideo' ),
+
+        // Design file formats (screen printing, embroidery, agencies).
+        // Modern .ai files are PDF-compatible; older variants are PostScript.
+        // Browsers / OSes inconsistently report these — accept the common set.
+        'ai'   => array( 'application/pdf', 'application/postscript', 'application/illustrator', 'application/octet-stream' ),
+        'eps'  => array( 'application/postscript', 'application/eps', 'image/eps', 'image/x-eps', 'application/octet-stream' ),
+        // DST (Tajima) has no IANA-registered MIME; many clients emit octet-stream.
+        'dst'  => array( 'application/octet-stream', 'application/x-tajima-dst' ),
     );
+
+    /**
+     * Constructor — applies the `fre_mime_map` filter so sites can register
+     * custom MIME mappings without forking this class.
+     *
+     * Usage:
+     *   add_filter( 'fre_mime_map', function ( $map ) {
+     *       $map['dwg'] = array( 'application/acad', 'image/vnd.dwg', 'application/octet-stream' );
+     *       return $map;
+     *   } );
+     *
+     * Sites that add custom extensions should also consider the magic-bytes
+     * verification path: if the extension is not in MAGIC_BYTES, the strict
+     * verify_magic_bytes() check returns true (skipped), and validation falls
+     * back to the dangerous-pattern scan. That is the safe default for binary
+     * formats whose magic bytes are stable but unique to the format.
+     *
+     * @since 1.5.0
+     */
+    public function __construct() {
+        /**
+         * Filter the extension → MIME-types map used to validate file uploads.
+         *
+         * @param array $mime_map Map of lowercase extension → array of allowed MIME types.
+         */
+        $this->mime_map = (array) apply_filters( 'fre_mime_map', $this->mime_map );
+    }
 
     /**
      * Get allowed MIME types for extensions.
@@ -463,8 +515,25 @@ class FRE_Mime_Validator {
     public function verify_magic_bytes( $file_path, $extension ) {
         $extension = strtolower( $extension );
 
+        /**
+         * Filter the magic-byte signature table for a given extension.
+         *
+         * Receives the array of valid signature byte sequences (each an array
+         * of integers) for the given extension, or an empty array if no
+         * default signatures exist. Returning an empty array causes the
+         * verification step to be skipped for that extension and validation
+         * falls back to the extension-MIME-match + dangerous-pattern scan.
+         *
+         * @since 1.5.0
+         *
+         * @param array  $signatures Array of valid signature byte sequences.
+         * @param string $extension  Lowercase file extension being verified.
+         */
+        $valid_signatures = isset( self::MAGIC_BYTES[ $extension ] ) ? self::MAGIC_BYTES[ $extension ] : array();
+        $valid_signatures = (array) apply_filters( 'fre_magic_bytes', $valid_signatures, $extension );
+
         // Skip if we don't have magic bytes for this extension.
-        if ( ! isset( self::MAGIC_BYTES[ $extension ] ) ) {
+        if ( empty( $valid_signatures ) ) {
             return true;
         }
 
@@ -484,8 +553,7 @@ class FRE_Mime_Validator {
         // Convert header to byte array.
         $header_bytes = array_values( unpack( 'C*', $header ) );
 
-        // Check against known magic bytes.
-        $valid_signatures = self::MAGIC_BYTES[ $extension ];
+        // Check against known magic bytes (potentially extended via filter above).
         foreach ( $valid_signatures as $signature ) {
             $match = true;
             for ( $i = 0; $i < count( $signature ); $i++ ) {

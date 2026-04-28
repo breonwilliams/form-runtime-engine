@@ -51,9 +51,24 @@ class FRE_Webhook_Dispatcher {
 
     /**
      * Initialize the webhook dispatcher hooks.
+     *
+     * Subscribes to `fre_submission_complete` (fired by the submission handler
+     * AFTER step 9 — file upload processing — has finished attaching files to
+     * the entry) rather than the older `fre_entry_created` (which fires inside
+     * `entry_repo->create()` BEFORE files are attached). The difference matters
+     * for any form with a file field: dispatching on `fre_entry_created` left
+     * the payload's `files` array empty because the entry_files rows didn't
+     * exist yet. `fre_submission_complete` waits for files, so the payload
+     * — including the file_url field added in 1.5.0 — is complete and
+     * downstream automations (Zapier → Drive, Make → S3, etc.) can fetch
+     * uploaded artwork on the same submission they were triggered by.
+     *
+     * The original `fre_entry_created` action still fires from `FRE_Entry::create()`
+     * for any external code that hooked it for non-file-aware purposes;
+     * removing it would break backward compatibility.
      */
     public static function init() {
-        add_action( 'fre_entry_created', array( __CLASS__, 'dispatch' ), 10, 3 );
+        add_action( 'fre_submission_complete', array( __CLASS__, 'dispatch' ), 10, 3 );
 
         // Retry processing hooks (mirrors FRE_Email_Notification pattern).
         add_action( 'fre_retry_webhook', array( __CLASS__, 'process_retry' ), 10, 1 );
@@ -176,7 +191,14 @@ class FRE_Webhook_Dispatcher {
         $entry_handler = new FRE_Entry();
         $files         = $entry_handler->get_files( $entry_id );
 
-        // Format files for payload.
+        // Format files for payload, including a publicly-fetchable file_url
+        // so downstream automations (Zapier → Drive, Make → S3, custom
+        // pipelines that copy artwork into client folders) can retrieve the
+        // uploaded file by URL. The URL is derived rather than stored in the
+        // entry_files table: wp_get_attachment_url() respects URL rewriting
+        // from CDN/offload plugins; the basedir→baseurl swap is the fallback
+        // for files that exist under wp-content/uploads/ but were not also
+        // registered as Media Library attachments.
         $files_payload = array();
         foreach ( $files as $file ) {
             $files_payload[] = array(
@@ -184,6 +206,7 @@ class FRE_Webhook_Dispatcher {
                 'file_name' => $file['file_name'],
                 'file_size' => (int) $file['file_size'],
                 'mime_type' => $file['mime_type'],
+                'file_url'  => self::resolve_file_url( $file ),
             );
         }
 
@@ -223,6 +246,62 @@ class FRE_Webhook_Dispatcher {
          * @param array  $data     Original entry data.
          */
         return apply_filters( 'fre_webhook_payload', $payload, $entry_id, $form_id, $data );
+    }
+
+    /**
+     * Resolve a publicly-fetchable URL for an uploaded file row.
+     *
+     * Resolution order:
+     *   1. If the file row has an `attachment_id`, defer to
+     *      `wp_get_attachment_url()` so URL rewriting from CDN / object-store
+     *      offload plugins (WP Offload Media, etc.) is respected.
+     *   2. Otherwise derive the URL by swapping `wp_upload_dir()['basedir']`
+     *      for `['baseurl']` in the stored `file_path`. Files uploaded via the
+     *      FRE upload handler always live under the uploads directory, so the
+     *      basedir prefix is the standard signal that the swap is safe.
+     *   3. If neither approach yields a URL, return ''. Webhook consumers can
+     *      treat empty file_url as "URL not available — fall back to
+     *      file_name + entry_id lookup via the FRE REST API" if they need to
+     *      retrieve the bytes.
+     *
+     * Filterable via `fre_webhook_file_url` so sites that need signed /
+     * expiring / proxied URLs (e.g., for sensitive customer artwork) can
+     * generate their own without forking the dispatcher.
+     *
+     * @since 1.5.0
+     *
+     * @param array $file Entry-files row (field_key, attachment_id, file_path, file_name, file_size, mime_type).
+     * @return string Public URL for the file, or '' if none can be resolved.
+     */
+    private static function resolve_file_url( array $file ) {
+        $url = '';
+
+        // Path 1: Media-Library attachment.
+        if ( ! empty( $file['attachment_id'] ) ) {
+            $maybe_url = wp_get_attachment_url( (int) $file['attachment_id'] );
+            if ( ! empty( $maybe_url ) ) {
+                $url = $maybe_url;
+            }
+        }
+
+        // Path 2: Derive from file_path via uploads dir mapping.
+        if ( '' === $url && ! empty( $file['file_path'] ) ) {
+            $upload_dir = wp_upload_dir();
+            if ( ! empty( $upload_dir['basedir'] ) && ! empty( $upload_dir['baseurl'] )
+                && 0 === strpos( $file['file_path'], $upload_dir['basedir'] ) ) {
+                $url = $upload_dir['baseurl'] . substr( $file['file_path'], strlen( $upload_dir['basedir'] ) );
+            }
+        }
+
+        /**
+         * Filter the resolved file_url for a webhook payload's files entry.
+         *
+         * @since 1.5.0
+         *
+         * @param string $url  Resolved URL (may be empty).
+         * @param array  $file Entry-files row.
+         */
+        return (string) apply_filters( 'fre_webhook_file_url', $url, $file );
     }
 
     /**
@@ -840,6 +919,7 @@ class FRE_Webhook_Dispatcher {
                         'file_name' => 'sample-document.pdf',
                         'file_size' => 102400,
                         'mime_type' => 'application/pdf',
+                        'file_url'  => home_url( '/wp-content/uploads/fre-uploads/sample-document.pdf' ),
                     );
                     break;
                 default:

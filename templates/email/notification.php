@@ -20,6 +20,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $site_name  = get_bloginfo( 'name' );
 $form_title = ! empty( $form_config['title'] ) ? $form_config['title'] : __( 'New Form Submission', 'form-runtime-engine' );
+
+/**
+ * Empty-field display behavior.
+ *
+ * Per-form setting `hide_empty_fields` (default true) controls whether empty
+ * optional fields are omitted from the notification body. Set to false in the
+ * form config to render every field — empty values appear as an em-dash so
+ * notifications keep a consistent shape across submissions.
+ *
+ * Required fields with empty values are always rendered regardless of this
+ * setting, since an empty required field signals a data integrity issue worth
+ * surfacing in the notification.
+ */
+$hide_empty_fields = isset( $form_config['settings']['hide_empty_fields'] )
+    ? (bool) $form_config['settings']['hide_empty_fields']
+    : true;
+
+/**
+ * Filter the empty-field hide behavior for the notification email.
+ *
+ * @param bool  $hide_empty_fields Whether to skip empty optional fields. Default true.
+ * @param array $form_config       Full form configuration.
+ */
+$hide_empty_fields = (bool) apply_filters( 'fre_email_hide_empty_fields', $hide_empty_fields, $form_config );
 ?>
 <!DOCTYPE html>
 <html>
@@ -57,14 +81,27 @@ $form_title = ! empty( $form_config['title'] ) ? $form_config['title'] : __( 'Ne
                         continue;
                     }
 
+                    // Skip conditionally-hidden fields. The submission handler
+                    // already strips their values from storage, but iterating
+                    // them here would still render an empty row (especially
+                    // when hide_empty_fields=false). Mirroring what the prospect
+                    // actually saw on-screen produces a cleaner notification:
+                    // a "Professional services" submitter never sees a
+                    // "Which home service do you provide?" row.
+                    if ( ! FRE_Conditions::field_is_visible( $field, $form_config, $entry_data ) ) {
+                        continue;
+                    }
+
                     $raw_value = isset( $entry_data[ $field['key'] ] ) ? $entry_data[ $field['key'] ] : '';
 
-                    // Skip empty optional fields (test against raw value before label resolution).
+                    // Determine emptiness against the raw value (before label resolution).
                     $is_empty = is_array( $raw_value )
                         ? empty( array_filter( $raw_value, function( $v ) { return $v !== '' && $v !== null; } ) )
                         : ( $raw_value === '' || $raw_value === null );
 
-                    if ( $is_empty && empty( $field['required'] ) ) {
+                    // Skip empty optional fields when hide_empty_fields is true (default).
+                    // Required empty fields are always rendered to surface data integrity issues.
+                    if ( $is_empty && empty( $field['required'] ) && $hide_empty_fields ) {
                         continue;
                     }
 
@@ -80,15 +117,18 @@ $form_title = ! empty( $form_config['title'] ) ? $form_config['title'] : __( 'Ne
                         </td>
                         <td style="padding: 12px 0 12px 15px; border-bottom: 1px solid #eeeeee; vertical-align: top; color: #333333;">
                             <?php
-                            if ( $field['type'] === 'email' && $display_value !== '' ) {
+                            if ( $is_empty ) {
+                                // Consistent em-dash placeholder for any empty field that reaches the render stage.
+                                echo '<span style="color: #999999;">&mdash;</span>';
+                            } elseif ( $field['type'] === 'email' ) {
                                 echo '<a href="mailto:' . esc_attr( $display_value ) . '" style="color: #0073aa; text-decoration: none;">' . esc_html( $display_value ) . '</a>';
-                            } elseif ( $field['type'] === 'tel' && $display_value !== '' ) {
+                            } elseif ( $field['type'] === 'tel' ) {
                                 $tel_digits = preg_replace( '/[^0-9+]/', '', $display_value );
                                 echo '<a href="tel:' . esc_attr( $tel_digits ) . '" style="color: #0073aa; text-decoration: none;">' . esc_html( $display_value ) . '</a>';
                             } elseif ( $field['type'] === 'textarea' ) {
                                 echo nl2br( esc_html( $display_value ) );
                             } else {
-                                echo esc_html( $display_value !== '' ? $display_value : '-' );
+                                echo esc_html( $display_value );
                             }
                             ?>
                         </td>
