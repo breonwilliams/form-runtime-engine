@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.6.0] - 2026-05-01
+
+### Added
+- SMS conversation thread on entry detail admin page — chat-style UI showing auto-replies, customer responses, and delivery status indicators (delivered, sent, failed) for Twilio text-back entries
+- SMS messages array in connector API get_entry response — conversation data now accessible through the Claude connector without requiring browser access
+
+### Fixed
+- Email notification tracking for Twilio missed-call entries now correctly reports Sent/Failed status — previously always showed "Failed" because the Twilio handler's email dispatch bypassed entry notification tracking
+
 ## [1.5.0] - 2026-04-28
 
 ### Fixed
