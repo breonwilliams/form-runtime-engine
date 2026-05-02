@@ -901,7 +901,7 @@ class FRE_Connector_API {
         // Strip the internal meta key from the public fields payload.
         unset( $fields['_fre_form_version'] );
 
-        return array(
+        $response = array(
             'id'           => isset( $record['id'] ) ? (int) $record['id'] : 0,
             'form_id'      => $record['form_id'] ?? '',
             'status'       => $record['status'] ?? 'unread',
@@ -915,6 +915,51 @@ class FRE_Connector_API {
             'form_version' => $form_version,
             'files'        => isset( $record['files'] ) && is_array( $record['files'] ) ? $record['files'] : array(),
         );
+
+        // Attach SMS conversation thread when the Twilio messages table exists.
+        $entry_id = $response['id'];
+        if ( $entry_id > 0 ) {
+            $messages = $this->get_sms_messages( $entry_id );
+            if ( ! empty( $messages ) ) {
+                $response['messages'] = $messages;
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * Fetch SMS conversation messages for an entry.
+     *
+     * Returns an empty array when the Twilio module is inactive or the
+     * messages table does not exist — callers never need to guard.
+     *
+     * @param int $entry_id Entry ID.
+     * @return array Array of message objects (direction, body, status, created_at).
+     */
+    private function get_sms_messages( $entry_id ) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'fre_twilio_messages';
+
+        // Bail silently if the Twilio module's table doesn't exist.
+        $table_exists = $wpdb->get_var(
+            $wpdb->prepare( 'SHOW TABLES LIKE %s', $table )
+        );
+
+        if ( ! $table_exists ) {
+            return array();
+        }
+
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT direction, body, status, created_at FROM {$table} WHERE entry_id = %d ORDER BY created_at ASC",
+                $entry_id
+            ),
+            ARRAY_A
+        );
+
+        return is_array( $rows ) ? $rows : array();
     }
 
     // ---------------------------------------------------------------------

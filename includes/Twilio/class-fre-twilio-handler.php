@@ -573,7 +573,16 @@ class FRE_Twilio_Handler {
      * @param int    $entry_id     FRE entry ID.
      */
     private function send_email_notification( $client, $caller_phone, $entry_id ) {
+        $entry_repo = new FRE_Entry();
+
         if ( empty( $client['owner_email'] ) ) {
+            // No owner email configured — mark entry accordingly.
+            if ( $entry_id ) {
+                $entry_repo->update( $entry_id, array(
+                    'notification_sent'  => 0,
+                    'notification_error' => 'No owner email configured for Twilio client.',
+                ) );
+            }
             return;
         }
 
@@ -592,12 +601,29 @@ class FRE_Twilio_Handler {
             $client['client_name']
         );
 
-        wp_mail(
+        $sent = wp_mail(
             sanitize_email( $client['owner_email'] ),
             $subject,
             $message,
             array( 'Content-Type: text/plain; charset=UTF-8' )
         );
+
+        // Update the entry's notification tracking so the admin UI
+        // reflects the actual outcome of this email (not the form-level
+        // notification which is intentionally disabled for Twilio virtual forms).
+        if ( $entry_id ) {
+            if ( $sent ) {
+                $entry_repo->update( $entry_id, array(
+                    'notification_sent'    => 1,
+                    'notification_sent_at' => current_time( 'mysql' ),
+                ) );
+            } else {
+                $entry_repo->update( $entry_id, array(
+                    'notification_sent'  => 0,
+                    'notification_error' => 'wp_mail() returned false — check WP Mail SMTP configuration.',
+                ) );
+            }
+        }
     }
 
     /**

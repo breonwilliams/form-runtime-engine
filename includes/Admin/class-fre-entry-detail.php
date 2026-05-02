@@ -130,6 +130,8 @@ class FRE_Entry_Detail {
                                 </div>
                             </div>
                         <?php endif; ?>
+
+                        <?php $this->maybe_render_sms_thread(); ?>
                     </div>
 
                     <!-- Sidebar -->
@@ -369,6 +371,103 @@ class FRE_Entry_Detail {
             <button type="button" class="button button-link-delete fre-delete-entry" data-entry-id="<?php echo (int) $entry['id']; ?>" style="color:#b32d2e;">
                 <?php esc_html_e( 'Delete Entry', 'form-runtime-engine' ); ?>
             </button>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the SMS conversation thread for Twilio text-back entries.
+     *
+     * Checks whether this entry has associated SMS messages in the
+     * fre_twilio_messages table and renders them as a conversation
+     * thread. Only displays for entries that have SMS activity.
+     */
+    private function maybe_render_sms_thread() {
+        // Only attempt if the SMS sender class exists (Twilio module active).
+        if ( ! class_exists( 'FRE_SMS_Sender' ) && ! class_exists( 'FRE_Twilio_Client' ) ) {
+            return;
+        }
+
+        global $wpdb;
+        $messages_table = $wpdb->prefix . 'fre_twilio_messages';
+
+        // Check if the messages table exists before querying.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $table_exists = $wpdb->get_var(
+            $wpdb->prepare( 'SHOW TABLES LIKE %s', $messages_table )
+        );
+
+        if ( ! $table_exists ) {
+            return;
+        }
+
+        // Fetch messages for this entry.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $messages = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$messages_table} WHERE entry_id = %d ORDER BY created_at ASC",
+                $this->entry_id
+            ),
+            ARRAY_A
+        );
+
+        if ( empty( $messages ) ) {
+            return;
+        }
+
+        ?>
+        <div class="postbox">
+            <h2 class="hndle"><?php esc_html_e( 'SMS Conversation', 'form-runtime-engine' ); ?></h2>
+            <div class="inside">
+                <div class="fre-sms-thread" style="max-width:600px;">
+                    <?php foreach ( $messages as $msg ) : ?>
+                        <?php
+                        $is_outbound  = ( $msg['direction'] === 'outbound' );
+                        $align        = $is_outbound ? 'right' : 'left';
+                        $bg_color     = $is_outbound ? '#0073aa' : '#f0f0f1';
+                        $text_color   = $is_outbound ? '#ffffff' : '#1d2327';
+                        $border_radius = $is_outbound
+                            ? '12px 12px 2px 12px'
+                            : '12px 12px 12px 2px';
+                        $label        = $is_outbound
+                            ? __( 'Auto-reply', 'form-runtime-engine' )
+                            : __( 'Customer', 'form-runtime-engine' );
+                        $time         = date_i18n( 'M j, g:i a', strtotime( $msg['created_at'] ) );
+
+                        // Status indicator for outbound messages.
+                        $status_icon = '';
+                        if ( $is_outbound && ! empty( $msg['status'] ) ) {
+                            switch ( $msg['status'] ) {
+                                case 'delivered':
+                                    $status_icon = '<span style="color:#46b450;" title="' . esc_attr__( 'Delivered', 'form-runtime-engine' ) . '">&#10003;&#10003;</span>';
+                                    break;
+                                case 'sent':
+                                    $status_icon = '<span style="color:#999;" title="' . esc_attr__( 'Sent', 'form-runtime-engine' ) . '">&#10003;</span>';
+                                    break;
+                                case 'failed':
+                                case 'undelivered':
+                                    $status_icon = '<span style="color:#d63638;" title="' . esc_attr__( 'Failed', 'form-runtime-engine' ) . '">&#10007;</span>';
+                                    break;
+                            }
+                        }
+                        ?>
+                        <div style="text-align:<?php echo esc_attr( $align ); ?>;margin-bottom:12px;">
+                            <div style="display:inline-block;max-width:80%;text-align:left;background:<?php echo esc_attr( $bg_color ); ?>;color:<?php echo esc_attr( $text_color ); ?>;padding:10px 14px;border-radius:<?php echo esc_attr( $border_radius ); ?>;">
+                                <div style="font-size:13px;line-height:1.5;">
+                                    <?php echo esc_html( $msg['body'] ); ?>
+                                </div>
+                            </div>
+                            <div style="font-size:11px;color:#999;margin-top:3px;padding:0 4px;">
+                                <?php echo esc_html( $label ); ?> &middot; <?php echo esc_html( $time ); ?>
+                                <?php
+                                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- status_icon uses esc_attr internally.
+                                echo $status_icon ? ' ' . $status_icon : '';
+                                ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
         </div>
         <?php
     }
