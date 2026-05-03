@@ -492,6 +492,11 @@ class FRE_Submission_Handler {
 
             if ( is_wp_error( $result ) ) {
                 // Silent fail for bots - return success but don't store.
+                // Fix #4 follow-up: clear the idempotency transient so a
+                // genuine human whose submission was wrongly flagged as bot
+                // can retry without being wedged in 'processing' for 5 min.
+                $this->clear_idempotency_token_on_exit();
+
                 wp_send_json_success( array(
                     'success' => true,
                     'message' => $form_config['settings']['success_message'],
@@ -550,11 +555,28 @@ class FRE_Submission_Handler {
 
         if ( $this->entry_repo->is_duplicate( $form_id, $data_to_hash ) ) {
             // Return success to avoid revealing duplicate detection.
+            // Fix #4 follow-up: clear the idempotency transient so the
+            // user (who just sees "success") isn't told their next genuine
+            // submission attempt is "still being processed" for 5 min.
+            $this->clear_idempotency_token_on_exit();
+
             wp_send_json_success( array(
                 'success' => true,
                 'message' => $form_config['settings']['success_message'],
             ) );
         }
+
+        // Fix #11 follow-up: is_duplicate() returned false, so THIS submission
+        // now owns the 60-second dedup window for this data hash. If a
+        // downstream step (validation, file upload, fatal exception) fails
+        // before the entry is stored, the dedup record stays in wp_options
+        // and silently rejects every retry within the next 60 seconds —
+        // even after the user fixes the underlying problem. Track the key
+        // here so the failure-exit path (clear_duplicate_token_on_exit()) can
+        // remove it. Hash computation must mirror FRE_Entry::is_duplicate()
+        // exactly so we delete the same row.
+        $hash                          = hash( 'sha256', $form_id . wp_json_encode( $data_to_hash ) );
+        $this->current_duplicate_key   = 'fre_submission_' . $hash;
     }
 
     /**
@@ -662,10 +684,18 @@ class FRE_Submission_Handler {
     /**
      * Send error response.
      *
+     * Clears both the idempotency token (Fix #4 follow-up) and the
+     * duplicate-detection token (Fix #11 follow-up) before responding
+     * so the next retry isn't silently rejected by stale transients
+     * from this aborted attempt.
+     *
      * @param string $code    Error code.
      * @param string $message Error message.
      */
     private function send_error( $code, $message ) {
+        $this->clear_idempotency_token_on_exit();
+        $this->clear_duplicate_token_on_exit();
+
         wp_send_json_error( array(
             'code'    => $code,
             'message' => $message,
@@ -675,9 +705,19 @@ class FRE_Submission_Handler {
     /**
      * Send validation error response.
      *
+     * Clears both the idempotency token (Fix #4 follow-up) and the
+     * duplicate-detection token (Fix #11 follow-up) before responding
+     * so the user can fix field errors and resubmit immediately —
+     * without being told the submission is "still processing" for 5
+     * minutes, and without their corrected resubmit being silently
+     * rejected as a duplicate of the original failed attempt.
+     *
      * @param WP_Error $error Validation error.
      */
     private function send_validation_error( WP_Error $error ) {
+        $this->clear_idempotency_token_on_exit();
+        $this->clear_duplicate_token_on_exit();
+
         $data = $error->get_error_data();
 
         wp_send_json_error( array(
@@ -685,6 +725,71 @@ class FRE_Submission_Handler {
             'message'      => $error->get_error_message(),
             'field_errors' => isset( $data['field_errors'] ) ? $data['field_errors'] : array(),
         ) );
+    }
+
+    /**
+     * Clear the in-progress idempotency transient on a non-success exit.
+     *
+     * Companion to set_transient() in check_idempotency_token() and
+     * store_idempotency_response(). The original Fix #4 implementation
+     * marked the token 'processing' at the start of handle_submission()
+     * and only updated it to 'completed' on the success path — leaving
+     * any failure (validation, spam check, file upload error, fatal
+     * exception) to leave the transient stuck in 'processing' for its
+     * full 5-minute lifetime. Subsequent retries from the same form
+     * load (which intentionally reuse the same submission UUID) would
+     * then hit the 'processing' branch and get the
+     * "Your submission is being processed. Please wait." response —
+     * effectively locking a real user out of resubmitting after any
+     * recoverable error.
+     *
+     * Calling this on the error/silent-success exits restores the
+     * intended behavior: the original Fix #4 idempotency contract is
+     * preserved on success (cached response returned for retries) and
+     * the user can immediately retry after a recoverable failure.
+     *
+     * Safe to call multiple times — idempotent itself. No-op when the
+     * idempotency check never ran (e.g., early nonce failure) because
+     * current_idempotency_key is only populated after the transient
+     * has actually been set.
+     */
+    private function clear_idempotency_token_on_exit() {
+        if ( ! empty( $this->current_idempotency_key ) ) {
+            delete_transient( $this->current_idempotency_key );
+            $this->current_idempotency_key = '';
+        }
+    }
+
+    /**
+     * Clear the in-progress duplicate-detection transient on a non-success exit.
+     *
+     * Companion to FRE_Entry::is_duplicate(), which inserts a 60-second
+     * transient keyed on the submission data hash to silently reject
+     * accidental double-submits. The original Fix #11 implementation
+     * created the transient but only "completed" it implicitly through
+     * the natural lifecycle of the entry — leaving any failure
+     * (validation, file upload, fatal exception) to leave the dedup
+     * record in wp_options for its full 60-second lifetime. The next
+     * retry from the same form (same $_POST hash) would then hit the
+     * "duplicate" branch, get a silent-success response, and never
+     * actually create an entry or fire the webhook — leaving the user
+     * with no visible indication that their genuine retry was dropped.
+     *
+     * Calling this on the error/silent-success exits restores the
+     * intended behavior: the dedup window only persists when an entry
+     * actually exists, so retries after a recoverable failure go
+     * through immediately.
+     *
+     * Safe to call multiple times — idempotent itself. No-op when
+     * check_duplicate_submission() never ran or when is_duplicate()
+     * returned true (in which case THIS request didn't own the
+     * transient and must not delete someone else's dedup window).
+     */
+    private function clear_duplicate_token_on_exit() {
+        if ( ! empty( $this->current_duplicate_key ) ) {
+            delete_transient( $this->current_duplicate_key );
+            $this->current_duplicate_key = '';
+        }
     }
 
     /**
@@ -762,6 +867,21 @@ class FRE_Submission_Handler {
      * @var string
      */
     private $current_idempotency_key = '';
+
+    /**
+     * Current duplicate-detection transient key owned by this request.
+     *
+     * Set by check_duplicate_submission() after is_duplicate() returns
+     * false (this request "owns" the 60-second window). Cleared by
+     * clear_duplicate_token_on_exit() on any non-success exit path so
+     * the user can retry immediately after fixing a recoverable error
+     * instead of being silently stonewalled for the rest of the window.
+     * Empty string when this request never reached the dedup check
+     * (e.g., early nonce / honeypot failure).
+     *
+     * @var string
+     */
+    private $current_duplicate_key = '';
 
     /**
      * Log form configuration error with details (Fix #16).
