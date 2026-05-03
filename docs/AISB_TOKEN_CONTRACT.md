@@ -4,7 +4,7 @@
 **Consumer:** Form Runtime Engine
 **Producer:** Promptless WP plugin (AI Section Builder Modern)
 **Minimum compatible producer version:** Promptless WP `1.2.x`
-**Last reconciled against source:** v1.2.5 of this plugin against Promptless WP v1.2.2
+**Last reconciled against source:** v1.2.5 of this plugin against Promptless WP v1.2.9 (added smart surface border tokens)
 
 ---
 
@@ -77,14 +77,16 @@ Used when the form is placed inside `.aisb-section--dark` or when `theme_variant
 
 ### Smart-Color Chain (`--aisb-smart-*`)
 
-Promptless WP calculates these WCAG-compliant values from the primary color and surface context. Form Runtime Engine uses them for ghost/secondary buttons so contrast remains correct against any brand color.
+Promptless WP calculates these WCAG-compliant values from the primary color and surface context. Form Runtime Engine uses them for ghost/secondary buttons and form field borders so contrast remains correct against any brand color.
 
 | Token | Purpose | Fallback |
 |-------|---------|----------|
 | `--aisb-smart-light-ghost-button` | Ghost button color on light surfaces | `var(--aisb-smart-light-section-link, var(--fre-primary-color))` |
 | `--aisb-smart-light-section-link` | Intermediate fallback in the chain | `var(--fre-primary-color)` |
+| `--aisb-smart-light-surface-border` | Form field border on light surfaces (3.0:1 contrast) | `var(--aisb-color-border, #e5e7eb)` |
 | `--aisb-smart-dark-ghost-button` | Ghost button color on dark surfaces | `var(--aisb-smart-dark-section-link, var(--fre-primary-color))` |
 | `--aisb-smart-dark-section-link` | Intermediate fallback in the chain | `var(--fre-primary-color)` |
+| `--aisb-smart-dark-surface-border` | Form field border on dark surfaces (3.0:1 contrast) | `var(--aisb-color-dark-border, #4b5563)` |
 
 ### Typography (`--aisb-section-font-*`)
 

@@ -29,7 +29,7 @@
     --fre-text-muted: var(--aisb-color-text-muted, #6b7280);
     --fre-background-color: var(--aisb-color-background, #ffffff);
     --fre-surface-color: var(--aisb-color-surface, #f9fafb);
-    --fre-border-color: var(--aisb-color-border, #e5e7eb);
+    --fre-border-color: var(--aisb-smart-light-surface-border, var(--aisb-color-border, #e5e7eb));
 
     /* Semantic colors */
     --fre-error-color: var(--aisb-color-error, #ef4444);
@@ -91,7 +91,7 @@
     --fre-text-muted: var(--aisb-color-dark-text-muted, #9ca3af);
     --fre-background-color: var(--aisb-color-dark-background, #1a1a1a);
     --fre-surface-color: var(--aisb-color-dark-surface, #2a2a2a);
-    --fre-border-color: var(--aisb-color-dark-border, #4b5563);
+    --fre-border-color: var(--aisb-smart-dark-surface-border, var(--aisb-color-dark-border, #4b5563));
 
     /* Ghost button in dark mode */
     --fre-ghost-color: var(--aisb-smart-dark-ghost-button, var(--aisb-smart-dark-section-link, var(--fre-primary-color)));
@@ -99,6 +99,14 @@
 
 /* ==========================================================================
    Form Container
+   ========================================================================== */
+
+/* ==========================================================================
+   Alignment Isolation
+
+   Forms must always render with left-aligned content, regardless of parent
+   section's text-align inheritance. This prevents form labels, inputs, and
+   checkbox/radio options from being centered when placed in centered sections.
    ========================================================================== */
 
 .fre-form {
@@ -109,6 +117,32 @@
     max-width: 100%;
     container-type: inline-size;
     container-name: fre-form;
+    text-align: left;
+}
+
+.fre-field__label,
+.fre-field__legend,
+.fre-field__description,
+.fre-field__error,
+.fre-field__checkbox-label,
+.fre-field__radio-label,
+.fre-field__checkbox-text,
+.fre-field__radio-text,
+.fre-section__title,
+.fre-section__description,
+.fre-step__title,
+.fre-progress__label {
+    text-align: left;
+}
+
+.fre-field__input,
+.fre-field__textarea,
+.fre-field__select {
+    text-align: left;
+}
+
+.fre-field__fieldset {
+    text-align: left;
 }
 
 .fre-form__title {
