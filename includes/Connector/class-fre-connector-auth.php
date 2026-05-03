@@ -49,6 +49,7 @@ class FRE_Connector_Auth {
         'delete_form'        => 5,
         'list_entries'       => 60,
         'get_entry'          => 60,
+        'delete_entry'       => 5,
         'submit_dry_run'     => 30,
         'submit_live'        => 5,
     );

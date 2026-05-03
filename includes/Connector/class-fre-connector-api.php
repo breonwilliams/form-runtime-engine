@@ -299,6 +299,17 @@ class FRE_Connector_API {
                 'permission_callback' => FRE_Connector_Auth::build_callback( 'get_entry', true ),
             )
         );
+
+        // 9.9 Delete entry.
+        register_rest_route(
+            $ns,
+            "/{$base}/entries/(?P<entry_id>\d+)",
+            array(
+                'methods'             => WP_REST_Server::DELETABLE,
+                'callback'            => array( $this, 'handle_delete_entry' ),
+                'permission_callback' => FRE_Connector_Auth::build_callback( 'delete_entry', true ),
+            )
+        );
     }
 
     // ---------------------------------------------------------------------
@@ -852,6 +863,69 @@ class FRE_Connector_API {
         }
 
         return $this->success( $this->build_entry_response( $record ) );
+    }
+
+    /**
+     * DELETE /entries/{entry_id} — delete an entry and its associated files.
+     *
+     * Performs a full cascade delete: uploaded files on disk, file records,
+     * entry metadata, SMS messages (if Twilio module active), and the entry
+     * row itself. This is the same cleanup path used by the admin "Delete
+     * Entry" button.
+     *
+     * @param WP_REST_Request $request REST request.
+     * @return WP_REST_Response|WP_Error
+     */
+    public function handle_delete_entry( $request ) {
+        $entry_id = (int) $request->get_param( 'entry_id' );
+        $repo     = new FRE_Entry();
+        $record   = $repo->get( $entry_id );
+
+        if ( null === $record ) {
+            return new WP_Error(
+                'entry_not_found',
+                sprintf(
+                    /* translators: %d: entry ID */
+                    __( 'Entry %d not found.', 'form-runtime-engine' ),
+                    $entry_id
+                ),
+                array( 'status' => 404 )
+            );
+        }
+
+        $deleted = $repo->delete( $entry_id );
+
+        if ( ! $deleted ) {
+            return new WP_Error(
+                'delete_failed',
+                sprintf(
+                    /* translators: %d: entry ID */
+                    __( 'Failed to delete entry %d.', 'form-runtime-engine' ),
+                    $entry_id
+                ),
+                array( 'status' => 500 )
+            );
+        }
+
+        // Clean up SMS messages if the Twilio messages table exists.
+        global $wpdb;
+        $messages_table = $wpdb->prefix . 'fre_twilio_messages';
+        $table_exists   = $wpdb->get_var(
+            $wpdb->prepare( 'SHOW TABLES LIKE %s', $messages_table )
+        );
+        if ( $table_exists ) {
+            $wpdb->delete( $messages_table, array( 'entry_id' => $entry_id ), array( '%d' ) );
+        }
+
+        return $this->success( array(
+            'entry_id' => $entry_id,
+            'form_id'  => $record['form_id'] ?? '',
+            'message'  => sprintf(
+                /* translators: %d: entry ID */
+                __( 'Entry %d and all associated files have been deleted.', 'form-runtime-engine' ),
+                $entry_id
+            ),
+        ) );
     }
 
     // ---------------------------------------------------------------------

@@ -212,6 +212,18 @@ const TOOLS = [
     },
   },
   {
+    name: "formengine_delete_entry",
+    description:
+      "Delete an entry and all associated data (uploaded files on disk, file records, metadata, SMS messages). Performs a full cascade delete — the same cleanup path used by the admin Delete Entry button. Requires entry-read access to be enabled. Returns the deleted entry_id and form_id on success. Rate-limited to 5 requests per minute.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        entry_id: { type: "integer" },
+      },
+      required: ["entry_id"],
+    },
+  },
+  {
     name: "formengine_test_submit",
     description:
       "Submit a form programmatically for testing. Primary use: validate end-to-end that a form works — validation rules, webhook dispatch, notifications — before handing off to a client. The 'data' argument is a map of FIELD KEY (clean, no fre_field_ prefix) → value. Use options.dry_run=true to run validation only and return what would have been stored, without writing to the database or firing any side effects. Use options.skip_notifications=true to write a real entry (for downstream webhook testing) but suppress the email notification.",
@@ -438,6 +450,12 @@ async function handleTool(name, args) {
     case "formengine_get_entry":
       return await makeRequest(
         "GET",
+        `/entries/${encodeURIComponent(args.entry_id)}`
+      );
+
+    case "formengine_delete_entry":
+      return await makeRequest(
+        "DELETE",
         `/entries/${encodeURIComponent(args.entry_id)}`
       );
 
