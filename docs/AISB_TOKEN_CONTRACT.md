@@ -4,7 +4,7 @@
 **Consumer:** Form Runtime Engine
 **Producer:** Promptless WP plugin (AI Section Builder Modern)
 **Minimum compatible producer version:** Promptless WP `1.2.x`
-**Last reconciled against source:** v1.2.5 of this plugin against Promptless WP v1.2.9 (added smart surface border tokens)
+**Last reconciled against source:** v1.2.5 of this plugin against Promptless WP v1.2.9 (added smart surface muted text tokens)
 
 ---
 
@@ -84,9 +84,11 @@ Promptless WP calculates these WCAG-compliant values from the primary color and 
 | `--aisb-smart-light-ghost-button` | Ghost button color on light surfaces | `var(--aisb-smart-light-section-link, var(--fre-primary-color))` |
 | `--aisb-smart-light-section-link` | Intermediate fallback in the chain | `var(--fre-primary-color)` |
 | `--aisb-smart-light-surface-border` | Form field border on light surfaces (3.0:1 contrast) | `var(--aisb-color-border, #e5e7eb)` |
+| `--aisb-smart-light-surface-muted` | Muted text on light surfaces (4.5:1 contrast) | `var(--aisb-color-text-muted, #6b7280)` |
 | `--aisb-smart-dark-ghost-button` | Ghost button color on dark surfaces | `var(--aisb-smart-dark-section-link, var(--fre-primary-color))` |
 | `--aisb-smart-dark-section-link` | Intermediate fallback in the chain | `var(--fre-primary-color)` |
 | `--aisb-smart-dark-surface-border` | Form field border on dark surfaces (3.0:1 contrast) | `var(--aisb-color-dark-border, #4b5563)` |
+| `--aisb-smart-dark-surface-muted` | Muted text on dark surfaces (4.5:1 contrast) | `var(--aisb-color-dark-text-muted, #9ca3af)` |
 
 ### Typography (`--aisb-section-font-*`)
 

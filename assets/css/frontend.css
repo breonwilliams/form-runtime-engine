@@ -26,7 +26,7 @@
     --fre-primary-color: var(--aisb-color-primary, #6366f1);
     --fre-primary-hover: var(--aisb-button-primary-hover-bg, #4f46e5);
     --fre-text-color: var(--aisb-color-text, #1f2937);
-    --fre-text-muted: var(--aisb-color-text-muted, #6b7280);
+    --fre-text-muted: var(--aisb-smart-light-surface-muted, var(--aisb-color-text-muted, #6b7280));
     --fre-background-color: var(--aisb-color-background, #ffffff);
     --fre-surface-color: var(--aisb-color-surface, #f9fafb);
     --fre-border-color: var(--aisb-smart-light-surface-border, var(--aisb-color-border, #e5e7eb));
@@ -88,13 +88,196 @@
 .aisb-section--dark .fre-form,
 .fre-form--dark {
     --fre-text-color: var(--aisb-color-dark-text, #fafafa);
-    --fre-text-muted: var(--aisb-color-dark-text-muted, #9ca3af);
+    --fre-text-muted: var(--aisb-smart-dark-surface-muted, var(--aisb-color-dark-text-muted, #9ca3af));
     --fre-background-color: var(--aisb-color-dark-background, #1a1a1a);
     --fre-surface-color: var(--aisb-color-dark-surface, #2a2a2a);
     --fre-border-color: var(--aisb-smart-dark-surface-border, var(--aisb-color-dark-border, #4b5563));
 
     /* Ghost button in dark mode */
     --fre-ghost-color: var(--aisb-smart-dark-ghost-button, var(--aisb-smart-dark-section-link, var(--fre-primary-color)));
+}
+
+/* ==========================================================================
+   Message Dark Mode Support
+
+   Message alerts need explicit dark mode variants since their backgrounds
+   and text colors are semantic (success=green, error=red, etc.) and must
+   remain recognizable while being accessible in dark contexts.
+   ========================================================================== */
+
+.aisb-section--dark .fre-form__message--success,
+.fre-form--dark .fre-form__message--success {
+    background-color: #1e3a2f;
+    border-color: #2d5a45;
+    color: #a7f3d0;
+}
+
+.aisb-section--dark .fre-form__message--error,
+.fre-form--dark .fre-form__message--error {
+    background-color: #3b1c1c;
+    border-color: #5c2828;
+    color: #fca5a5;
+}
+
+.aisb-section--dark .fre-field--message-info,
+.fre-form--dark .fre-field--message-info {
+    background-color: #1e3a4c;
+    border-color: #2d5a70;
+    color: #a5d8f3;
+}
+
+.aisb-section--dark .fre-field--message-warning,
+.fre-form--dark .fre-field--message-warning {
+    background-color: #3d3215;
+    border-color: #5c4a1f;
+    color: #fcd34d;
+}
+
+.aisb-section--dark .fre-field--message-success,
+.fre-form--dark .fre-field--message-success {
+    background-color: #1e3a2f;
+    border-color: #2d5a45;
+    color: #a7f3d0;
+}
+
+.aisb-section--dark .fre-field--message-error,
+.fre-form--dark .fre-field--message-error {
+    background-color: #3b1c1c;
+    border-color: #5c2828;
+    color: #fca5a5;
+}
+
+.aisb-section--dark .fre-form-error,
+.fre-form--dark .fre-form-error {
+    background-color: #3d3215;
+    border-color: #5c4a1f;
+    color: #fcd34d;
+}
+
+.aisb-section--dark .fre-field__warning,
+.fre-form--dark .fre-field__warning {
+    background-color: #3d3215;
+    border-color: #5c4a1f;
+    color: #fcd34d;
+}
+
+/* ==========================================================================
+   Message Link Styling
+
+   Links inside messages need explicit colors to ensure accessibility.
+   Each message type has link colors that provide 4.5:1 contrast ratio
+   against both light and dark mode backgrounds.
+   ========================================================================== */
+
+/* Light mode message links */
+.fre-form__message--success a,
+.fre-field--message-success a {
+    color: #0d5030;
+    text-decoration: underline;
+}
+.fre-form__message--success a:hover,
+.fre-field--message-success a:hover {
+    color: #083d24;
+}
+
+.fre-form__message--error a,
+.fre-field--message-error a {
+    color: #5c1a1a;
+    text-decoration: underline;
+}
+.fre-form__message--error a:hover,
+.fre-field--message-error a:hover {
+    color: #3d1111;
+}
+
+.fre-field--message-info a {
+    color: #084050;
+    text-decoration: underline;
+}
+.fre-field--message-info a:hover {
+    color: #052d38;
+}
+
+.fre-field--message-warning a,
+.fre-form-error a,
+.fre-field__warning a {
+    color: #6b5003;
+    text-decoration: underline;
+}
+.fre-field--message-warning a:hover,
+.fre-form-error a:hover,
+.fre-field__warning a:hover {
+    color: #4d3a02;
+}
+
+/* Dark mode message links */
+.aisb-section--dark .fre-form__message--success a,
+.aisb-section--dark .fre-field--message-success a,
+.fre-form--dark .fre-form__message--success a,
+.fre-form--dark .fre-field--message-success a {
+    color: #6ee7b7;
+}
+.aisb-section--dark .fre-form__message--success a:hover,
+.aisb-section--dark .fre-field--message-success a:hover,
+.fre-form--dark .fre-form__message--success a:hover,
+.fre-form--dark .fre-field--message-success a:hover {
+    color: #a7f3d0;
+}
+
+.aisb-section--dark .fre-form__message--error a,
+.aisb-section--dark .fre-field--message-error a,
+.fre-form--dark .fre-form__message--error a,
+.fre-form--dark .fre-field--message-error a {
+    color: #f87171;
+}
+.aisb-section--dark .fre-form__message--error a:hover,
+.aisb-section--dark .fre-field--message-error a:hover,
+.fre-form--dark .fre-form__message--error a:hover,
+.fre-form--dark .fre-field--message-error a:hover {
+    color: #fca5a5;
+}
+
+.aisb-section--dark .fre-field--message-info a,
+.fre-form--dark .fre-field--message-info a {
+    color: #7dd3fc;
+}
+.aisb-section--dark .fre-field--message-info a:hover,
+.fre-form--dark .fre-field--message-info a:hover {
+    color: #a5d8f3;
+}
+
+.aisb-section--dark .fre-field--message-warning a,
+.aisb-section--dark .fre-form-error a,
+.aisb-section--dark .fre-field__warning a,
+.fre-form--dark .fre-field--message-warning a,
+.fre-form--dark .fre-form-error a,
+.fre-form--dark .fre-field__warning a {
+    color: #fbbf24;
+}
+.aisb-section--dark .fre-field--message-warning a:hover,
+.aisb-section--dark .fre-form-error a:hover,
+.aisb-section--dark .fre-field__warning a:hover,
+.fre-form--dark .fre-field--message-warning a:hover,
+.fre-form--dark .fre-form-error a:hover,
+.fre-form--dark .fre-field__warning a:hover {
+    color: #fcd34d;
+}
+
+/* ==========================================================================
+   Primary-as-Text Dark Mode Support
+
+   Elements that use the primary color as text need dark mode variants
+   to ensure WCAG contrast compliance.
+   ========================================================================== */
+
+.aisb-section--dark .fre-progress__step--active .fre-progress__label,
+.fre-form--dark .fre-progress__step--active .fre-progress__label {
+    color: var(--aisb-smart-dark-section-link, var(--fre-primary-color));
+}
+
+.aisb-section--dark .fre-progress__current,
+.fre-form--dark .fre-progress__current {
+    color: var(--aisb-smart-dark-section-link, var(--fre-primary-color));
 }
 
 /* ==========================================================================
@@ -707,7 +890,7 @@
 }
 
 .fre-progress__step--active .fre-progress__label {
-    color: var(--fre-primary-color);
+    color: var(--aisb-smart-light-section-link, var(--fre-primary-color));
     font-weight: 500;
 }
 
@@ -784,7 +967,7 @@
 
 .fre-progress__current {
     font-weight: 600;
-    color: var(--fre-primary-color);
+    color: var(--aisb-smart-light-section-link, var(--fre-primary-color));
 }
 
 /* Bar container for adaptive progress switching */
@@ -958,7 +1141,7 @@ body.aisb-hover-none .fre-btn--primary:hover:not(:disabled) {
 
 .fre-progress__step--error .fre-progress__number {
     background-color: var(--fre-error-color);
-    color: #fff;
+    color: var(--fre-button-text, #fff);
 }
 
 /* ==========================================================================
