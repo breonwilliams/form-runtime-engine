@@ -89,20 +89,70 @@ class FRE_Twilio_Admin {
      *
      * Encrypts sensitive credentials.
      *
+     * Wave 1 audit fix (item I1): when encrypt_value() reports an
+     * error (typically because the openssl extension is unavailable
+     * on this host), refuse to save the credential and surface the
+     * reason via add_settings_error so the admin sees an actionable
+     * message instead of silently storing an unprotected value.
+     * Existing stored credentials are preserved unchanged.
+     *
      * @param array $input Raw input values.
-     * @return array Sanitized values.
+     * @return array Sanitized values, with failed-encryption fields
+     *               omitted (preserving any prior stored value).
      */
     public function sanitize_settings( $input ) {
         $sanitized = array();
+        $existing  = (array) get_option( 'fre_twilio_settings', array() );
 
-        if ( isset( $input['account_sid'] ) ) {
-            $sid = sanitize_text_field( $input['account_sid'] );
-            $sanitized['account_sid'] = FRE_Twilio_Client::encrypt_value( $sid );
-        }
+        // Map of input field → admin-message verb, kept in one place so
+        // the per-field handlers below stay parallel.
+        $secret_fields = array(
+            'account_sid' => __( 'Account SID', 'form-runtime-engine' ),
+            'auth_token'  => __( 'Auth Token', 'form-runtime-engine' ),
+        );
 
-        if ( isset( $input['auth_token'] ) ) {
-            $token = sanitize_text_field( $input['auth_token'] );
-            $sanitized['auth_token'] = FRE_Twilio_Client::encrypt_value( $token );
+        foreach ( $secret_fields as $field => $label ) {
+            if ( ! isset( $input[ $field ] ) ) {
+                continue;
+            }
+
+            $raw = sanitize_text_field( $input[ $field ] );
+
+            // Empty submission means "leave as-is" — don't overwrite a
+            // previously-saved credential with an empty value.
+            if ( $raw === '' ) {
+                if ( isset( $existing[ $field ] ) ) {
+                    $sanitized[ $field ] = $existing[ $field ];
+                }
+                continue;
+            }
+
+            $encrypted = FRE_Twilio_Client::encrypt_value( $raw );
+
+            if ( is_wp_error( $encrypted ) ) {
+                // Surface the error to the admin and PRESERVE any
+                // previously-stored value rather than overwriting with
+                // garbage. settings_errors() will render this on the
+                // next admin page load.
+                add_settings_error(
+                    'fre_twilio_settings',
+                    $encrypted->get_error_code(),
+                    sprintf(
+                        /* translators: 1: field label, 2: error message */
+                        __( 'Twilio %1$s was not saved: %2$s', 'form-runtime-engine' ),
+                        $label,
+                        $encrypted->get_error_message()
+                    ),
+                    'error'
+                );
+
+                if ( isset( $existing[ $field ] ) ) {
+                    $sanitized[ $field ] = $existing[ $field ];
+                }
+                continue;
+            }
+
+            $sanitized[ $field ] = $encrypted;
         }
 
         return $sanitized;

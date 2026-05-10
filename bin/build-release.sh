@@ -30,6 +30,42 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
+# Pre-flight: AISB token contract check.
+#
+# Verifies every `var(--aisb-X)` reference in shipped CSS includes a
+# fallback (`var(--aisb-X, fallback)`). Without fallbacks, the plugin
+# silently degrades when the Promptless WP plugin is inactive — forms
+# render with transparent / browser-default values instead of a
+# documented sane default. This was flagged as Important #2 in
+# FORM_RUNTIME_AUDIT.md and the plugin is currently clean. This guard
+# prevents future CSS additions from regressing it silently.
+echo "Checking AISB token fallback discipline..."
+if python3 -c "
+import re, sys, glob
+gaps = []
+for path in glob.glob('assets/css/*.css'):
+    if path.endswith('.min.css'):
+        continue
+    text = open(path).read()
+    for m in re.finditer(r'var\\s*\\(\\s*(--aisb-[A-Za-z0-9_-]+)\\s*([,)])', text):
+        if m.group(2) == ')':
+            ln = text[:m.start()].count(chr(10)) + 1
+            gaps.append(f'  {path}:{ln}  var({m.group(1)})')
+if gaps:
+    print('AISB token contract violation — bare var() calls without fallback:')
+    print(chr(10).join(gaps))
+    print()
+    print('Fix: change var(--aisb-X) to var(--aisb-X, sensible-default).')
+    print('See docs/AISB_TOKEN_CONTRACT.md for documented fallbacks.')
+    sys.exit(1)
+"; then
+    echo "  ✓ All var(--aisb-*) calls have fallbacks"
+else
+    echo ""
+    echo "Build aborted: fix the violations above before releasing."
+    exit 1
+fi
+
 echo "Building ${PLUGIN_SLUG} v${VERSION}..."
 
 # Clean previous build.

@@ -242,7 +242,14 @@ class FRE_Mime_Validator {
         if ( function_exists( 'finfo_open' ) ) {
             $finfo = finfo_open( FILEINFO_MIME_TYPE );
             $mime  = finfo_file( $finfo, $file_path );
-            finfo_close( $finfo );
+            // Note: finfo_close() was historically called here but was
+            // deprecated in PHP 8.5 — finfo objects are freed
+            // automatically when they go out of scope (which happens
+            // immediately after this block since $finfo is local).
+            // Skipping the explicit close keeps the code forward-
+            // compatible with PHP 9 and silent on PHP 8.5+, while
+            // still working correctly on PHP 7.4 / 8.0–8.4.
+            unset( $finfo );
 
             if ( $mime ) {
                 return $mime;
