@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.6.2] - 2026-05-11
+
+### Fixed
+- Webhook test action staleness — tests were exercising the wrong production path
+- Plugin Check errors resolved
+
+### Added
+- Release documentation (`RELEASE.md`) — canonical release procedure at plugin root
+
 ## [1.6.1] - 2026-05-05
 
 ### Fixed
