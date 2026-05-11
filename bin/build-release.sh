@@ -73,6 +73,18 @@ rm -rf "${BUILD_DIR}"
 mkdir -p "${TEMP_DIR}"
 
 # Copy production files (exclude dev/test files).
+#
+# The exclude list intentionally drops:
+#   - VCS / IDE state (.git, .github, .claude, .gitignore)
+#   - Lint / test config (.phpcs.xml, .phpunit.xml, composer.lock)
+#   - Build & test artifacts (build/, release/, *.zip, .phpunit.result.cache, *.log)
+#   - The build script itself (we don't ship the script that builds the ZIP)
+#   - Source-only dirs (node_modules, vendor, tests)
+#   - OS junk (.DS_Store, Thumbs.db)
+#
+# Plugin Check (the WordPress.org compliance tool) flags ZIPs, hidden files,
+# and shell scripts that ship inside a plugin — the additions below keep the
+# deployed plugin folder clean of build/dev pollution.
 rsync -av --exclude-from=- . "${TEMP_DIR}/" <<'EXCLUDE'
 .git
 .github
@@ -80,6 +92,7 @@ rsync -av --exclude-from=- . "${TEMP_DIR}/" <<'EXCLUDE'
 .gitignore
 .phpcs.xml
 .phpunit.xml
+.phpunit.result.cache
 phpunit.xml
 phpunit.xml.dist
 composer.lock
@@ -87,7 +100,10 @@ node_modules
 vendor
 tests
 bin/install-wp-tests.sh
+bin/build-release.sh
 build
+release
+*.zip
 *.log
 .DS_Store
 Thumbs.db

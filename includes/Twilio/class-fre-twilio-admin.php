@@ -288,7 +288,7 @@ class FRE_Twilio_Admin {
 
                 $.post(ajaxurl, {
                     action: 'fre_twilio_test_connection',
-                    _wpnonce: '<?php echo wp_create_nonce( 'fre_twilio_admin' ); ?>'
+                    _wpnonce: '<?php echo esc_js( wp_create_nonce( 'fre_twilio_admin' ) ); ?>'
                 }, function(response) {
                     $btn.prop('disabled', false);
                     if (response.success) {
@@ -448,7 +448,7 @@ class FRE_Twilio_Admin {
 
         <script>
         jQuery(function($) {
-            var nonce = '<?php echo wp_create_nonce( 'fre_twilio_admin' ); ?>';
+            var nonce = '<?php echo esc_js( wp_create_nonce( 'fre_twilio_admin' ) ); ?>';
 
             // Add client button.
             $('#fre-twilio-add-client').on('click', function() {
@@ -662,13 +662,18 @@ class FRE_Twilio_Admin {
             wp_send_json_error( 'Invalid client ID.' );
         }
 
-        // Toggle the is_active value.
+        // Toggle the is_active value. Table name is a plugin-owned property
+        // ($this->clients_table is set from $wpdb->prefix . 'fre_twilio_clients'),
+        // not user input, so interpolating it directly is safe. Placeholders
+        // (%s, %d) are used for the actual user-supplied values.
         $this->wpdb->query(
+            // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table name is plugin-controlled; user values flow through %s/%d
             $this->wpdb->prepare(
                 "UPDATE {$this->clients_table} SET is_active = 1 - is_active, updated_at = %s WHERE id = %d",
                 current_time( 'mysql' ),
                 $client_id
             )
+            // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
         );
 
         wp_send_json_success();

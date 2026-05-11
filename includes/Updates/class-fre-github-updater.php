@@ -5,7 +5,17 @@
  * Checks GitHub releases for plugin updates and integrates with
  * WordPress's built-in update system.
  *
+ * Distribution model: this plugin is self-hosted via GitHub Releases, not
+ * the WordPress.org plugin directory. The Plugin Check (PCP) tool flags
+ * plugin-provided updaters as a violation because WordPress.org provides
+ * its own update mechanism for hosted plugins — but that rule does not
+ * apply to plugins distributed outside WP.org. The phpcs:ignoreFile
+ * directive below silences PCP for this file only; the rest of the plugin
+ * still runs through every other rule.
+ *
  * @package FormRuntimeEngine
+ *
+ * phpcs:ignoreFile PluginCheck.CodeAnalysis.PluginUpdater.plugin_updater_detected
  */
 
 // Prevent direct access.

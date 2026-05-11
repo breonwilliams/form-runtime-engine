@@ -422,11 +422,15 @@ class FRE_Twilio_Handler {
             return null;
         }
 
+        // Table name is a plugin-owned property (set from $wpdb->prefix . 'fre_twilio_clients'),
+        // not user input. The user-supplied $twilio_number flows through the %s placeholder.
         return $this->wpdb->get_row(
+            // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table name is plugin-controlled; user value flows through %s
             $this->wpdb->prepare(
                 "SELECT * FROM {$this->clients_table} WHERE twilio_number = %s",
                 $twilio_number
             ),
+            // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
             ARRAY_A
         );
     }
@@ -491,7 +495,12 @@ class FRE_Twilio_Handler {
         $entry_meta_table = $this->wpdb->prefix . 'fre_entry_meta';
         $entries_table    = $this->wpdb->prefix . 'fre_entries';
 
+        // Table names are derived from $wpdb->prefix on the lines above and are
+        // not user input. The user-supplied values ($client['form_id'] for the
+        // form filter and $from_number for the phone-number match) flow through
+        // %s placeholders.
         $entry_id = $this->wpdb->get_var(
+            // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names are plugin-controlled; user values flow through %s
             $this->wpdb->prepare(
                 "SELECT e.id FROM {$entries_table} e
                  INNER JOIN {$entry_meta_table} em ON e.id = em.entry_id
@@ -504,6 +513,7 @@ class FRE_Twilio_Handler {
                 $client['form_id'],
                 $from_number
             )
+            // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
         );
 
         if ( $entry_id ) {

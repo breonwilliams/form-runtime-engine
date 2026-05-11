@@ -204,11 +204,15 @@ class FRE_SMS_Sender {
      * @return array Array of message records.
      */
     public function get_messages( $entry_id ) {
+        // Table name is a plugin-owned property (set from $wpdb->prefix . 'fre_twilio_messages'),
+        // not user input. The user-supplied $entry_id flows through the %d placeholder.
         return $this->wpdb->get_results(
+            // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table name is plugin-controlled; user value flows through %d
             $this->wpdb->prepare(
                 "SELECT * FROM {$this->messages_table} WHERE entry_id = %d ORDER BY created_at ASC",
                 $entry_id
             ),
+            // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
             ARRAY_A
         );
     }
