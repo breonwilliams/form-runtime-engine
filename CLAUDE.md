@@ -989,6 +989,8 @@ add_action( 'wp_footer', function() {
 
 ## Releasing New Versions
 
-For the full release checklist, changelog format, and version numbering guide, see **`docs/CLAUDE.md`**.
+**Canonical release procedure: [`RELEASE.md`](RELEASE.md)** at the plugin root. That document is the single source of truth — version-stamp locations, build commands, tag pattern, `gh release create` invocation, post-release verification.
 
-**Quick reference:** Update version in `form-runtime-engine.php` (header + `FRE_VERSION` constant) and `CHANGELOG.md`, then tag with `v` prefix (e.g., `v1.1.0`) and create a GitHub Release.
+For deeper background (CHANGELOG format, GitHub Personal Access Token setup for the auto-updater, etc.), see the long-form notes in **`docs/CLAUDE.md`**.
+
+**One-line summary:** update version stamps → commit → `git tag v1.7.0` → `git push --tags` → `./bin/build-release.sh` → `gh release create v1.7.0 build/form-runtime-engine.zip --notes-file CHANGELOG.md`.
