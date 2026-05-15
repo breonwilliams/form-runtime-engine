@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.6.3] - 2026-05-15
+
+### Added
+- Capability documentation (`docs/CAPABILITIES.md`) — comprehensive guide covering the `fre_manage_forms` capability, default role grants, filter hooks for extending to other roles, WP-CLI/programmatic grant examples, uninstall cleanup, and pattern parity across the Promptless plugin family (FRE, FlowMint, PRE, Promptless WP)
+
 ## [1.6.2] - 2026-05-11
 
 ### Fixed
