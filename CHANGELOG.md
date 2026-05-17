@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.6.4] - 2026-05-17
+
+### Changed
+- Connector admin menu renamed from "Claude Connection" to "Connector" for vendor-neutral naming
+- Connector admin page title updated to "The Form Engine Connector"
+- Connector admin UI refactored for improved organization
+
 ## [1.6.3] - 2026-05-15
 
 ### Added
