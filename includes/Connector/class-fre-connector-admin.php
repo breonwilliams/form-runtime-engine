@@ -74,10 +74,16 @@ class FRE_Connector_Admin {
      * Priority 20 so this appears after the existing Form Entries menu items.
      */
     public function register_submenu() {
+        // Menu label is the neutral "Connector" to match Promptless / PRE /
+        // FlowMint and stay future-proof for additional AI client integrations
+        // (Codex, ChatGPT Desktop, etc.). The page H1 carries the
+        // plugin-specific name ("The Form Engine Connector"). Renamed from
+        // "Claude Connection" 2026-05-16 — the connector itself is vendor-
+        // neutral; only the current default client happens to be Claude.
         add_submenu_page(
             'fre-entries',
-            __( 'Claude Connection', 'form-runtime-engine' ),
-            __( 'Claude Connection', 'form-runtime-engine' ),
+            __( 'The Form Engine Connector', 'form-runtime-engine' ),
+            __( 'Connector', 'form-runtime-engine' ),
             FRE_Capabilities::MANAGE_FORMS,
             self::PAGE_SLUG,
             array( $this, 'render_page' )
@@ -106,168 +112,287 @@ class FRE_Connector_Admin {
         $mcp_setup_url          = plugins_url( 'docs/MCP_CONNECTOR_SETUP.md', dirname( __DIR__, 2 ) . '/form-runtime-engine.php' );
         $connector_script_url   = esc_url_raw( admin_url( 'admin-ajax.php?action=fre_download_connector' ) );
         $site_url               = esc_url_raw( home_url() );
+
+        // App-password availability check — see PRE/Promptless equivalents
+        // for the rationale. Returns true on HTTPS sites OR local dev
+        // environments via WP_ENVIRONMENT_TYPE='local'.
+        $app_passwords_available = wp_is_application_passwords_available();
         ?>
-        <div class="wrap fre-claude-connection">
-            <h1><?php esc_html_e( 'Claude Connection', 'form-runtime-engine' ); ?></h1>
-
-            <p class="description" style="max-width: 720px;">
-                <?php
-                echo wp_kses(
-                    sprintf(
-                        /* translators: %s: link to the connector spec document. */
-                        __( 'This page manages the Claude Cowork connector — a REST API that lets Claude Cowork create, update, and delete forms on this site and (optionally) read form submissions. Full API specification: <a href="%s" target="_blank" rel="noopener">CONNECTOR_SPEC.md</a>.', 'form-runtime-engine' ),
-                        esc_url( $spec_url )
-                    ),
-                    array( 'a' => array( 'href' => true, 'target' => true, 'rel' => true ) )
-                );
-                ?>
+        <div class="wrap fre-connector-settings">
+            <h1><?php esc_html_e( 'The Form Engine Connector', 'form-runtime-engine' ); ?></h1>
+            <p class="fre-connector-subtitle">
+                <?php esc_html_e( 'Connect Claude Desktop to your WordPress site so it can create, update, and (optionally) read forms.', 'form-runtime-engine' ); ?>
             </p>
 
-            <h2 class="title"><?php esc_html_e( 'Step 1 — Enable the connector', 'form-runtime-engine' ); ?></h2>
-            <p>
-                <?php esc_html_e( 'Default is off. When off, every connector REST endpoint returns 403 regardless of credentials. This is the site-wide kill switch.', 'form-runtime-engine' ); ?>
-            </p>
-            <p>
-                <label>
-                    <input type="checkbox"
-                        id="fre-connector-enabled"
-                        <?php checked( $is_enabled ); ?>
-                        data-ajax-action="fre_connector_toggle_enabled"
-                    >
-                    <strong><?php esc_html_e( 'Enable Claude Cowork Connection', 'form-runtime-engine' ); ?></strong>
-                </label>
-                <span class="fre-toggle-status" id="fre-enabled-status" aria-live="polite"></span>
-            </p>
-
-            <h2 class="title"><?php esc_html_e( 'Step 2 — Generate an Application Password', 'form-runtime-engine' ); ?></h2>
-            <p>
-                <?php esc_html_e( 'The connector authenticates via a WordPress Application Password. Generating one here revokes any previous connector credential for your user, so there is at most one active connector key at any time. The password is shown once — copy it immediately.', 'form-runtime-engine' ); ?>
-            </p>
-
-            <?php if ( $configured_at > 0 ) : ?>
-                <p>
-                    <span class="fre-badge fre-badge-success">
-                        <?php
-                        printf(
-                            /* translators: %s: localized timestamp */
-                            esc_html__( 'Configured %s', 'form-runtime-engine' ),
-                            esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $configured_at ) )
-                        );
-                        ?>
-                    </span>
-                </p>
-            <?php else : ?>
-                <p>
-                    <span class="fre-badge fre-badge-muted"><?php esc_html_e( 'Not configured', 'form-runtime-engine' ); ?></span>
-                </p>
+            <?php if ( ! $app_passwords_available ) : ?>
+                <div class="notice notice-warning" style="margin: 12px 0 20px;">
+                    <p><strong><?php esc_html_e( 'Application passwords not available on this site.', 'form-runtime-engine' ); ?></strong>
+                    <?php esc_html_e( "WordPress requires either HTTPS or a local environment to issue application passwords. Until that's set up, the \"Generate Connection\" button will return an error.", 'form-runtime-engine' ); ?></p>
+                    <ul style="margin: 6px 0 6px 24px; list-style: disc;">
+                        <li><?php echo wp_kses( __( '<strong>On a production site:</strong> enable HTTPS / install an SSL certificate.', 'form-runtime-engine' ), array( 'strong' => array() ) ); ?></li>
+                        <li><?php echo wp_kses( __( "<strong>For local development:</strong> add <code>define('WP_ENVIRONMENT_TYPE', 'local');</code> to your <code>wp-config.php</code>. Most local environments (Local by Flywheel, wp-env, LocalWP) set this automatically.", 'form-runtime-engine' ), array( 'strong' => array(), 'code' => array() ) ); ?></li>
+                    </ul>
+                </div>
             <?php endif; ?>
 
-            <p>
-                <button type="button" class="button button-primary" id="fre-generate-password-btn">
-                    <?php
-                    echo $configured_at > 0
-                        ? esc_html__( 'Regenerate Connection', 'form-runtime-engine' )
-                        : esc_html__( 'Generate Connection', 'form-runtime-engine' );
-                    ?>
-                </button>
-                <?php if ( $configured_at > 0 ) : ?>
-                    <button type="button" class="button" id="fre-revoke-password-btn">
-                        <?php esc_html_e( 'Revoke Connection', 'form-runtime-engine' ); ?>
-                    </button>
-                <?php endif; ?>
-            </p>
+            <!-- Connection Status card. Status pill + the two security
+                 toggles (site-wide kill-switch + entry-read permission)
+                 live here so the 3-step setup below stays focused on the
+                 install flow. Entry-read sits next to kill-switch because
+                 they are both permission decisions, not setup steps. -->
+            <div class="fre-connector-card" id="fre-connector-status-card">
+                <h2><?php esc_html_e( 'Connection Status', 'form-runtime-engine' ); ?></h2>
+                <div class="fre-connector-status-row">
+                    <span class="fre-connector-status-badge <?php echo $configured_at > 0 ? 'fre-connector-status-active' : 'fre-connector-status-inactive'; ?>" id="fre-connector-status-pill">
+                        <?php echo $configured_at > 0 ? esc_html__( 'Configured', 'form-runtime-engine' ) : esc_html__( 'Not Connected', 'form-runtime-engine' ); ?>
+                    </span>
+                    <label class="fre-connector-killswitch">
+                        <input type="checkbox"
+                            id="fre-connector-enabled"
+                            <?php checked( $is_enabled ); ?>
+                            data-ajax-action="fre_connector_toggle_enabled"
+                        >
+                        <span><?php esc_html_e( 'Allow Claude Cowork to call this site', 'form-runtime-engine' ); ?></span>
+                        <span class="fre-connector-toggle-status" id="fre-enabled-status" aria-live="polite"></span>
+                    </label>
+                </div>
 
-            <div id="fre-credential-display" style="display:none;margin:12px 0;padding:16px;background:#fff;border-left:4px solid #2271b1;">
-                <p style="margin-top:0;">
-                    <strong><?php esc_html_e( 'Application Password (copy now — it will not be shown again):', 'form-runtime-engine' ); ?></strong>
-                </p>
-                <pre id="fre-credential-value" style="background:#f6f7f7;padding:12px;overflow-x:auto;"></pre>
-                <p style="margin-bottom:0;">
-                    <strong><?php esc_html_e( 'Username:', 'form-runtime-engine' ); ?></strong>
-                    <code><?php echo esc_html( $current_user->user_login ); ?></code>
-                </p>
-            </div>
-
-            <h2 class="title"><?php esc_html_e( 'Step 3 — Allow entry-read access (optional)', 'form-runtime-engine' ); ?></h2>
-            <p>
-                <?php esc_html_e( 'Off by default. When off, Claude Cowork can manage forms but cannot read submission data — names, emails, message bodies, etc. Turn this on only if you want Cowork to review lead data (for example, to do A/B analysis against analytics).', 'form-runtime-engine' ); ?>
-            </p>
-            <p>
-                <label>
+                <!-- Entry-read permission — separate row so the label has room
+                     for its long description. Off by default. Lets Cowork
+                     read submission data (names, emails, message bodies).
+                     Distinct from the kill-switch above which controls
+                     ALL connector access. -->
+                <label class="fre-connector-permission-toggle">
                     <input type="checkbox"
                         id="fre-connector-entry-read"
                         <?php checked( $is_entry_read_enabled ); ?>
                         data-ajax-action="fre_connector_toggle_entry_read"
                     >
-                    <strong><?php esc_html_e( 'Allow Claude Cowork to read form submissions', 'form-runtime-engine' ); ?></strong>
+                    <span class="fre-connector-permission-label"><?php esc_html_e( 'Also allow Claude Cowork to read form submissions', 'form-runtime-engine' ); ?></span>
+                    <span class="fre-connector-toggle-status" id="fre-entry-read-status" aria-live="polite"></span>
                 </label>
-                <span class="fre-toggle-status" id="fre-entry-read-status" aria-live="polite"></span>
-            </p>
-
-            <h2 class="title"><?php esc_html_e( 'Step 4 — Connect Claude Desktop', 'form-runtime-engine' ); ?></h2>
-            <p>
-                <?php
-                echo wp_kses(
-                    sprintf(
-                        /* translators: %s: link to MCP setup documentation */
-                        __( 'Copy the command below and paste it into Terminal on your Mac. It downloads the MCP server script, detects your Node.js installation, and registers the connector with Claude Desktop. Full setup notes and troubleshooting are in <a href="%s" target="_blank" rel="noopener">MCP_CONNECTOR_SETUP.md</a>.', 'form-runtime-engine' ),
-                        esc_url( $mcp_setup_url )
-                    ),
-                    array( 'a' => array( 'href' => true, 'target' => true, 'rel' => true ) )
-                );
-                ?>
-            </p>
-
-            <div class="fre-setup-requirements">
-                <strong><?php esc_html_e( 'Requirements:', 'form-runtime-engine' ); ?></strong>
-                <ul style="margin: 6px 0 0 20px;">
-                    <li><?php esc_html_e( 'macOS with Terminal', 'form-runtime-engine' ); ?></li>
-                    <li><?php esc_html_e( 'Node.js v14+ (via nvm, Homebrew, or system installer)', 'form-runtime-engine' ); ?></li>
-                    <li><?php esc_html_e( 'Claude Desktop installed', 'form-runtime-engine' ); ?></li>
-                </ul>
-            </div>
-
-            <div id="fre-setup-command-placeholder" style="margin-top:12px;<?php echo $configured_at > 0 ? 'display:none;' : ''; ?>">
-                <p class="description" style="color:#888;">
-                    <?php esc_html_e( 'Generate a connection in Step 2 first, then your setup command will appear here.', 'form-runtime-engine' ); ?>
+                <p class="fre-connector-status-help">
+                    <?php if ( $configured_at > 0 ) : ?>
+                        <?php
+                        printf(
+                            /* translators: %s: localized timestamp */
+                            esc_html__( 'Last configured: %s. The entry-read toggle controls whether Cowork can read submission data (names, emails, message bodies) — off by default for privacy.', 'form-runtime-engine' ),
+                            esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $configured_at ) )
+                        );
+                        ?>
+                    <?php else : ?>
+                        <?php esc_html_e( 'Follow the steps below to connect Claude Desktop to your site. The entry-read toggle above controls whether Cowork can read submission data — off by default for privacy.', 'form-runtime-engine' ); ?>
+                    <?php endif; ?>
                 </p>
             </div>
 
-            <div id="fre-setup-command-wrap" style="display:none;margin-top:12px;">
-                <div style="background:#f6f7f7;border:1px solid #c3c4c7;padding:12px;position:relative;">
-                    <pre id="fre-setup-command" style="margin:0;white-space:pre;overflow-x:auto;font-size:12px;line-height:1.5;"></pre>
-                    <button type="button" class="button button-small" id="fre-copy-setup-command" style="position:absolute;top:8px;right:8px;">
-                        <?php esc_html_e( 'Copy', 'form-runtime-engine' ); ?>
+            <!-- Step 1: Generate Connection -->
+            <div class="fre-connector-card">
+                <h2><?php esc_html_e( 'Step 1: Generate Connection', 'form-runtime-engine' ); ?></h2>
+                <p><?php esc_html_e( 'This creates a secure application password that allows Claude to communicate with your site. Any existing connection will be replaced.', 'form-runtime-engine' ); ?></p>
+                <p>
+                    <button type="button" id="fre-generate-password-btn" class="button button-primary">
+                        <?php
+                        echo $configured_at > 0
+                            ? esc_html__( 'Regenerate Connection', 'form-runtime-engine' )
+                            : esc_html__( 'Generate Connection', 'form-runtime-engine' );
+                        ?>
                     </button>
-                </div>
-                <p class="description" style="margin-top:8px;">
-                    <?php esc_html_e( 'After the command completes, quit Claude Desktop (Cmd+Q) and reopen it. The connector will be active in your next Cowork session.', 'form-runtime-engine' ); ?>
+                    <?php if ( $configured_at > 0 ) : ?>
+                        <button type="button" id="fre-revoke-password-btn" class="button">
+                            <?php esc_html_e( 'Revoke Connection', 'form-runtime-engine' ); ?>
+                        </button>
+                    <?php endif; ?>
                 </p>
+
+                <div id="fre-credential-display" class="fre-connector-success-notice" style="display:none;">
+                    <p><strong><?php esc_html_e( 'Connection generated successfully!', 'form-runtime-engine' ); ?></strong> <?php esc_html_e( 'Now proceed to Step 2.', 'form-runtime-engine' ); ?></p>
+                </div>
             </div>
 
-            <h2 class="title"><?php esc_html_e( 'REST endpoint reference', 'form-runtime-engine' ); ?></h2>
-            <p>
-                <?php esc_html_e( 'Base URL for all connector endpoints:', 'form-runtime-engine' ); ?>
-                <br>
-                <code><?php echo esc_html( $rest_base_url ); ?></code>
-            </p>
-            <p>
-                <?php
-                printf(
-                    /* translators: %s: spec URL */
-                    esc_html__( 'See the full endpoint list and request/response schemas in the %s.', 'form-runtime-engine' ),
-                    '<a href="' . esc_url( $spec_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'connector specification', 'form-runtime-engine' ) . '</a>'
-                );
-                ?>
-            </p>
+            <!-- Step 2: Run Setup Command -->
+            <div class="fre-connector-card">
+                <h2><?php esc_html_e( 'Step 2: Run Setup Command', 'form-runtime-engine' ); ?></h2>
+                <p><?php esc_html_e( 'Copy the command below and paste it into', 'form-runtime-engine' ); ?> <strong><?php esc_html_e( 'Terminal', 'form-runtime-engine' ); ?></strong> <?php esc_html_e( 'on your Mac. This automatically installs and configures the Form Engine Connector.', 'form-runtime-engine' ); ?></p>
+
+                <div class="fre-connector-requirements">
+                    <strong><?php esc_html_e( 'Requirements:', 'form-runtime-engine' ); ?></strong>
+                    <ul>
+                        <li><?php esc_html_e( 'macOS with Terminal', 'form-runtime-engine' ); ?></li>
+                        <li><?php esc_html_e( 'Node.js installed (v14 or higher)', 'form-runtime-engine' ); ?></li>
+                        <li><?php esc_html_e( 'Claude Desktop app installed', 'form-runtime-engine' ); ?></li>
+                    </ul>
+                </div>
+
+                <div id="fre-setup-command-container" style="display:none;">
+                    <div class="fre-connector-code-block">
+                        <pre id="fre-setup-command"></pre>
+                        <button type="button" class="button fre-connector-copy-btn" id="fre-copy-setup-command"><?php esc_html_e( 'Copy Command', 'form-runtime-engine' ); ?></button>
+                    </div>
+                    <p class="description"><?php esc_html_e( 'After running the command, quit Claude Desktop (Cmd+Q) and reopen it. The connector will be active in your next session.', 'form-runtime-engine' ); ?></p>
+                </div>
+
+                <div id="fre-setup-command-placeholder">
+                    <p class="description" style="color:#999;">
+                        <?php if ( $configured_at > 0 ) : ?>
+                            <?php esc_html_e( 'Your connection is configured. To see the setup command again, click "Regenerate Connection" in Step 1.', 'form-runtime-engine' ); ?>
+                        <?php else : ?>
+                            <?php esc_html_e( 'Generate a connection in Step 1 first, then your setup command will appear here.', 'form-runtime-engine' ); ?>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 3: Verify Connection -->
+            <div class="fre-connector-card">
+                <h2><?php esc_html_e( 'Step 3: Verify Connection', 'form-runtime-engine' ); ?></h2>
+                <p><?php esc_html_e( 'After running the setup command and restarting Claude Desktop, start a new conversation and type:', 'form-runtime-engine' ); ?></p>
+                <div class="fre-connector-code-block">
+                    <pre><?php esc_html_e( 'List the forms on my WordPress site.', 'form-runtime-engine' ); ?></pre>
+                </div>
+                <p><?php esc_html_e( 'Claude should respond with your forms, confirming the connection is active.', 'form-runtime-engine' ); ?></p>
+            </div>
+
+            <!-- Developer info — collapsed by default. Hides technical refs
+                 (REST endpoint URL, spec link, MCP setup notes) that end
+                 users do not need but devs may want for debugging or
+                 scripting. -->
+            <details class="fre-connector-dev-info">
+                <summary><?php esc_html_e( 'Developer info', 'form-runtime-engine' ); ?></summary>
+                <dl>
+                    <dt><?php esc_html_e( 'REST base URL', 'form-runtime-engine' ); ?></dt>
+                    <dd><code><?php echo esc_html( $rest_base_url ); ?></code></dd>
+                    <dt><?php esc_html_e( 'Authenticated user', 'form-runtime-engine' ); ?></dt>
+                    <dd><code><?php echo esc_html( $current_user->user_login ); ?></code></dd>
+                    <dt><?php esc_html_e( 'Documentation', 'form-runtime-engine' ); ?></dt>
+                    <dd>
+                        <a href="<?php echo esc_url( $spec_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Connector specification', 'form-runtime-engine' ); ?></a>
+                        &middot;
+                        <a href="<?php echo esc_url( $mcp_setup_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'MCP setup notes', 'form-runtime-engine' ); ?></a>
+                    </dd>
+                </dl>
+            </details>
         </div>
 
         <style>
-            .fre-claude-connection h2.title { margin-top: 2em; }
-            .fre-toggle-status { margin-left: 10px; font-style: italic; color: #50575e; }
-            .fre-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 500; }
-            .fre-badge-success { background: #d1e7dd; color: #0f5132; }
-            .fre-badge-muted { background: #e9ecef; color: #6c757d; }
+            /* FRE connector admin styles — mirrors Promptless's .aisb-*
+             * visual treatment with .fre-connector-* prefix so the two
+             * plugins look like siblings. Refactored 2026-05-16 from a
+             * flat-text 4-step layout to this card-based 3-step layout
+             * with both security toggles (site-wide kill-switch + entry-
+             * read permission) tucked into the Status card. */
+            .fre-connector-settings { max-width: 800px; }
+            .fre-connector-subtitle { font-size: 14px; color: #646970; margin-top: -5px; }
+
+            .fre-connector-card {
+                background: #fff;
+                border: 1px solid #c3c4c7;
+                border-radius: 4px;
+                padding: 20px 24px;
+                margin-bottom: 20px;
+            }
+            .fre-connector-card h2 {
+                margin-top: 0;
+                padding-top: 0;
+                font-size: 16px;
+                border-bottom: none;
+            }
+
+            .fre-connector-status-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                flex-wrap: wrap;
+                margin-bottom: 12px;
+            }
+            .fre-connector-status-badge {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+            .fre-connector-status-active { background: #d4edda; color: #155724; }
+            .fre-connector-status-inactive { background: #f8d7da; color: #721c24; }
+            .fre-connector-status-help { margin: 8px 0 0; color: #50575e; }
+
+            .fre-connector-killswitch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #1d2327; }
+            .fre-connector-permission-toggle { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; color: #1d2327; padding: 8px 0 0; }
+            .fre-connector-permission-label { line-height: 1.5; }
+            .fre-connector-toggle-status { font-style: italic; color: #50575e; min-width: 60px; }
+
+            .fre-connector-success-notice {
+                margin: 12px 0 0 0;
+                padding: 8px 12px;
+                background: #edf7ed;
+                border-left: 3px solid #46b450;
+                border-radius: 0 4px 4px 0;
+            }
+            .fre-connector-success-notice p { margin: 0; }
+
+            .fre-connector-requirements {
+                background: #f0f6fc;
+                border: 1px solid #c8d8e4;
+                border-radius: 4px;
+                padding: 12px 16px;
+                margin: 12px 0;
+            }
+            .fre-connector-requirements ul { margin: 4px 0 0 20px; }
+            .fre-connector-requirements li { margin-bottom: 2px; }
+
+            .fre-connector-code-block {
+                position: relative;
+                background: #1d2327;
+                color: #50c878;
+                padding: 16px 20px;
+                border-radius: 6px;
+                margin: 12px 0;
+                overflow-x: auto;
+            }
+            .fre-connector-code-block pre {
+                margin: 0;
+                white-space: pre-wrap;
+                word-break: break-all;
+                font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+                font-size: 13px;
+                line-height: 1.6;
+                color: #50c878;
+            }
+            .fre-connector-copy-btn {
+                position: absolute !important;
+                top: 8px !important;
+                right: 8px !important;
+                font-size: 12px !important;
+                padding: 2px 10px !important;
+                min-height: 28px !important;
+            }
+
+            .fre-connector-dev-info {
+                margin-top: 20px;
+                padding: 12px 16px;
+                background: #f6f7f7;
+                border: 1px solid #c3c4c7;
+                border-radius: 4px;
+            }
+            .fre-connector-dev-info summary {
+                cursor: pointer;
+                font-weight: 600;
+                color: #1d2327;
+                outline: none;
+            }
+            .fre-connector-dev-info[open] summary { margin-bottom: 8px; }
+            .fre-connector-dev-info dl { margin: 0; }
+            .fre-connector-dev-info dt {
+                font-weight: 600;
+                color: #50575e;
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                margin-top: 10px;
+            }
+            .fre-connector-dev-info dt:first-child { margin-top: 0; }
+            .fre-connector-dev-info dd { margin: 4px 0 0 0; font-size: 13px; }
         </style>
 
         <script>
@@ -327,7 +452,8 @@ class FRE_Connector_Admin {
             function showSetupCommand(username, password) {
                 const cmd = buildSetupCommand(username, password);
                 document.getElementById('fre-setup-command').textContent = cmd;
-                document.getElementById('fre-setup-command-wrap').style.display = 'block';
+                const container = document.getElementById('fre-setup-command-container');
+                if (container) container.style.display = 'block';
                 const placeholder = document.getElementById('fre-setup-command-placeholder');
                 if (placeholder) placeholder.style.display = 'none';
             }
@@ -371,18 +497,35 @@ class FRE_Connector_Admin {
             const genBtn = document.getElementById('fre-generate-password-btn');
             if (genBtn) {
                 genBtn.addEventListener('click', async () => {
-                    if (!confirm('<?php echo esc_js( __( 'Generate a new connection? Any previous connector App Password will be revoked immediately.', 'form-runtime-engine' ) ); ?>')) return;
+                    // No confirm() dialog — Promptless doesn't use one and the
+                    // blocking modal adds friction. Misclicks are recoverable
+                    // (just click Generate again — the prior password is
+                    // already revoked atomically server-side).
+                    const originalLabel = genBtn.textContent;
                     genBtn.disabled = true;
+                    genBtn.textContent = '<?php echo esc_js( __( 'Generating...', 'form-runtime-engine' ) ); ?>';
                     const r = await post('fre_connector_generate_password');
                     genBtn.disabled = false;
                     if (r.success) {
-                        document.getElementById('fre-credential-display').style.display = 'block';
-                        document.getElementById('fre-credential-value').textContent = r.data.password;
+                        // Reveal the success notice in Step 1 card.
+                        const display = document.getElementById('fre-credential-display');
+                        if (display) display.style.display = 'block';
 
-                        // Build the bash setup command while we still have the
-                        // plaintext password in memory — it is never shown again.
+                        // Build + reveal the setup command in Step 2 card.
                         showSetupCommand(r.data.username, r.data.password);
+
+                        // Flip the status pill in the Connection Status card
+                        // from red "Not Connected" to green "Configured".
+                        const pill = document.getElementById('fre-connector-status-pill');
+                        if (pill) {
+                            pill.textContent = '<?php echo esc_js( __( 'Configured', 'form-runtime-engine' ) ); ?>';
+                            pill.classList.remove('fre-connector-status-inactive');
+                            pill.classList.add('fre-connector-status-active');
+                        }
+
+                        genBtn.textContent = '<?php echo esc_js( __( 'Regenerate Connection', 'form-runtime-engine' ) ); ?>';
                     } else {
+                        genBtn.textContent = originalLabel;
                         alert((r.data && r.data.message) || 'Error');
                     }
                 });
@@ -390,26 +533,48 @@ class FRE_Connector_Admin {
 
             const copyBtn = document.getElementById('fre-copy-setup-command');
             if (copyBtn) {
+                // Capture original label so the restore-after-flash matches
+                // the template's rendered text (e.g. 'Copy Command') instead
+                // of being hardcoded to 'Copy'.
+                const originalCopyLabel = copyBtn.textContent;
+                const flashCopied = () => {
+                    copyBtn.textContent = '<?php echo esc_js( __( 'Copied', 'form-runtime-engine' ) ); ?>';
+                    setTimeout(() => { copyBtn.textContent = originalCopyLabel; }, 2000);
+                };
                 copyBtn.addEventListener('click', async () => {
-                    const cmd = document.getElementById('fre-setup-command').textContent;
-                    try {
-                        await navigator.clipboard.writeText(cmd);
-                        copyBtn.textContent = '<?php echo esc_js( __( 'Copied', 'form-runtime-engine' ) ); ?>';
-                        setTimeout(() => { copyBtn.textContent = '<?php echo esc_js( __( 'Copy', 'form-runtime-engine' ) ); ?>'; }, 2000);
-                    } catch (e) {
-                        // Clipboard API unavailable — fall back to selecting the text.
-                        const sel = window.getSelection();
-                        const range = document.createRange();
-                        range.selectNodeContents(document.getElementById('fre-setup-command'));
-                        sel.removeAllRanges();
-                        sel.addRange(range);
+                    const pre = document.getElementById('fre-setup-command');
+                    const cmd = pre.textContent;
+                    // Path 1: modern Clipboard API. Only available on HTTPS
+                    // sites and true localhost — NOT on HTTP custom
+                    // hostnames like `mysite.local`.
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        try {
+                            await navigator.clipboard.writeText(cmd);
+                            flashCopied();
+                            return;
+                        } catch (e) { /* fall through */ }
                     }
+                    // Path 2: legacy execCommand fallback. Works on HTTP.
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(pre);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    try {
+                        const ok = document.execCommand('copy');
+                        sel.removeAllRanges();
+                        if (ok) flashCopied();
+                    } catch (e) { /* leave selection so user can Cmd+C */ }
                 });
             }
 
             const revokeBtn = document.getElementById('fre-revoke-password-btn');
             if (revokeBtn) {
                 revokeBtn.addEventListener('click', async () => {
+                    // Revoke IS destructive (Cowork loses access immediately) so
+                    // a confirm() is reasonable here even though we removed it
+                    // from Generate. Keeping it preserves the safety net for
+                    // misclicks on the destructive path.
                     if (!confirm('<?php echo esc_js( __( 'Revoke the connector App Password? Claude Cowork will lose access immediately.', 'form-runtime-engine' ) ); ?>')) return;
                     revokeBtn.disabled = true;
                     const r = await post('fre_connector_revoke_password');
