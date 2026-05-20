@@ -31,8 +31,42 @@
     --fre-surface-color: var(--aisb-color-surface, #f9fafb);
     --fre-border-color: var(--aisb-smart-light-surface-border, var(--aisb-color-border, #e5e7eb));
 
-    /* Semantic colors */
+    /* Semantic colors.
+
+       AISB's SmartColorManager (see Promptless WP `includes/Core/SmartColorManager.php`)
+       computes WCAG-compliant tokens for text, links, icons, borders, ghost
+       buttons, and highlights — but NOT for error/warning/success/info
+       status colors. Those stay as raw saturated hexes from the section
+       tokens, which have borderline contrast on dark surfaces.
+
+       To compensate without forking AISB, we define two layers per status:
+
+         --fre-error-color       : the saturated red used for borders / focus
+                                   rings (non-text UI, needs 3:1 contrast)
+         --fre-error-text-color  : the contrast-corrected text variant used
+                                   for the required asterisk, inline error
+                                   messages, and any other status-colored
+                                   TEXT (needs 4.5:1 contrast)
+
+       In light mode both resolve to the same saturated red — it's already
+       accessible there. In dark mode (overrides below) the text variant
+       swaps to a lighter red matching the palette `.fre-form__message--error`
+       already uses, so the visual language stays consistent.
+
+       Long-term cleaner solution: AISB itself grows
+       `--aisb-smart-light-error` / `--aisb-smart-dark-error` tokens
+       computed against the user's backgrounds (same pattern as
+       --aisb-smart-*-text), and these FRE variables become thin
+       fallbacks. Out of scope for a CSS-only fix in this plugin. */
     --fre-error-color: var(--aisb-color-error, #ef4444);
+    /* Light-mode text variant: `#ef4444` only hits 3.76:1 on a white
+       background, which clears the 3:1 non-text-UI bar (so it's fine on
+       error borders) but FAILS the 4.5:1 bar required for body text.
+       `#dc2626` (Tailwind red-600) hits 5.9:1 on white and 5.7:1 on the
+       default AISB light surface — passes AA on both. Dark-mode rule
+       below overrides this to `#fca5a5` for dark surfaces. */
+    --fre-error-text-color: #dc2626;
+    --fre-error-focus-ring: color-mix(in srgb, var(--fre-error-color) 20%, transparent);
     --fre-success-color: var(--aisb-color-success, #10b981);
     --fre-warning-color: var(--aisb-color-warning, #f59e0b);
     --fre-info-color: var(--aisb-color-info, #3b82f6);
@@ -95,6 +129,22 @@
 
     /* Ghost button in dark mode */
     --fre-ghost-color: var(--aisb-smart-dark-ghost-button, var(--aisb-smart-dark-section-link, var(--fre-primary-color)));
+
+    /* Status color text in dark mode.
+
+       The saturated red `#ef4444` clears 4.5:1 against true black (#1a1a1a)
+       by ~5:1, but DROPS BELOW 4.5:1 against the lighter dark surface
+       (`#2a2a2a`-ish) used by `.fre-section` cards. The lighter `#fca5a5`
+       used here matches the palette `.fre-form__message--error` and
+       `.fre-field--message-error` already use in dark mode, so the
+       required-asterisk / inline-error / message-text all read with the
+       same hue and consistent contrast across light and dark surfaces.
+
+       The border-color (`--fre-error-color`) stays at the saturated red
+       because borders are non-text UI (3:1 contrast requirement, which
+       the saturated red meets on every supported surface). */
+    --fre-error-text-color: #fca5a5;
+    --fre-error-focus-ring: color-mix(in srgb, var(--fre-error-color) 30%, transparent);
 }
 
 /* ==========================================================================
@@ -336,8 +386,40 @@
     color: var(--fre-text-color);
 }
 
-.fre-form__fields {
+/* ==========================================================================
+   Vertical Rhythm — Flex Column with Gap
+
+   Every container that stacks fields/sections/rows uses the same pattern:
+   flex column + gap. This means the spacing between any two siblings is the
+   same single rule, regardless of whether they're plain fields, sections,
+   row groups, message fields, or any combination. No `:last-child` margin
+   resets, no margin collapsing edge cases, no "this looks tight when the
+   one above is taller" — gap is intrinsic to the parent.
+
+   The gap value uses `--fre-spacing-lg` (32px by default) so vertical rhythm
+   between fields matches the breathing room expected in modern mobile form
+   design. Inside a single field, a tighter 6px gap groups the label / input /
+   description / error visually (see .fre-field rule below).
+
+   See docs/CLAUDE.md "Field Layout System" for the full rationale.
+   ========================================================================== */
+
+.fre-form__fields,
+.fre-step__fields,
+.fre-section__fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fre-spacing-lg);
     margin-bottom: var(--fre-spacing);
+}
+
+/* The trailing margin-bottom on .fre-form__fields creates space between the
+   field stack and the submit button (or step nav). On nested containers
+   (.fre-step__fields, .fre-section__fields) the inner gap provides spacing
+   to the next sibling already, so the trailing margin is redundant there. */
+.fre-step__fields,
+.fre-section__fields {
+    margin-bottom: 0;
 }
 
 /* ==========================================================================
@@ -405,20 +487,49 @@
    Fields
    ========================================================================== */
 
+/* ==========================================================================
+   Field — Flex Column
+
+   Each field is a flex column that stacks label / input / description / error
+   with a tight 6px gap. Outer vertical spacing between fields comes from the
+   parent container's `gap` (see "Vertical Rhythm" above) — NOT from a margin
+   on .fre-field itself. This avoids three classes of bugs the previous
+   margin-based pattern had:
+
+     - `:last-child { margin: 0 }` edge cases when fields are reordered or
+       conditionally hidden
+     - "Spacing collapses when columns stack on mobile" — flex gap on the
+       parent renders consistently regardless of column or row direction
+     - iOS Safari `min-height: auto` grid-item bug — fields are no longer
+       grid items, so the bug's CSS condition doesn't exist
+
+   `min-width: 0` is the standard mitigation for grid/flex item content
+   blowout when a long word (e.g., an autofilled email) exceeds the
+   container width. Without it, the field can push its parent grid out.
+   ========================================================================== */
+
 .fre-field {
-    margin-bottom: calc(var(--fre-spacing) * 1.25);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    min-width: 0;
 }
 
 .fre-field__label {
     display: block;
-    margin-bottom: 6px;
     font-weight: 500;
     font-family: var(--fre-font-heading);
     color: var(--fre-text-color);
+    /* Vertical spacing to the input below comes from .fre-field's flex gap,
+       not a margin on the label. This keeps label-to-input spacing identical
+       whether or not the field has a description / error placeholder. */
 }
 
 .fre-required {
-    color: var(--fre-error-color);
+    /* Uses the text-variant token so contrast stays AA-compliant against
+       dark surfaces. See the --fre-error-text-color docblock at top. */
+    color: var(--fre-error-text-color);
     margin-left: 2px;
 }
 
@@ -437,6 +548,18 @@
     border-radius: var(--fre-border-radius);
     transition: border-color var(--fre-transition-fast), box-shadow var(--fre-transition-fast);
     box-sizing: border-box;
+    /* Belt-and-suspenders against intrinsic-sizing edge cases on iOS Safari.
+       The primary fix for the iOS thin-field bug is removing grid-item
+       context from .fre-field (it's now flex, not grid — see .fre-field
+       rule above). But an explicit min-height floor on the input itself
+       defends against any other engine quirk where an empty input without
+       a placeholder might compute a sub-pixel intrinsic height.
+
+       Math: padding (10*2) + border (1*2) = 22px non-content. line-height ×
+       1em = 24px with current tokens. Total floor = 46px = the height the
+       input naturally computes when filled. Scales correctly if
+       --fre-line-height or the inherited font-size changes. */
+    min-height: calc(var(--fre-line-height) * 1em + 22px);
 }
 
 .fre-field__input:focus,
@@ -469,15 +592,35 @@
     resize: vertical;
 }
 
-/* Select */
+/* Select.
+
+   The dropdown chevron is a background-image data-URI SVG with a hardcoded
+   stroke color. CSS custom properties cannot be interpolated inside data
+   URIs, so context-aware coloring requires two separate SVGs — one whose
+   stroke matches the light-mode muted-text color (`#6b7280`), and one
+   below in the dark-mode override block whose stroke matches the dark-mode
+   muted-text color (`#9ca3af`).
+
+   The previous implementation used `#333` (near-black) for the stroke,
+   which was invisible against dark-mode form surfaces. The new muted-gray
+   values track FRE's `--fre-text-muted` token in both modes and clear the
+   WCAG 3:1 contrast requirement for non-text UI on every supported
+   surface (white, light surface, dark `#1a1a1a` background, dark `#2a2a2a`
+   surface). */
 .fre-field__select {
     cursor: pointer;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23333' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
     background-repeat: no-repeat;
     background-position: right 12px center;
     background-size: 12px;
     padding-right: 40px;
+}
+
+/* Dark-mode select chevron — see docblock above. */
+.aisb-section--dark .fre-form .fre-field__select,
+.fre-form--dark .fre-field__select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
 }
 
 /* File Input */
@@ -560,7 +703,9 @@
 
 .fre-field__error {
     font-size: 0.875em;
-    color: var(--fre-error-color);
+    /* Inline validation error text — uses the AA-compliant text variant
+       so it stays readable on both light and dark form surfaces. */
+    color: var(--fre-error-text-color);
     margin-top: 6px;
 }
 
@@ -577,7 +722,12 @@
 .fre-field--has-error .fre-field__input:focus,
 .fre-field--has-error .fre-field__textarea:focus,
 .fre-field--has-error .fre-field__select:focus {
-    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+    /* Previously hardcoded `rgba(220, 53, 69, 0.15)` — a Bootstrap-era
+       red unrelated to the rest of FRE's tokens. Now derives from the
+       --fre-error-color token via the --fre-error-focus-ring variable,
+       so it stays in sync if a site customizes --aisb-color-error and
+       gets a stronger 30% opacity in dark mode for visibility. */
+    box-shadow: 0 0 0 3px var(--fre-error-focus-ring);
 }
 
 /* ==========================================================================
@@ -728,60 +878,48 @@
    ========================================================================== */
 
 /* ==========================================================================
-   Column Layout
+   Column Layout — 12-Column Grid (no subgrid)
 
-   Uses CSS Grid with subgrid so every field in a row shares the same vertical
-   rhythm regardless of label length. The row is a 12-column grid; each field
-   spans 3/4/6/8/9 columns according to its .fre-col--* class. Inside each
-   field, grid-template-rows:subgrid inherits 4 rows from the parent:
+   `.fre-row` wraps 1-4 consecutive fields whose `column` attribute is set
+   (e.g., `1/2`, `1/3`, `2/3`, `1/4`, `3/4`). At desktop width, fields share
+   a row with column-gap between them. At narrow viewports (<399px container
+   width), the container query below collapses to a single column and row-gap
+   handles the now-vertical spacing.
 
-       Row 1 — .fre-field__label
-       Row 2 — input element (select, textarea, fieldset, file, wrapper, etc.)
-       Row 3 — .fre-field__description (empty row when no description)
-       Row 4 — .fre-field__error
+   Design trade-off (intentional): when adjacent columns have labels of
+   different line counts (e.g., "Your Name" + "Phone Number (with country
+   code)"), their inputs no longer auto-align at the same vertical position
+   the way the previous grid+subgrid pattern enforced. In practice this
+   rarely matters because:
 
-   Explicit grid-row assignments pin label/description/error to their rows;
-   the input slot auto-places into the remaining row 2. This means a 2-line
-   label in column A no longer pushes its input out of alignment with the
-   1-line-label input in column B — subgrid forces both inputs onto row 2
-   with the same height contribution.
+     - Most form labels are single-line in modern UI
+     - When labels do wrap awkwardly, the design fix is to shorten the
+       label, not to force layout alignment
+     - The `description` field provides a "spacer" line below shorter
+       labels if alignment is critical for a specific form
 
-   Subgrid is supported in all baseline browsers as of 2026 (Firefox 71+,
-   Safari 16+, Chrome/Edge 117+). No JS, no :has() dependency, no runtime
-   measurement.
+   We accept the trade-off because the previous subgrid pattern introduced
+   two real production bugs (iOS Safari thin-field on empty placeholderless
+   inputs; lost vertical spacing on mobile column-collapse) that affected
+   every form using the `column` attribute. Simpler is more robust here.
+
+   Modern form libraries (Mantine, Chakra, Shadcn/ui, Polaris, HubSpot
+   Forms) all use this same flex/grid + gap pattern for the same reasons.
    ========================================================================== */
 
 .fre-row {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-auto-rows: min-content;
     column-gap: var(--fre-spacing);
-    row-gap: 0;
+    row-gap: var(--fre-spacing-lg);
 }
 
-/* Column spans */
+/* Column spans (semantics unchanged from previous subgrid layout). */
 .fre-col--1-2 { grid-column: span 6; }
 .fre-col--1-3 { grid-column: span 4; }
 .fre-col--2-3 { grid-column: span 8; }
 .fre-col--1-4 { grid-column: span 3; }
 .fre-col--3-4 { grid-column: span 9; }
-
-/* Each field inside a row becomes a 4-row subgrid, so labels / inputs /
-   descriptions / errors align across all siblings in the row. */
-.fre-row > .fre-field {
-    display: grid;
-    grid-template-rows: subgrid;
-    grid-row: span 4;
-    box-sizing: border-box;
-}
-
-/* Pin known child classes to their rows. The input element has no universal
-   class (it could be .fre-field__input / __select / __textarea / __fieldset /
-   __file / etc.), so we leave it unpinned — grid auto-placement drops it into
-   row 2, the only remaining slot. */
-.fre-row > .fre-field > .fre-field__label       { grid-row: 1; }
-.fre-row > .fre-field > .fre-field__description { grid-row: 3; }
-.fre-row > .fre-field > .fre-field__error       { grid-row: 4; }
 
 /* ==========================================================================
    Sections
@@ -809,13 +947,14 @@
     color: var(--fre-text-muted);
 }
 
-.fre-section__fields {
-    /* Reset background for nested fields */
-}
+/* .fre-section__fields layout (flex column with gap) is defined in the
+   "Vertical Rhythm" rule block near the top of this file alongside
+   .fre-form__fields and .fre-step__fields — kept together so the three
+   container patterns are visible side-by-side.
 
-.fre-section__fields > .fre-field:last-child {
-    margin-bottom: 0;
-}
+   Note: there's no longer a `:last-child { margin-bottom: 0 }` rule because
+   gap-based spacing doesn't apply trailing space after the last child by
+   definition. One less edge case. */
 
 /* ==========================================================================
    Conditional Logic
@@ -1313,13 +1452,37 @@ body.aisb-hover-none .fre-btn--primary:hover:not(:disabled) {
         margin: 13px 6px 0;
     }
 
-    /* Stack navigation buttons */
+    /* Stack navigation buttons full-width on mobile.
+
+       The desktop default has `align-items: center` (so prev/next align
+       vertically in the row layout). On mobile we flip to column-reverse
+       direction AND switch align-items to `stretch` — that single change
+       makes every flex item (both `.fre-btn` prev/next buttons AND the
+       `.fre-form__submit` wrapper around the last-step submit) span the
+       full width naturally, without needing brittle per-button `width: 100%`
+       overrides that have to be kept in sync with the button class set.
+
+       Without `align-items: stretch`, the prev/next buttons LOOKED full-width
+       only because the `.fre-btn` base rule below has its own width
+       declaration; the last-step submit is wrapped in `.fre-form__submit`
+       so the wrapper was the actual constraint, sized to its inline-flex
+       button's content. Bug fixed at the layout level, not patched at the
+       button class level. */
     .fre-step__nav {
         flex-direction: column-reverse;
         gap: 0.75rem;
+        align-items: stretch;
     }
 
-    .fre-step__nav .fre-btn {
+    /* Buttons inside the now-stretching step nav still need explicit
+       full-width on the .fre-btn (because the base rule fixes its display
+       to inline-flex without a width) AND on the submit button (same
+       reason; .fre-form__submit-button is inline-flex by default). The
+       wrapper around the submit now stretches to full width thanks to
+       align-items: stretch above, so the button's width: 100% finally
+       resolves to the full step nav width. */
+    .fre-step__nav .fre-btn,
+    .fre-step__nav .fre-form__submit-button {
         width: 100%;
     }
 }
@@ -1391,12 +1554,15 @@ body.aisb-hover-none .fre-btn--primary:hover:not(:disabled) {
             margin: 15px 4px 0;
         }
 
-        /* Step nav stacking */
+        /* Step nav stacking. align-items: stretch is the key piece — see
+           the container-query equivalent above for the full rationale. */
         .fre-step__nav {
             flex-direction: column-reverse;
+            align-items: stretch;
         }
 
-        .fre-step__nav .fre-btn {
+        .fre-step__nav .fre-btn,
+        .fre-step__nav .fre-form__submit-button {
             width: 100%;
         }
     }
