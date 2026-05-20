@@ -47,9 +47,13 @@ for path in glob.glob('assets/css/*.css'):
     if path.endswith('.min.css'):
         continue
     text = open(path).read()
-    for m in re.finditer(r'var\\s*\\(\\s*(--aisb-[A-Za-z0-9_-]+)\\s*([,)])', text):
+    # Strip CSS comments before checking (avoids false positives from
+    # illustrative examples in comment blocks like '/* don't do var(--aisb-X) */')
+    stripped = re.sub(r'/\\*.*?\\*/', '', text, flags=re.DOTALL)
+    for m in re.finditer(r'var\\s*\\(\\s*(--aisb-[A-Za-z0-9_-]+)\\s*([,)])', stripped):
         if m.group(2) == ')':
-            ln = text[:m.start()].count(chr(10)) + 1
+            # Find line number in original text by searching for the match
+            ln = text[:text.find(m.group(0))].count(chr(10)) + 1 if m.group(0) in text else 0
             gaps.append(f'  {path}:{ln}  var({m.group(1)})')
 if gaps:
     print('AISB token contract violation — bare var() calls without fallback:')
