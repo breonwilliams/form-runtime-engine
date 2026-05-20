@@ -13,6 +13,26 @@
 
    When AISB is active, forms automatically inherit brand styling.
 
+   ⚠  SCOPE NOTE — DO NOT MOVE TO :ROOT
+   --------------------------------------------------------------------------
+   These `--fre-*` indirection variables are declared on `.fre-form`, NOT on
+   `:root`. This matters when AISB has per-section palette overrides.
+
+   CSS custom properties resolve their `var()` references at the SCOPE where
+   the variable is DECLARED, not where it's consumed. If we declared
+   `--fre-primary-color: var(--aisb-color-primary)` at `:root`, the value
+   would be baked against the global `--aisb-color-primary` once, and AISB's
+   section-scoped overrides (which set `--aisb-color-primary` on the section
+   element itself) would never reach the form.
+
+   Declaring at `.fre-form` puts the resolution at the form's location in
+   the cascade — inside the section, where any per-section override is
+   visible. The form's children inherit the resolved `--fre-*` values via
+   the normal cascade.
+
+   Standalone (no AISB): the fallbacks below take effect, behaviour is
+   unchanged from the previous `:root` scope.
+
    ⚠  PUBLIC CONTRACT: Every `--aisb-*` token referenced below is part of the
    documented integration contract with the Promptless WP plugin. Before adding,
    removing, or renaming any `--aisb-*` reference in this file, read and update:
@@ -21,7 +41,7 @@
    still render correctly when the plugin is inactive.
    ========================================================================== */
 
-:root {
+.fre-form {
     /* Colors - inherit from AISB or use standalone defaults */
     --fre-primary-color: var(--aisb-color-primary, #6366f1);
     --fre-primary-hover: var(--aisb-button-primary-hover-bg, #4f46e5);

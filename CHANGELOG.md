@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.6.5] - 2026-05-20
+
+### Fixed
+- Per-section palette inheritance: when a Promptless WP section has a custom palette override applied (e.g., a section using a "Test Corp Brand" preset that differs from global brand colors), forms embedded in that section now inherit the section's palette instead of falling back to the global colors. Previously, the form's Submit button and field colors stayed locked to the site-wide brand colors even when the surrounding section had a per-section override.
+- Root cause was a CSS variable scoping bug: FRE's `--fre-*` indirection variables were declared at `:root`, which baked them against the global `--aisb-color-*` values once and prevented section-scoped overrides (emitted as inline styles on the section element) from cascading into forms. Moved the declarations to `.fre-form` so they resolve at the form's location in the cascade, inside the section's scope.
+- Standalone behavior (FRE without Promptless WP) is unchanged — the `var(--aisb-*, <fallback>)` fallbacks still apply at the new scope.
+
 ## [1.6.4] - 2026-05-17
 
 ### Changed
