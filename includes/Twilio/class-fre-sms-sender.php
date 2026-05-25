@@ -206,15 +206,17 @@ class FRE_SMS_Sender {
     public function get_messages( $entry_id ) {
         // Table name is a plugin-owned property (set from $wpdb->prefix . 'fre_twilio_messages'),
         // not user input. The user-supplied $entry_id flows through the %d placeholder.
-        return $this->wpdb->get_results(
-            // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table name is plugin-controlled; user value flows through %d
+        // Direct query is required — Twilio messages live in a plugin-specific table outside the WP query API.
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
+        $results = $this->wpdb->get_results(
             $this->wpdb->prepare(
                 "SELECT * FROM {$this->messages_table} WHERE entry_id = %d ORDER BY created_at ASC",
                 $entry_id
             ),
-            // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
             ARRAY_A
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
+        return $results;
     }
 
     /**

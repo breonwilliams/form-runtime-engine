@@ -196,6 +196,13 @@ final class Form_Runtime_Engine {
         // Initialize shortcode.
         new FRE_Shortcode();
 
+        // Initialize GDPR / privacy compliance hooks. Registers WordPress
+        // personal-data exporter and eraser callbacks so site administrators
+        // can fulfill data-subject access (DSAR) and right-to-erasure
+        // requests against form-entry data via the WP core Tools menu.
+        // Not admin-gated because WP's privacy data jobs may run via cron.
+        ( new FRE_Privacy() )->init();
+
         // Initialize admin.
         if ( is_admin() ) {
             $this->init_admin();
@@ -358,8 +365,11 @@ final class Form_Runtime_Engine {
         $health   = $migrator->check_database_health();
 
         if ( $health !== true ) {
+            // is-dismissible: condition is re-evaluated on every admin page load.
+            // If tables remain missing, the notice will reappear on the next load
+            // until the condition resolves (tables created via re-activation).
             add_action( 'admin_notices', function() use ( $health ) {
-                echo '<div class="notice notice-error">';
+                echo '<div class="notice notice-error is-dismissible">';
                 echo '<p><strong>' . esc_html__( 'Form Runtime Engine:', 'form-runtime-engine' ) . '</strong> ';
                 echo esc_html__( 'Database tables are missing: ', 'form-runtime-engine' );
                 echo esc_html( implode( ', ', $health ) );
@@ -370,8 +380,11 @@ final class Form_Runtime_Engine {
         // Check for migration errors.
         $migration_error = get_option( 'fre_migration_error' );
         if ( $migration_error ) {
+            // is-dismissible: fre_migration_error option is cleared when a
+            // subsequent migration succeeds, at which point this notice stops
+            // firing entirely. Until then it reappears on every admin page load.
             add_action( 'admin_notices', function() {
-                echo '<div class="notice notice-error">';
+                echo '<div class="notice notice-error is-dismissible">';
                 echo '<p><strong>' . esc_html__( 'Form Runtime Engine:', 'form-runtime-engine' ) . '</strong> ';
                 echo esc_html__( 'Database migration failed. Please check error logs or contact support.', 'form-runtime-engine' );
                 echo '</p></div>';
@@ -381,8 +394,11 @@ final class Form_Runtime_Engine {
         // Check for InnoDB support (required for transactions).
         $innodb_check = $migrator->check_innodb_support();
         if ( $innodb_check !== true ) {
+            // is-dismissible: same self-healing pattern. If tables are migrated
+            // to InnoDB the notice stops appearing; otherwise it reappears on
+            // every admin page load until the user addresses the engine mismatch.
             add_action( 'admin_notices', function() use ( $innodb_check ) {
-                echo '<div class="notice notice-warning">';
+                echo '<div class="notice notice-warning is-dismissible">';
                 echo '<p><strong>' . esc_html__( 'Form Runtime Engine:', 'form-runtime-engine' ) . '</strong> ';
                 echo esc_html__( 'Tables not using InnoDB engine: ', 'form-runtime-engine' );
                 echo esc_html( implode( ', ', $innodb_check ) );

@@ -246,46 +246,51 @@ class FRE_Webhook_Log {
      * @return array Array with 'items' and 'total' keys.
      */
     public function get_recent( $limit = 20, $offset = 0, $form_id = '' ) {
-        $where = '';
-        $args  = array();
+        // Two explicit query branches rather than a single dynamic query.
+        // Plugin Check's static analyzer flags dynamic prepare() patterns
+        // because it cannot statically verify that the variadic argument
+        // count matches the placeholder count in the SQL string. Branching
+        // gives each prepare() call a fixed-shape template whose placeholders
+        // line up 1:1 with the named arguments, satisfying the analyzer and
+        // making the code easier to reason about for future maintainers.
+        $limit  = (int) $limit;
+        $offset = (int) $offset;
 
         if ( ! empty( $form_id ) ) {
-            $where = 'WHERE form_id = %s';
-            $args[] = $form_id;
-        }
+            $items = $this->wpdb->get_results(
+                $this->wpdb->prepare(
+                    "SELECT * FROM {$this->table}
+                     WHERE form_id = %s
+                     ORDER BY created_at DESC
+                     LIMIT %d OFFSET %d",
+                    $form_id,
+                    $limit,
+                    $offset
+                ),
+                ARRAY_A
+            );
 
-        $args[] = $limit;
-        $args[] = $offset;
-
-        $items = $this->wpdb->get_results(
-            $this->wpdb->prepare(
-                "SELECT * FROM {$this->table}
-                 {$where}
-                 ORDER BY created_at DESC
-                 LIMIT %d OFFSET %d",
-                ...$args
-            ),
-            ARRAY_A
-        );
-
-        // Get total count.
-        $count_args = array();
-        $count_where = '';
-        if ( ! empty( $form_id ) ) {
-            $count_where = 'WHERE form_id = %s';
-            $count_args[] = $form_id;
-        }
-
-        if ( ! empty( $count_args ) ) {
             $total = (int) $this->wpdb->get_var(
                 $this->wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$this->table} {$count_where}",
-                    ...$count_args
+                    "SELECT COUNT(*) FROM {$this->table} WHERE form_id = %s",
+                    $form_id
                 )
             );
         } else {
+            $items = $this->wpdb->get_results(
+                $this->wpdb->prepare(
+                    "SELECT * FROM {$this->table}
+                     ORDER BY created_at DESC
+                     LIMIT %d OFFSET %d",
+                    $limit,
+                    $offset
+                ),
+                ARRAY_A
+            );
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no user input.
             $total = (int) $this->wpdb->get_var(
-                "SELECT COUNT(*) FROM {$this->table}" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix
+                "SELECT COUNT(*) FROM {$this->table}"
             );
         }
 

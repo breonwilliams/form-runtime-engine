@@ -128,7 +128,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
 
         // Preserve form_id filter for back navigation.
         if ( ! empty( $_GET['form_id'] ) ) {
-            $view_args['form_id'] = sanitize_key( $_GET['form_id'] );
+            $view_args['form_id'] = sanitize_key( wp_unslash( $_GET['form_id'] ) );
         }
 
         $view_url = add_query_arg( $view_args, admin_url( 'admin.php' ) );
@@ -494,11 +494,11 @@ class FRE_Entries_List_Table extends WP_List_Table {
 
         // Apply filters.
         if ( ! empty( $_GET['form_id'] ) ) {
-            $this->query->form( sanitize_key( $_GET['form_id'] ) );
+            $this->query->form( sanitize_key( wp_unslash( $_GET['form_id'] ) ) );
         }
 
         if ( ! empty( $_GET['status'] ) ) {
-            $this->query->status( sanitize_key( $_GET['status'] ) );
+            $this->query->status( sanitize_key( wp_unslash( $_GET['status'] ) ) );
         }
 
         if ( empty( $_GET['show_spam'] ) ) {
@@ -511,8 +511,8 @@ class FRE_Entries_List_Table extends WP_List_Table {
         }
 
         // Sorting.
-        $orderby = isset( $_GET['orderby'] ) ? sanitize_key( $_GET['orderby'] ) : 'created_at';
-        $order   = isset( $_GET['order'] ) ? sanitize_key( $_GET['order'] ) : 'DESC';
+        $orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : 'created_at';
+        $order   = isset( $_GET['order'] ) ? sanitize_key( wp_unslash( $_GET['order'] ) ) : 'DESC';
         $this->query->order_by( $orderby, $order );
 
         // Get total count.

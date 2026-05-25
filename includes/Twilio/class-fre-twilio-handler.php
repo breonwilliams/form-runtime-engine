@@ -424,15 +424,17 @@ class FRE_Twilio_Handler {
 
         // Table name is a plugin-owned property (set from $wpdb->prefix . 'fre_twilio_clients'),
         // not user input. The user-supplied $twilio_number flows through the %s placeholder.
-        return $this->wpdb->get_row(
-            // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table name is plugin-controlled; user value flows through %s
+        // Direct query is required — Twilio clients live in a plugin-specific table outside the WP query API.
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
+        $client = $this->wpdb->get_row(
             $this->wpdb->prepare(
                 "SELECT * FROM {$this->clients_table} WHERE twilio_number = %s",
                 $twilio_number
             ),
-            // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
             ARRAY_A
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
+        return $client;
     }
 
     /**
@@ -499,8 +501,9 @@ class FRE_Twilio_Handler {
         // not user input. The user-supplied values ($client['form_id'] for the
         // form filter and $from_number for the phone-number match) flow through
         // %s placeholders.
+        // Direct query is required — joining plugin-specific entry tables outside the WP query API.
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
         $entry_id = $this->wpdb->get_var(
-            // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table names are plugin-controlled; user values flow through %s
             $this->wpdb->prepare(
                 "SELECT e.id FROM {$entries_table} e
                  INNER JOIN {$entry_meta_table} em ON e.id = em.entry_id
@@ -513,8 +516,8 @@ class FRE_Twilio_Handler {
                 $client['form_id'],
                 $from_number
             )
-            // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         if ( $entry_id ) {
             return (int) $entry_id;

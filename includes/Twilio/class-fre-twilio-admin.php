@@ -666,15 +666,15 @@ class FRE_Twilio_Admin {
         // ($this->clients_table is set from $wpdb->prefix . 'fre_twilio_clients'),
         // not user input, so interpolating it directly is safe. Placeholders
         // (%s, %d) are used for the actual user-supplied values.
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
         $this->wpdb->query(
-            // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- table name is plugin-controlled; user values flow through %s/%d
             $this->wpdb->prepare(
                 "UPDATE {$this->clients_table} SET is_active = 1 - is_active, updated_at = %s WHERE id = %d",
                 current_time( 'mysql' ),
                 $client_id
             )
-            // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         wp_send_json_success();
     }
@@ -714,10 +714,15 @@ class FRE_Twilio_Admin {
      * @return array Array of client records.
      */
     private function get_all_clients() {
-        return $this->wpdb->get_results(
+        // $this->clients_table is set from $wpdb->prefix + hardcoded suffix; no user input.
+        // Direct query is required — Twilio clients live in a plugin-specific table outside the WP query API.
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
+        $clients = $this->wpdb->get_results(
             "SELECT * FROM {$this->clients_table} ORDER BY client_name ASC",
             ARRAY_A
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
+        return $clients;
     }
 
     /**
@@ -773,21 +778,27 @@ class FRE_Twilio_Admin {
      */
     public static function register_client_forms() {
         global $wpdb;
+        // $table is built from $wpdb->prefix + hardcoded suffix; no user input.
+        // Direct queries are required — Twilio clients live in a plugin-specific table outside the WP query API.
         $table = $wpdb->prefix . 'fre_twilio_clients';
 
         // Check if the table exists first.
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $exists = $wpdb->get_var(
             $wpdb->prepare( 'SHOW TABLES LIKE %s', $table )
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
         if ( $exists !== $table ) {
             return;
         }
 
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
         $clients = $wpdb->get_results(
             "SELECT form_id, client_name, webhook_url, webhook_secret FROM {$table} WHERE is_active = 1",
             ARRAY_A
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         if ( empty( $clients ) ) {
             return;

@@ -102,6 +102,9 @@ class FRE_Autoloader {
         'FRE_SMS_Sender'          => 'Twilio/class-fre-sms-sender.php',
         'FRE_Twilio_Handler'      => 'Twilio/class-fre-twilio-handler.php',
         'FRE_Twilio_Admin'        => 'Twilio/class-fre-twilio-admin.php',
+
+        // Privacy compliance (GDPR / DSAR support via WordPress core hooks).
+        'FRE_Privacy'             => 'Privacy/class-fre-privacy.php',
     );
 
     /**

@@ -125,7 +125,8 @@ class FRE_Connector_Admin {
             </p>
 
             <?php if ( ! $app_passwords_available ) : ?>
-                <div class="notice notice-warning" style="margin: 12px 0 20px;">
+                <?php // is-dismissible: notice is page-scoped (only renders on the connector settings page). Re-evaluates on every page load — if app passwords become available, notice stops appearing. Dismissal is harmless UX (the underlying limitation persists; reload re-evaluates). ?>
+                <div class="notice notice-warning is-dismissible" style="margin: 12px 0 20px;">
                     <p><strong><?php esc_html_e( 'Application passwords not available on this site.', 'form-runtime-engine' ); ?></strong>
                     <?php esc_html_e( "WordPress requires either HTTPS or a local environment to issue application passwords. Until that's set up, the \"Generate Connection\" button will return an error.", 'form-runtime-engine' ); ?></p>
                     <ul style="margin: 6px 0 6px 24px; list-style: disc;">
@@ -611,8 +612,9 @@ class FRE_Connector_Admin {
      * AJAX: toggle the connector enable flag.
      */
     public function ajax_toggle_enabled() {
-        $this->verify_ajax();
+        $this->verify_ajax(); // Calls check_ajax_referer() + capability check on line 597.
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above in verify_ajax() via check_ajax_referer().
         $enabled = isset( $_POST['enabled'] ) && '1' === $_POST['enabled'];
         FRE_Connector_Settings::set_enabled( $enabled );
 
@@ -628,8 +630,9 @@ class FRE_Connector_Admin {
      * AJAX: toggle the entry-read flag.
      */
     public function ajax_toggle_entry_read() {
-        $this->verify_ajax();
+        $this->verify_ajax(); // Calls check_ajax_referer() + capability check on line 597.
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above in verify_ajax() via check_ajax_referer().
         $enabled = isset( $_POST['enabled'] ) && '1' === $_POST['enabled'];
         FRE_Connector_Settings::set_entry_read_enabled( $enabled );
 

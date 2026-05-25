@@ -908,12 +908,16 @@ class FRE_Connector_API {
         }
 
         // Clean up SMS messages if the Twilio messages table exists.
+        // $messages_table is built from $wpdb->prefix + hardcoded suffix; no user input.
+        // Direct queries are required — Twilio messages live in a plugin-specific table outside the WP query API.
         global $wpdb;
         $messages_table = $wpdb->prefix . 'fre_twilio_messages';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $table_exists   = $wpdb->get_var(
             $wpdb->prepare( 'SHOW TABLES LIKE %s', $messages_table )
         );
         if ( $table_exists ) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->delete( $messages_table, array( 'entry_id' => $entry_id ), array( '%d' ) );
         }
 
@@ -1014,9 +1018,12 @@ class FRE_Connector_API {
     private function get_sms_messages( $entry_id ) {
         global $wpdb;
 
+        // $table is built from $wpdb->prefix + hardcoded suffix; no user input.
+        // Direct queries are required — Twilio messages live in a plugin-specific table outside the WP query API.
         $table = $wpdb->prefix . 'fre_twilio_messages';
 
         // Bail silently if the Twilio module's table doesn't exist.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $table_exists = $wpdb->get_var(
             $wpdb->prepare( 'SHOW TABLES LIKE %s', $table )
         );
@@ -1025,6 +1032,7 @@ class FRE_Connector_API {
             return array();
         }
 
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
         $rows = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT direction, body, status, created_at FROM {$table} WHERE entry_id = %d ORDER BY created_at ASC",
@@ -1032,6 +1040,7 @@ class FRE_Connector_API {
             ),
             ARRAY_A
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         return is_array( $rows ) ? $rows : array();
     }

@@ -402,7 +402,9 @@ class FRE_Entry_Detail {
         }
 
         // Fetch messages for this entry.
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        // Note: $messages_table is set above from $wpdb->prefix + hardcoded suffix, not user input.
+        // Direct query is required — Twilio messages live in a plugin-specific table outside the WP query API.
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
         $messages = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT * FROM {$messages_table} WHERE entry_id = %d ORDER BY created_at ASC",
@@ -410,6 +412,7 @@ class FRE_Entry_Detail {
             ),
             ARRAY_A
         );
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 
         if ( empty( $messages ) ) {
             return;

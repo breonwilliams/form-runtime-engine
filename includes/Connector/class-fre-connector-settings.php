@@ -164,14 +164,19 @@ class FRE_Connector_Settings {
         delete_option( self::OPTION_ENABLED );
         delete_option( self::OPTION_ENTRY_READ_ENABLED );
 
-        // Clean up user meta markers. This is a small DB scan but only runs
-        // during uninstall, so it's acceptable.
+        // Clean up user meta markers. Runs once during uninstall — direct
+        // delete is the simplest path and caching is irrelevant since the
+        // site is being torn down. The slow_db_query warning on meta_key is
+        // acknowledged but unavoidable here (we need to match all users
+        // with this marker, not a single user).
         global $wpdb;
         if ( isset( $wpdb ) ) {
+            // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.SlowDBQuery.slow_db_query_meta_key
             $wpdb->delete(
                 $wpdb->usermeta,
                 array( 'meta_key' => self::USER_META_CONFIGURED )
             );
+            // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.SlowDBQuery.slow_db_query_meta_key
         }
     }
 }

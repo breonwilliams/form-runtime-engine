@@ -448,8 +448,12 @@ class FRE_Admin {
         $failures      = $email_handler->get_failure_count();
 
         if ( $failures > 5 ) {
+            // is-dismissible: failure count is re-evaluated each load; once
+            // failures drop below the threshold (auto-cleanup or successful
+            // retries) the notice stops appearing. If the threshold is
+            // crossed again, the notice reappears — self-healing pattern.
             ?>
-            <div class="notice notice-warning">
+            <div class="notice notice-warning is-dismissible">
                 <p>
                     <strong><?php esc_html_e( 'Form Runtime Engine:', 'form-runtime-engine' ); ?></strong>
                     <?php
