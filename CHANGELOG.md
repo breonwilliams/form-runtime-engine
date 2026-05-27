@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.7.1] - 2026-05-27
+
+### Fixed
+- Plugin header `Author URI` removed because it was identical to
+  `Plugin URI` (both pointed at `https://promptlesswp.com`). WP.org's
+  upload-form validator rejects header sets where Plugin URI and Author
+  URI carry the same value — *"A plugin URI is a webpage that provides
+  details about this specific plugin. An author URI is a webpage that
+  provides information about the author of the plugin. Those two must
+  be different."* Since the plugin's home and the author's home are the
+  same site, the safest fix is to drop one. Author URI removed; Plugin
+  URI is more useful in the directory listing.
+
 ## [1.7.0] - 2026-05-27
 
 WordPress.org compliance release. Addresses the issues called out by the

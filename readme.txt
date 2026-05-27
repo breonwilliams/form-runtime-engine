@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.0
 Tested up to: 7.0
-Stable tag: 1.7.0
+Stable tag: 1.7.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -97,6 +97,9 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 See CHANGELOG.md in the plugin folder or visit the GitHub repository for full release notes.
 
 == Upgrade Notice ==
+
+= 1.7.1 =
+Header tidy-up — Author URI removed (was identical to Plugin URI, which WP.org doesn't allow). No other changes.
 
 = 1.7.0 =
 WP.org compliance release. The Custom CSS form-setting is removed — use theme CSS or a CSS plugin instead. `[client_form]` is replaced by `[fre_form]` and `[promptless_form]`; update old tags. Form data, entries, webhooks, and css_class are unaffected.
