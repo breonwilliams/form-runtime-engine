@@ -1,6 +1,6 @@
 <?php
 /**
- * GDPR / Privacy Compliance for Form Runtime Engine.
+ * GDPR / Privacy Compliance for Promptless Forms.
  *
  * Hooks into WordPress's personal-data export and erasure tools so site
  * administrators can fulfill data-subject access requests (DSAR) and right-
@@ -35,7 +35,7 @@ class FRE_Privacy {
      * label the section containing FRE entries. Must be unique across
      * all exporters registered on the site.
      */
-    const EXPORTER_GROUP = 'form-runtime-engine';
+    const EXPORTER_GROUP = 'promptless-forms';
 
     /**
      * Entries per page when iterating during export/erasure. WordPress
@@ -64,7 +64,7 @@ class FRE_Privacy {
      */
     public function register_exporter( $exporters ) {
         $exporters[ self::EXPORTER_GROUP ] = array(
-            'exporter_friendly_name' => __( 'Form Runtime Engine — Form Submissions', 'form-runtime-engine' ),
+            'exporter_friendly_name' => __( 'Promptless Forms — Form Submissions', 'promptless-forms' ),
             'callback'               => array( $this, 'export_user_data' ),
         );
         return $exporters;
@@ -78,7 +78,7 @@ class FRE_Privacy {
      */
     public function register_eraser( $erasers ) {
         $erasers[ self::EXPORTER_GROUP ] = array(
-            'eraser_friendly_name' => __( 'Form Runtime Engine — Form Submissions', 'form-runtime-engine' ),
+            'eraser_friendly_name' => __( 'Promptless Forms — Form Submissions', 'promptless-forms' ),
             'callback'             => array( $this, 'erase_user_data' ),
         );
         return $erasers;
@@ -100,13 +100,13 @@ class FRE_Privacy {
 
         $content = sprintf(
             '<p>%s</p><p>%s</p><p>%s</p>',
-            esc_html__( 'When you submit a form on this site powered by Form Runtime Engine, the form data is stored in our database for record-keeping and follow-up purposes. Collected data typically includes the values you entered into the form (such as your name, email address, phone number, and message), the date and time of submission, your IP address (used for spam protection), and your browser identification (user agent).', 'form-runtime-engine' ),
-            esc_html__( 'Form submissions may also trigger email notifications to site administrators, and may be sent to external services that the site administrator has configured. Common destinations include webhook endpoints used by automation tools such as Zapier, Make, or Google Sheets, and SMS providers such as Twilio. The specific external recipients depend on each form\'s configuration.', 'form-runtime-engine' ),
-            esc_html__( 'You can request a copy of the form-submission data we have collected about you, or request that it be deleted, by contacting the site administrator. WordPress\'s built-in data-export and data-erasure tools are wired up to remove your data from this plugin automatically when such a request is processed.', 'form-runtime-engine' )
+            esc_html__( 'When you submit a form on this site powered by Promptless Forms, the form data is stored in our database for record-keeping and follow-up purposes. Collected data typically includes the values you entered into the form (such as your name, email address, phone number, and message), the date and time of submission, your IP address (used for spam protection), and your browser identification (user agent).', 'promptless-forms' ),
+            esc_html__( 'Form submissions may also trigger email notifications to site administrators, and may be sent to external services that the site administrator has configured. Common destinations include webhook endpoints used by automation tools such as Zapier, Make, or Google Sheets, and SMS providers such as Twilio. The specific external recipients depend on each form\'s configuration.', 'promptless-forms' ),
+            esc_html__( 'You can request a copy of the form-submission data we have collected about you, or request that it be deleted, by contacting the site administrator. WordPress\'s built-in data-export and data-erasure tools are wired up to remove your data from this plugin automatically when such a request is processed.', 'promptless-forms' )
         );
 
         wp_add_privacy_policy_content(
-            'Form Runtime Engine',
+            'Promptless Forms',
             wp_kses_post( wpautop( $content ) )
         );
     }
@@ -195,7 +195,7 @@ class FRE_Privacy {
                     $retained++;
                     $messages[] = sprintf(
                         /* translators: %d: entry ID */
-                        __( 'Entry %d could not be erased.', 'form-runtime-engine' ),
+                        __( 'Entry %d could not be erased.', 'promptless-forms' ),
                         $entry_id
                     );
                 }
@@ -316,11 +316,11 @@ class FRE_Privacy {
         // so the admin can match each export entry back to its source.
         $form_label = $form && ! empty( $form['title'] ) ? $form['title'] : $entry['form_id'];
         $data[]     = array(
-            'name'  => __( 'Form', 'form-runtime-engine' ),
+            'name'  => __( 'Form', 'promptless-forms' ),
             'value' => $form_label,
         );
         $data[]     = array(
-            'name'  => __( 'Submitted', 'form-runtime-engine' ),
+            'name'  => __( 'Submitted', 'promptless-forms' ),
             'value' => $entry['created_at'],
         );
 
@@ -356,8 +356,8 @@ class FRE_Privacy {
                 $data[] = array(
                     'name'  => sprintf(
                         /* translators: %s: form field key the file was uploaded to */
-                        __( 'Uploaded file (%s)', 'form-runtime-engine' ),
-                        $file['field_key'] ?? __( 'unknown', 'form-runtime-engine' )
+                        __( 'Uploaded file (%s)', 'promptless-forms' ),
+                        $file['field_key'] ?? __( 'unknown', 'promptless-forms' )
                     ),
                     'value' => $file['file_name'] ?? '',
                 );
@@ -368,20 +368,20 @@ class FRE_Privacy {
         // alongside the entry, so they're part of the user's data export.
         if ( ! empty( $entry['ip_address'] ) ) {
             $data[] = array(
-                'name'  => __( 'IP address (at submission)', 'form-runtime-engine' ),
+                'name'  => __( 'IP address (at submission)', 'promptless-forms' ),
                 'value' => $entry['ip_address'],
             );
         }
         if ( ! empty( $entry['user_agent'] ) ) {
             $data[] = array(
-                'name'  => __( 'User agent (at submission)', 'form-runtime-engine' ),
+                'name'  => __( 'User agent (at submission)', 'promptless-forms' ),
                 'value' => $entry['user_agent'],
             );
         }
 
         return array(
             'group_id'    => self::EXPORTER_GROUP,
-            'group_label' => __( 'Form Submissions (Form Runtime Engine)', 'form-runtime-engine' ),
+            'group_label' => __( 'Form Submissions (Promptless Forms)', 'promptless-forms' ),
             'item_id'     => 'fre-entry-' . (int) $entry['id'],
             'data'        => $data,
         );

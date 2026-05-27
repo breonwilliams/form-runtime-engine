@@ -1,6 +1,6 @@
 <?php
 /**
- * Sanitizer for Form Runtime Engine.
+ * Sanitizer for Promptless Forms.
  *
  * Handles all form field sanitization.
  *

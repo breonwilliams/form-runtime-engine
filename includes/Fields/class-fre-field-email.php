@@ -1,6 +1,6 @@
 <?php
 /**
- * Email Field Type for Form Runtime Engine.
+ * Email Field Type for Promptless Forms.
  *
  * @package FormRuntimeEngine
  */
@@ -63,7 +63,7 @@ class FRE_Field_Email extends FRE_Field_Type_Abstract {
                 'invalid_email',
                 sprintf(
                     /* translators: %s: field label */
-                    __( '%s must be a valid email address.', 'form-runtime-engine' ),
+                    __( '%s must be a valid email address.', 'promptless-forms' ),
                     $this->get_label( $field )
                 )
             );

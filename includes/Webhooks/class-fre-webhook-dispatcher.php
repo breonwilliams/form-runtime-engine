@@ -1,6 +1,6 @@
 <?php
 /**
- * Webhook Dispatcher for Form Runtime Engine.
+ * Webhook Dispatcher for Promptless Forms.
  *
  * Sends form submission data to configured webhook endpoints.
  * Includes delivery logging, retry mechanism, and status tracking.
@@ -771,7 +771,7 @@ class FRE_Webhook_Dispatcher {
                 'id'    => $form_id,
                 'title' => 'Webhook Test',
             ),
-            'message'   => 'This is a test webhook from Form Runtime Engine.',
+            'message'   => 'This is a test webhook from Promptless Forms.',
             'site'      => array(
                 'name' => get_bloginfo( 'name' ),
                 'url'  => home_url(),
@@ -820,7 +820,7 @@ class FRE_Webhook_Dispatcher {
         } else {
             $result['error'] = sprintf(
                 /* translators: %d: HTTP response code */
-                __( 'Webhook returned HTTP status %d.', 'form-runtime-engine' ),
+                __( 'Webhook returned HTTP status %d.', 'promptless-forms' ),
                 $result['response_code']
             );
         }
@@ -841,7 +841,7 @@ class FRE_Webhook_Dispatcher {
         $form_data = FRE_Forms_Manager::get_form( $form_id );
 
         if ( empty( $form_data ) ) {
-            return new WP_Error( 'form_not_found', __( 'Form not found.', 'form-runtime-engine' ) );
+            return new WP_Error( 'form_not_found', __( 'Form not found.', 'promptless-forms' ) );
         }
 
         // Parse the form config to get field definitions.
@@ -914,12 +914,19 @@ class FRE_Webhook_Dispatcher {
                     $sample_data[ $key ] = '123 Main St, Springfield, IL 62701';
                     break;
                 case 'file':
+                    // Build the sample file URL from wp_upload_dir() instead
+                    // of hardcoding /wp-content/uploads/, so the preview is
+                    // correct on sites that have moved their uploads dir via
+                    // UPLOADS / WP_CONTENT_DIR / WP_CONTENT_URL overrides or
+                    // multisite blog-specific upload paths.
+                    $uploads         = wp_upload_dir();
+                    $uploads_baseurl = ! empty( $uploads['baseurl'] ) ? $uploads['baseurl'] : trailingslashit( content_url() ) . 'uploads';
                     $sample_files[] = array(
                         'field_key' => $key,
                         'file_name' => 'sample-document.pdf',
                         'file_size' => 102400,
                         'mime_type' => 'application/pdf',
-                        'file_url'  => home_url( '/wp-content/uploads/fre-uploads/sample-document.pdf' ),
+                        'file_url'  => $uploads_baseurl . '/fre-uploads/sample-document.pdf',
                     );
                     break;
                 default:

@@ -1,6 +1,6 @@
 <?php
 /**
- * Design System Integration for Form Runtime Engine.
+ * Design System Integration for Promptless Forms.
  *
  * Integrates with AI Section Builder Modern design system when available,
  * allowing forms to inherit brand styling (colors, typography, border radius).

@@ -1,6 +1,6 @@
 <?php
 /**
- * Select Field Type for Form Runtime Engine.
+ * Select Field Type for Promptless Forms.
  *
  * @package FormRuntimeEngine
  */
@@ -139,7 +139,7 @@ class FRE_Field_Select extends FRE_Field_Type_Abstract {
                     'invalid_option',
                     sprintf(
                         /* translators: %s: field label */
-                        __( '%s has an invalid selection.', 'form-runtime-engine' ),
+                        __( '%s has an invalid selection.', 'promptless-forms' ),
                         $this->get_label( $field )
                     )
                 );

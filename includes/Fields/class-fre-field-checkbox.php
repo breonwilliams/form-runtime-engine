@@ -1,6 +1,6 @@
 <?php
 /**
- * Checkbox Field Type for Form Runtime Engine.
+ * Checkbox Field Type for Promptless Forms.
  *
  * Supports both single checkbox and checkbox groups.
  *
@@ -237,7 +237,7 @@ class FRE_Field_Checkbox extends FRE_Field_Type_Abstract {
                     'required_field',
                     sprintf(
                         /* translators: %s: field label */
-                        __( '%s must be checked.', 'form-runtime-engine' ),
+                        __( '%s must be checked.', 'promptless-forms' ),
                         $this->get_label( $field )
                     )
                 );
@@ -251,7 +251,7 @@ class FRE_Field_Checkbox extends FRE_Field_Type_Abstract {
                 'required_field',
                 sprintf(
                     /* translators: %s: field label */
-                    __( '%s requires at least one selection.', 'form-runtime-engine' ),
+                    __( '%s requires at least one selection.', 'promptless-forms' ),
                     $this->get_label( $field )
                 )
             );
@@ -268,7 +268,7 @@ class FRE_Field_Checkbox extends FRE_Field_Type_Abstract {
                         'invalid_option',
                         sprintf(
                             /* translators: %s: field label */
-                            __( '%s has an invalid selection.', 'form-runtime-engine' ),
+                            __( '%s has an invalid selection.', 'promptless-forms' ),
                             $this->get_label( $field )
                         )
                     );

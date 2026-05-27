@@ -1,6 +1,6 @@
 <?php
 /**
- * Field Type Interface for Form Runtime Engine.
+ * Field Type Interface for Promptless Forms.
  *
  * @package FormRuntimeEngine
  */

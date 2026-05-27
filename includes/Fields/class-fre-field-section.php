@@ -1,6 +1,6 @@
 <?php
 /**
- * Section Field Type for Form Runtime Engine.
+ * Section Field Type for Promptless Forms.
  *
  * A container field for grouping related fields with a heading.
  *

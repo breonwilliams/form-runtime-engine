@@ -1,6 +1,6 @@
 <?php
 /**
- * Text Field Type for Form Runtime Engine.
+ * Text Field Type for Promptless Forms.
  *
  * @package FormRuntimeEngine
  */
@@ -68,7 +68,7 @@ class FRE_Field_Text extends FRE_Field_Type_Abstract {
                     'pattern_mismatch',
                     sprintf(
                         /* translators: %s: field label */
-                        __( '%s format is invalid.', 'form-runtime-engine' ),
+                        __( '%s format is invalid.', 'promptless-forms' ),
                         $this->get_label( $field )
                     )
                 );

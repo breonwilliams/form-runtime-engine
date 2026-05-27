@@ -70,7 +70,7 @@ USAGE
     esac
 done
 
-PLUGIN_SLUG="form-runtime-engine"
+PLUGIN_SLUG="promptless-forms"
 BUILD_DIR="build"
 TEMP_DIR="${BUILD_DIR}/${PLUGIN_SLUG}"
 
@@ -176,6 +176,10 @@ build
 release
 *.zip
 *.log
+*.bak
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
 BASE_EXCLUDES
@@ -183,7 +187,11 @@ BASE_EXCLUDES
 # WP.org-only exclusions. These files exist for developer/repo use but are
 # not part of the shipping plugin. Plugin Check rejects the GitHub auto-
 # updater (guideline #8 — plugins must use WordPress's update mechanism)
-# and warns about "unexpected markdown files" in the plugin root.
+# and warns about "unexpected markdown files" in the plugin root. The
+# WP.org review team has also explicitly flagged developer-facing planning
+# documents as "AI-generated output" that should not ship in the WP.org
+# distribution — the *_HARDENING_PLAN.md / *_AUDIT.md / *_KNOWLEDGE_MAP.md
+# files are internal engineering notes, not user-facing docs.
 if [ "$BUILD_TARGET" = "wporg" ]; then
     cat >> "${EXCLUDE_FILE}" <<'WPORG_EXCLUDES'
 includes/Updates
@@ -191,6 +199,12 @@ CLAUDE.md
 FORM_RUNTIME_AUDIT.md
 RELEASE.md
 README.md
+docs/FRE_CONNECTOR_HARDENING_PLAN.md
+docs/FRE_KNOWLEDGE_MAP.md
+docs/COWORK_CONNECTOR_ASSESSMENT.md
+docs/CONNECTOR_TESTING_REPORT.md
+docs/twilio/CREDENTIAL_ENCRYPTION_AUDIT.md
+docs/WORKFLOW_PROMPTLESS_INTEGRATION.md
 WPORG_EXCLUDES
 fi
 

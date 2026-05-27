@@ -1,6 +1,6 @@
 <?php
 /**
- * JSON Schema Validator for Form Runtime Engine.
+ * JSON Schema Validator for Promptless Forms.
  *
  * Validates form configuration structure and field types.
  *
@@ -122,21 +122,21 @@ class FRE_JSON_Schema_Validator {
         // Must be an array.
         if ( ! is_array( $config ) ) {
             $result['valid']    = false;
-            $result['errors'][] = __( 'Configuration must be a valid object.', 'form-runtime-engine' );
+            $result['errors'][] = __( 'Configuration must be a valid object.', 'promptless-forms' );
             return $result;
         }
 
         // Must have fields array.
         if ( ! isset( $config['fields'] ) || ! is_array( $config['fields'] ) ) {
             $result['valid']    = false;
-            $result['errors'][] = __( 'Configuration must have a "fields" array.', 'form-runtime-engine' );
+            $result['errors'][] = __( 'Configuration must have a "fields" array.', 'promptless-forms' );
             return $result;
         }
 
         // Fields array cannot be empty.
         if ( empty( $config['fields'] ) ) {
             $result['valid']    = false;
-            $result['errors'][] = __( 'The "fields" array cannot be empty.', 'form-runtime-engine' );
+            $result['errors'][] = __( 'The "fields" array cannot be empty.', 'promptless-forms' );
             return $result;
         }
 
@@ -165,7 +165,7 @@ class FRE_JSON_Schema_Validator {
             $result['valid']    = false;
             $result['errors'][] = sprintf(
                 /* translators: %s: comma-separated list of duplicate keys */
-                __( 'Duplicate field keys found: %s', 'form-runtime-engine' ),
+                __( 'Duplicate field keys found: %s', 'promptless-forms' ),
                 implode( ', ', array_unique( $duplicates ) )
             );
         }
@@ -210,7 +210,7 @@ class FRE_JSON_Schema_Validator {
             $result['valid']    = false;
             $result['errors'][] = sprintf(
                 /* translators: %d: field index */
-                __( 'Field at index %d must be an object.', 'form-runtime-engine' ),
+                __( 'Field at index %d must be an object.', 'promptless-forms' ),
                 $index
             );
             return $result;
@@ -221,7 +221,7 @@ class FRE_JSON_Schema_Validator {
             $result['valid']    = false;
             $result['errors'][] = sprintf(
                 /* translators: %d: field index */
-                __( 'Field at index %d is missing required "key" property.', 'form-runtime-engine' ),
+                __( 'Field at index %d is missing required "key" property.', 'promptless-forms' ),
                 $index
             );
         }
@@ -231,7 +231,7 @@ class FRE_JSON_Schema_Validator {
             $result['valid']    = false;
             $result['errors'][] = sprintf(
                 /* translators: %s: field key or index */
-                __( 'Field "%s" is missing required "type" property.', 'form-runtime-engine' ),
+                __( 'Field "%s" is missing required "type" property.', 'promptless-forms' ),
                 isset( $field['key'] ) ? $field['key'] : 'index ' . $index
             );
         } else {
@@ -249,7 +249,7 @@ class FRE_JSON_Schema_Validator {
                 $result['valid']    = false;
                 $result['errors'][] = sprintf(
                     /* translators: 1: field type, 2: field key or index, 3: valid types list */
-                    __( 'Invalid field type "%1$s" for field "%2$s". Valid types: %3$s', 'form-runtime-engine' ),
+                    __( 'Invalid field type "%1$s" for field "%2$s". Valid types: %3$s', 'promptless-forms' ),
                     $field['type'],
                     isset( $field['key'] ) ? $field['key'] : 'index ' . $index,
                     implode( ', ', $valid_types )
@@ -261,7 +261,7 @@ class FRE_JSON_Schema_Validator {
         if ( ! empty( $field['key'] ) && ! preg_match( '/^[a-zA-Z][a-zA-Z0-9_-]*$/', $field['key'] ) ) {
             $result['warnings'][] = sprintf(
                 /* translators: %s: field key */
-                __( 'Field key "%s" should start with a letter and contain only letters, numbers, underscores, and dashes.', 'form-runtime-engine' ),
+                __( 'Field key "%s" should start with a letter and contain only letters, numbers, underscores, and dashes.', 'promptless-forms' ),
                 $field['key']
             );
         }
@@ -271,7 +271,7 @@ class FRE_JSON_Schema_Validator {
             if ( ! in_array( $prop, self::$known_field_properties, true ) ) {
                 $result['warnings'][] = sprintf(
                     /* translators: 1: unknown property name, 2: field key or index */
-                    __( 'Unknown field property "%1$s" in field "%2$s".', 'form-runtime-engine' ),
+                    __( 'Unknown field property "%1$s" in field "%2$s".', 'promptless-forms' ),
                     $prop,
                     isset( $field['key'] ) ? $field['key'] : 'index ' . $index
                 );
@@ -284,7 +284,7 @@ class FRE_JSON_Schema_Validator {
                 $result['valid']    = false;
                 $result['errors'][] = sprintf(
                     /* translators: %s: field key or index */
-                    __( 'Field "%s" requires an "options" array.', 'form-runtime-engine' ),
+                    __( 'Field "%s" requires an "options" array.', 'promptless-forms' ),
                     isset( $field['key'] ) ? $field['key'] : 'index ' . $index
                 );
             }
@@ -314,7 +314,7 @@ class FRE_JSON_Schema_Validator {
         if ( ! is_array( $conditions ) ) {
             $result['warnings'][] = sprintf(
                 /* translators: %s: field key */
-                __( 'Field "%s" has invalid conditions format.', 'form-runtime-engine' ),
+                __( 'Field "%s" has invalid conditions format.', 'promptless-forms' ),
                 $field_id
             );
             return $result;
@@ -325,7 +325,7 @@ class FRE_JSON_Schema_Validator {
                 if ( ! is_array( $rule ) ) {
                     $result['warnings'][] = sprintf(
                         /* translators: 1: field key, 2: rule index */
-                        __( 'Field "%1$s" has invalid condition rule at index %2$d.', 'form-runtime-engine' ),
+                        __( 'Field "%1$s" has invalid condition rule at index %2$d.', 'promptless-forms' ),
                         $field_id,
                         $rule_index
                     );
@@ -335,7 +335,7 @@ class FRE_JSON_Schema_Validator {
                 if ( empty( $rule['field'] ) ) {
                     $result['warnings'][] = sprintf(
                         /* translators: 1: field key, 2: rule index */
-                        __( 'Field "%1$s" condition rule at index %2$d is missing "field" property.', 'form-runtime-engine' ),
+                        __( 'Field "%1$s" condition rule at index %2$d is missing "field" property.', 'promptless-forms' ),
                         $field_id,
                         $rule_index
                     );
@@ -344,7 +344,7 @@ class FRE_JSON_Schema_Validator {
                 if ( empty( $rule['operator'] ) ) {
                     $result['warnings'][] = sprintf(
                         /* translators: 1: field key, 2: rule index */
-                        __( 'Field "%1$s" condition rule at index %2$d is missing "operator" property.', 'form-runtime-engine' ),
+                        __( 'Field "%1$s" condition rule at index %2$d is missing "operator" property.', 'promptless-forms' ),
                         $field_id,
                         $rule_index
                     );
@@ -367,7 +367,7 @@ class FRE_JSON_Schema_Validator {
         );
 
         if ( ! is_array( $settings ) ) {
-            $result['warnings'][] = __( 'Settings should be an object.', 'form-runtime-engine' );
+            $result['warnings'][] = __( 'Settings should be an object.', 'promptless-forms' );
             return $result;
         }
 
@@ -376,7 +376,7 @@ class FRE_JSON_Schema_Validator {
             if ( ! in_array( $prop, self::$known_settings_properties, true ) ) {
                 $result['warnings'][] = sprintf(
                     /* translators: %s: unknown property name */
-                    __( 'Unknown settings property "%s".', 'form-runtime-engine' ),
+                    __( 'Unknown settings property "%s".', 'promptless-forms' ),
                     $prop
                 );
             }
@@ -401,7 +401,7 @@ class FRE_JSON_Schema_Validator {
 
         if ( ! is_array( $steps ) ) {
             $result['valid']    = false;
-            $result['errors'][] = __( 'Steps must be an array.', 'form-runtime-engine' );
+            $result['errors'][] = __( 'Steps must be an array.', 'promptless-forms' );
             return $result;
         }
 
@@ -412,7 +412,7 @@ class FRE_JSON_Schema_Validator {
                 $result['valid']    = false;
                 $result['errors'][] = sprintf(
                     /* translators: %d: step index */
-                    __( 'Step at index %d must be an object.', 'form-runtime-engine' ),
+                    __( 'Step at index %d must be an object.', 'promptless-forms' ),
                     $index
                 );
                 continue;
@@ -422,7 +422,7 @@ class FRE_JSON_Schema_Validator {
                 $result['valid']    = false;
                 $result['errors'][] = sprintf(
                     /* translators: %d: step index */
-                    __( 'Step at index %d is missing required "key" property.', 'form-runtime-engine' ),
+                    __( 'Step at index %d is missing required "key" property.', 'promptless-forms' ),
                     $index
                 );
             } else {
@@ -436,7 +436,7 @@ class FRE_JSON_Schema_Validator {
             $result['valid']    = false;
             $result['errors'][] = sprintf(
                 /* translators: %s: comma-separated list of duplicate step keys */
-                __( 'Duplicate step keys found: %s', 'form-runtime-engine' ),
+                __( 'Duplicate step keys found: %s', 'promptless-forms' ),
                 implode( ', ', array_unique( $step_duplicates ) )
             );
         }
@@ -446,7 +446,7 @@ class FRE_JSON_Schema_Validator {
             if ( ! empty( $field['step'] ) && ! in_array( $field['step'], $step_keys, true ) ) {
                 $result['warnings'][] = sprintf(
                     /* translators: 1: field key, 2: step key */
-                    __( 'Field "%1$s" references unknown step "%2$s".', 'form-runtime-engine' ),
+                    __( 'Field "%1$s" references unknown step "%2$s".', 'promptless-forms' ),
                     $field['key'] ?? 'unknown',
                     $field['step']
                 );

@@ -215,7 +215,6 @@ class FRE_Connector_API {
                         'id'              => array( 'type' => 'string', 'required' => true ),
                         'title'           => array( 'type' => 'string' ),
                         'config'          => array( 'type' => 'string', 'required' => true ),
-                        'custom_css'      => array( 'type' => 'string' ),
                         'webhook_enabled' => array( 'type' => 'boolean' ),
                         'webhook_url'     => array( 'type' => 'string' ),
                         'webhook_preset'  => array(
@@ -543,7 +542,7 @@ class FRE_Connector_API {
 
         return new WP_Error(
             'schema_document_not_found',
-            __( 'The schema document could not be located on the server.', 'form-runtime-engine' ),
+            __( 'The schema document could not be located on the server.', 'promptless-forms' ),
             array( 'status' => 404 )
         );
     }
@@ -643,7 +642,7 @@ class FRE_Connector_API {
                 'form_exists',
                 sprintf(
                     /* translators: %s: form ID */
-                    __( 'A form with ID "%s" already exists. Use PATCH to update it.', 'form-runtime-engine' ),
+                    __( 'A form with ID "%s" already exists. Use PATCH to update it.', 'promptless-forms' ),
                     $form_id
                 ),
                 array( 'status' => 409 )
@@ -685,7 +684,7 @@ class FRE_Connector_API {
         // Build a save input that merges caller-supplied fields on top of the
         // existing record. The repository's save() already preserves fields it
         // doesn't see, but being explicit here protects against partial-body
-        // requests that would otherwise strip custom_css etc.
+        // requests that would otherwise strip webhook fields etc.
         $input = $this->extract_save_input( $request );
 
         // If caller didn't supply config, keep existing config.
@@ -724,7 +723,7 @@ class FRE_Connector_API {
         if ( ! $deleted ) {
             return new WP_Error(
                 'delete_failed',
-                __( 'Form deletion failed.', 'form-runtime-engine' ),
+                __( 'Form deletion failed.', 'promptless-forms' ),
                 array( 'status' => 500 )
             );
         }
@@ -738,7 +737,7 @@ class FRE_Connector_API {
                     'Form deleted. %d associated entry has been preserved and remains accessible in the admin Entries view.',
                     'Form deleted. %d associated entries have been preserved and remain accessible in the admin Entries view.',
                     $preserved_count,
-                    'form-runtime-engine'
+                    'promptless-forms'
                 ),
                 $preserved_count
             ),
@@ -855,7 +854,7 @@ class FRE_Connector_API {
                 'entry_not_found',
                 sprintf(
                     /* translators: %d: entry ID */
-                    __( 'Entry %d not found.', 'form-runtime-engine' ),
+                    __( 'Entry %d not found.', 'promptless-forms' ),
                     $entry_id
                 ),
                 array( 'status' => 404 )
@@ -886,7 +885,7 @@ class FRE_Connector_API {
                 'entry_not_found',
                 sprintf(
                     /* translators: %d: entry ID */
-                    __( 'Entry %d not found.', 'form-runtime-engine' ),
+                    __( 'Entry %d not found.', 'promptless-forms' ),
                     $entry_id
                 ),
                 array( 'status' => 404 )
@@ -900,7 +899,7 @@ class FRE_Connector_API {
                 'delete_failed',
                 sprintf(
                     /* translators: %d: entry ID */
-                    __( 'Failed to delete entry %d.', 'form-runtime-engine' ),
+                    __( 'Failed to delete entry %d.', 'promptless-forms' ),
                     $entry_id
                 ),
                 array( 'status' => 500 )
@@ -926,7 +925,7 @@ class FRE_Connector_API {
             'form_id'  => $record['form_id'] ?? '',
             'message'  => sprintf(
                 /* translators: %d: entry ID */
-                __( 'Entry %d and all associated files have been deleted.', 'form-runtime-engine' ),
+                __( 'Entry %d and all associated files have been deleted.', 'promptless-forms' ),
                 $entry_id
             ),
         ) );
@@ -950,7 +949,6 @@ class FRE_Connector_API {
             'id'                => $record['id'] ?? '',
             'title'             => $record['title'] ?? '',
             'config'            => $record['config'] ?? '',
-            'custom_css'        => $record['custom_css'] ?? '',
             'webhook_enabled'   => (bool) ( $record['webhook_enabled'] ?? false ),
             'webhook_url'       => $record['webhook_url'] ?? '',
             'webhook_preset'    => $record['webhook_preset'] ?? 'custom',
@@ -1061,7 +1059,7 @@ class FRE_Connector_API {
      */
     private function extract_save_input( $request ) {
         $input = array();
-        foreach ( array( 'title', 'config', 'custom_css', 'webhook_enabled', 'webhook_url', 'webhook_preset' ) as $key ) {
+        foreach ( array( 'title', 'config', 'webhook_enabled', 'webhook_url', 'webhook_preset' ) as $key ) {
             $value = $request->get_param( $key );
             if ( null !== $value ) {
                 $input[ $key ] = $value;
@@ -1131,7 +1129,7 @@ class FRE_Connector_API {
             'form_not_found',
             sprintf(
                 /* translators: %s: form ID */
-                __( 'Form "%s" not found.', 'form-runtime-engine' ),
+                __( 'Form "%s" not found.', 'promptless-forms' ),
                 $form_id
             ),
             array( 'status' => 404 )

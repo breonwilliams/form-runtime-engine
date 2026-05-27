@@ -1,6 +1,6 @@
 <?php
 /**
- * Email Notification Handler for Form Runtime Engine.
+ * Email Notification Handler for Promptless Forms.
  *
  * NOTE: Uses direct database query for retrieving failed email queue.
  * Caching is avoided to ensure accurate real-time failure counts.
@@ -273,13 +273,13 @@ class FRE_Email_Notification {
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
                 <h2 style="margin: 0 0 10px 0; color: #1a1a1a;">
-                    <?php echo esc_html( $form_config['title'] ?: __( 'New Form Submission', 'form-runtime-engine' ) ); ?>
+                    <?php echo esc_html( $form_config['title'] ?: __( 'New Form Submission', 'promptless-forms' ) ); ?>
                 </h2>
                 <p style="margin: 0; color: #666; font-size: 14px;">
                     <?php
                     printf(
                         /* translators: %s: date and time */
-                        esc_html__( 'Received on %s', 'form-runtime-engine' ),
+                        esc_html__( 'Received on %s', 'promptless-forms' ),
                         esc_html( current_time( 'F j, Y \a\t g:i a' ) )
                     );
                     ?>
@@ -367,7 +367,7 @@ class FRE_Email_Notification {
                 <?php
                 printf(
                     /* translators: %s: site name */
-                    esc_html__( 'This email was sent from %s', 'form-runtime-engine' ),
+                    esc_html__( 'This email was sent from %s', 'promptless-forms' ),
                     esc_html( $site_name )
                 );
                 ?>

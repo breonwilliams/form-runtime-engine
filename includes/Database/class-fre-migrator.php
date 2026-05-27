@@ -1,6 +1,6 @@
 <?php
 /**
- * Database migrator for Form Runtime Engine.
+ * Database migrator for Promptless Forms.
  *
  * Handles creation and migration of database tables.
  *

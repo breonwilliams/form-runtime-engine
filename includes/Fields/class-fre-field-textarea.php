@@ -1,6 +1,6 @@
 <?php
 /**
- * Textarea Field Type for Form Runtime Engine.
+ * Textarea Field Type for Promptless Forms.
  *
  * @package FormRuntimeEngine
  */

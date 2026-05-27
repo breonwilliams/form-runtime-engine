@@ -1,6 +1,6 @@
 <?php
 /**
- * CSV Exporter for Form Runtime Engine.
+ * CSV Exporter for Promptless Forms.
  *
  * NOTE: Uses direct database queries for efficient batch export of entries.
  * Custom tables require direct queries for proper JOIN operations.

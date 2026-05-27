@@ -245,7 +245,6 @@ Get a single form.
     "id": "contact",
     "title": "Contact Us",
     "config": "{\"fields\":[{\"key\":\"email\",\"type\":\"email\",...}],...}",
-    "custom_css": "",
     "webhook_enabled": false,
     "webhook_url": "",
     "webhook_preset": "custom",
@@ -274,7 +273,6 @@ Create a new form.
   "id": "lead_capture",
   "title": "Lead Capture",
   "config": "{\"fields\":[...],\"settings\":{...}}",
-  "custom_css": "",
   "webhook_enabled": false,
   "webhook_url": "",
   "webhook_preset": "custom"

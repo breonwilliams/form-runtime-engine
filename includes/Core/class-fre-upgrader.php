@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin upgrade handler for Form Runtime Engine.
+ * Plugin upgrade handler for Promptless Forms.
  *
  * Runs on every `plugins_loaded` to detect when the plugin's code version
  * (FRE_VERSION) differs from the version stored in the database
@@ -75,7 +75,7 @@ class FRE_Upgrader {
             if ( class_exists( 'FRE_Logger' ) ) {
                 FRE_Logger::warning(
                     sprintf(
-                        'Form Runtime Engine downgrade detected: stored version %s > plugin version %s. No routines run.',
+                        'Promptless Forms downgrade detected: stored version %s > plugin version %s. No routines run.',
                         $stored,
                         $current
                     )

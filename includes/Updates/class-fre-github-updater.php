@@ -1,6 +1,6 @@
 <?php
 /**
- * GitHub Updater for Form Runtime Engine.
+ * GitHub Updater for Promptless Forms.
  *
  * Checks GitHub releases for plugin updates and integrates with
  * WordPress's built-in update system.
@@ -36,7 +36,7 @@ class FRE_GitHub_Updater {
      *
      * @var string
      */
-    private $slug = 'form-runtime-engine';
+    private $slug = 'promptless-forms';
 
     /**
      * Plugin file path relative to plugins directory.
@@ -198,7 +198,7 @@ class FRE_GitHub_Updater {
 
         // Build plugin info object.
         $plugin_info = (object) array(
-            'name'              => 'Form Runtime Engine',
+            'name'              => 'Promptless Forms',
             'slug'              => $this->slug,
             'version'           => $latest_version,
             'author'            => '<a href="https://github.com/breonwilliams">Breon Williams</a>',
@@ -388,7 +388,7 @@ class FRE_GitHub_Updater {
      * @return string HTML description.
      */
     private function get_plugin_description() {
-        return '<p>Form Runtime Engine is a lightweight WordPress form runtime engine that processes form submissions via configuration arrays.</p>'
+        return '<p>Promptless Forms is a lightweight WordPress form runtime engine that processes form submissions via configuration arrays.</p>'
             . '<h4>Features</h4>'
             . '<ul>'
             . '<li>Register forms via PHP arrays or JSON configuration</li>'
@@ -426,7 +426,7 @@ class FRE_GitHub_Updater {
      */
     public function update_message( $plugin_data, $response ) {
         // Additional message could be added here if needed.
-        echo ' <em>' . esc_html__( 'Update available from GitHub.', 'form-runtime-engine' ) . '</em>';
+        echo ' <em>' . esc_html__( 'Update available from GitHub.', 'promptless-forms' ) . '</em>';
     }
 
     /**
@@ -479,7 +479,7 @@ class FRE_GitHub_Updater {
 
         return new WP_Error(
             'rename_failed',
-            __( 'Unable to rename the plugin directory for Form Runtime Engine.', 'form-runtime-engine' )
+            __( 'Unable to rename the plugin directory for Promptless Forms.', 'promptless-forms' )
         );
     }
 

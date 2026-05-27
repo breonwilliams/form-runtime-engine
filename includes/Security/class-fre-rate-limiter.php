@@ -1,6 +1,6 @@
 <?php
 /**
- * Rate Limiter for Form Runtime Engine.
+ * Rate Limiter for Promptless Forms.
  *
  * Prevents excessive form submissions from a single IP.
  *
@@ -316,7 +316,7 @@ class FRE_Rate_Limiter {
         if ( $this->is_exceeded( $form_id, $settings ) ) {
             return new WP_Error(
                 'rate_limit_exceeded',
-                __( 'Too many submissions. Please try again later.', 'form-runtime-engine' )
+                __( 'Too many submissions. Please try again later.', 'promptless-forms' )
             );
         }
 

@@ -38,6 +38,14 @@ class FRE_Twilio_Admin {
     private $clients_table;
 
     /**
+     * Hook suffix for the Twilio admin page. Captured at registration so
+     * enqueue_assets can gate the JS/CSS to just this screen.
+     *
+     * @var string
+     */
+    private $page_hook = '';
+
+    /**
      * Constructor.
      */
     public function __construct() {
@@ -47,6 +55,7 @@ class FRE_Twilio_Admin {
 
         add_action( 'admin_menu', array( $this, 'add_menu_pages' ) );
         add_action( 'admin_init', array( $this, 'register_settings' ) );
+        add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 
         // AJAX handlers.
         add_action( 'wp_ajax_fre_twilio_save_client', array( $this, 'ajax_save_client' ) );
@@ -60,13 +69,60 @@ class FRE_Twilio_Admin {
      */
     public function add_menu_pages() {
         // Twilio settings as a submenu under Form Entries.
-        add_submenu_page(
+        $this->page_hook = add_submenu_page(
             'fre-entries',
-            __( 'Twilio Text-Back', 'form-runtime-engine' ),
-            __( 'Twilio Text-Back', 'form-runtime-engine' ),
+            __( 'Twilio Text-Back', 'promptless-forms' ),
+            __( 'Twilio Text-Back', 'promptless-forms' ),
             'manage_options',
             'fre-twilio',
             array( $this, 'render_main_page' )
+        );
+    }
+
+    /**
+     * Enqueue Twilio admin CSS + JS — only on the Twilio admin page.
+     *
+     * @param string $hook_suffix Current admin page hook (passed by WP).
+     */
+    public function enqueue_assets( $hook_suffix ) {
+        if ( '' === $this->page_hook || $hook_suffix !== $this->page_hook ) {
+            return;
+        }
+
+        $plugin_url = plugins_url( '', dirname( __DIR__, 2 ) . '/form-runtime-engine.php' );
+
+        wp_enqueue_style(
+            'fre-twilio-admin',
+            $plugin_url . '/assets/css/twilio-admin.css',
+            array(),
+            FRE_VERSION
+        );
+
+        wp_enqueue_script(
+            'fre-twilio-admin',
+            $plugin_url . '/assets/js/twilio-admin.js',
+            array( 'jquery' ),
+            FRE_VERSION,
+            true
+        );
+
+        wp_localize_script(
+            'fre-twilio-admin',
+            'freTwilioAdmin',
+            array(
+                'nonce' => wp_create_nonce( 'fre_twilio_admin' ),
+                'i18n'  => array(
+                    'testing'          => __( 'Testing...', 'promptless-forms' ),
+                    'connectedOk'      => __( 'Connected successfully', 'promptless-forms' ),
+                    'requestFailed'    => __( 'Request failed', 'promptless-forms' ),
+                    'saving'           => __( 'Saving...', 'promptless-forms' ),
+                    'modalTitleAdd'    => __( 'Add Client', 'promptless-forms' ),
+                    'modalTitleEdit'   => __( 'Edit Client', 'promptless-forms' ),
+                    'defaultAutoReply' => __( 'Thanks for calling {business_name}! Sorry we missed you. How can we help?', 'promptless-forms' ),
+                    /* translators: %s: client name */
+                    'confirmDelete'    => __( 'Delete client "%s"? This cannot be undone.', 'promptless-forms' ),
+                ),
+            )
         );
     }
 
@@ -107,8 +163,8 @@ class FRE_Twilio_Admin {
         // Map of input field → admin-message verb, kept in one place so
         // the per-field handlers below stay parallel.
         $secret_fields = array(
-            'account_sid' => __( 'Account SID', 'form-runtime-engine' ),
-            'auth_token'  => __( 'Auth Token', 'form-runtime-engine' ),
+            'account_sid' => __( 'Account SID', 'promptless-forms' ),
+            'auth_token'  => __( 'Auth Token', 'promptless-forms' ),
         );
 
         foreach ( $secret_fields as $field => $label ) {
@@ -139,7 +195,7 @@ class FRE_Twilio_Admin {
                     $encrypted->get_error_code(),
                     sprintf(
                         /* translators: 1: field label, 2: error message */
-                        __( 'Twilio %1$s was not saved: %2$s', 'form-runtime-engine' ),
+                        __( 'Twilio %1$s was not saved: %2$s', 'promptless-forms' ),
                         $label,
                         $encrypted->get_error_message()
                     ),
@@ -173,16 +229,16 @@ class FRE_Twilio_Admin {
 
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e( 'Twilio Text-Back', 'form-runtime-engine' ); ?></h1>
+            <h1><?php esc_html_e( 'Twilio Text-Back', 'promptless-forms' ); ?></h1>
 
             <nav class="nav-tab-wrapper">
                 <a href="?page=fre-twilio&tab=clients"
                    class="nav-tab <?php echo $active_tab === 'clients' ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e( 'Clients', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Clients', 'promptless-forms' ); ?>
                 </a>
                 <a href="?page=fre-twilio&tab=settings"
                    class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e( 'Settings', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Settings', 'promptless-forms' ); ?>
                 </a>
             </nav>
 
@@ -214,7 +270,7 @@ class FRE_Twilio_Admin {
                 <tr>
                     <th scope="row">
                         <label for="fre_twilio_account_sid">
-                            <?php esc_html_e( 'Account SID', 'form-runtime-engine' ); ?>
+                            <?php esc_html_e( 'Account SID', 'promptless-forms' ); ?>
                         </label>
                     </th>
                     <td>
@@ -223,17 +279,17 @@ class FRE_Twilio_Admin {
                                name="fre_twilio_settings[account_sid]"
                                value="<?php echo $has_creds ? '••••••••••••••••' : ''; ?>"
                                class="regular-text"
-                               placeholder="<?php esc_attr_e( 'AC...', 'form-runtime-engine' ); ?>"
+                               placeholder="<?php esc_attr_e( 'AC...', 'promptless-forms' ); ?>"
                                autocomplete="off" />
                         <p class="description">
-                            <?php esc_html_e( 'Found in your Twilio Console dashboard.', 'form-runtime-engine' ); ?>
+                            <?php esc_html_e( 'Found in your Twilio Console dashboard.', 'promptless-forms' ); ?>
                         </p>
                     </td>
                 </tr>
                 <tr>
                     <th scope="row">
                         <label for="fre_twilio_auth_token">
-                            <?php esc_html_e( 'Auth Token', 'form-runtime-engine' ); ?>
+                            <?php esc_html_e( 'Auth Token', 'promptless-forms' ); ?>
                         </label>
                     </th>
                     <td>
@@ -244,7 +300,7 @@ class FRE_Twilio_Admin {
                                class="regular-text"
                                autocomplete="off" />
                         <p class="description">
-                            <?php esc_html_e( 'Found in your Twilio Console dashboard.', 'form-runtime-engine' ); ?>
+                            <?php esc_html_e( 'Found in your Twilio Console dashboard.', 'promptless-forms' ); ?>
                         </p>
                     </td>
                 </tr>
@@ -253,7 +309,7 @@ class FRE_Twilio_Admin {
             <p>
                 <button type="button" id="fre-twilio-test-connection" class="button button-secondary"
                         <?php echo ! $has_creds ? 'disabled' : ''; ?>>
-                    <?php esc_html_e( 'Test Connection', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Test Connection', 'promptless-forms' ); ?>
                 </button>
                 <span id="fre-twilio-test-result" style="margin-left: 10px;"></span>
             </p>
@@ -261,15 +317,15 @@ class FRE_Twilio_Admin {
             <?php if ( $has_creds ) : ?>
                 <div class="notice notice-info inline" style="margin-top: 10px;">
                     <p>
-                        <strong><?php esc_html_e( 'Webhook URLs', 'form-runtime-engine' ); ?></strong><br>
-                        <?php esc_html_e( 'Configure these in your Twilio phone number settings:', 'form-runtime-engine' ); ?>
+                        <strong><?php esc_html_e( 'Webhook URLs', 'promptless-forms' ); ?></strong><br>
+                        <?php esc_html_e( 'Configure these in your Twilio phone number settings:', 'promptless-forms' ); ?>
                     </p>
                     <p>
-                        <strong><?php esc_html_e( 'Voice URL:', 'form-runtime-engine' ); ?></strong>
+                        <strong><?php esc_html_e( 'Voice URL:', 'promptless-forms' ); ?></strong>
                         <code><?php echo esc_url( rest_url( 'fre-twilio/v1/incoming-call' ) ); ?></code>
                     </p>
                     <p>
-                        <strong><?php esc_html_e( 'Messaging URL:', 'form-runtime-engine' ); ?></strong>
+                        <strong><?php esc_html_e( 'Messaging URL:', 'promptless-forms' ); ?></strong>
                         <code><?php echo esc_url( rest_url( 'fre-twilio/v1/incoming-sms' ) ); ?></code>
                     </p>
                 </div>
@@ -277,33 +333,10 @@ class FRE_Twilio_Admin {
 
             <?php submit_button(); ?>
         </form>
-
-        <script>
-        jQuery(function($) {
-            $('#fre-twilio-test-connection').on('click', function() {
-                var $btn = $(this);
-                var $result = $('#fre-twilio-test-result');
-                $btn.prop('disabled', true);
-                $result.text('Testing...');
-
-                $.post(ajaxurl, {
-                    action: 'fre_twilio_test_connection',
-                    _wpnonce: '<?php echo esc_js( wp_create_nonce( 'fre_twilio_admin' ) ); ?>'
-                }, function(response) {
-                    $btn.prop('disabled', false);
-                    if (response.success) {
-                        $result.html('<span style="color: green;">&#10004; Connected successfully</span>');
-                    } else {
-                        $result.html('<span style="color: red;">&#10008; ' + response.data + '</span>');
-                    }
-                }).fail(function() {
-                    $btn.prop('disabled', false);
-                    $result.html('<span style="color: red;">&#10008; Request failed</span>');
-                });
-            });
-        });
-        </script>
         <?php
+        // The Test Connection click handler lives in
+        // assets/js/twilio-admin.js (enqueued on this page only). No
+        // inline <script> here — Plugin Check guideline.
     }
 
     /**
@@ -314,7 +347,7 @@ class FRE_Twilio_Admin {
     private function render_clients_tab( $has_creds ) {
         if ( ! $has_creds ) {
             echo '<div class="notice notice-warning inline"><p>';
-            esc_html_e( 'Please configure your Twilio credentials in the Settings tab before adding clients.', 'form-runtime-engine' );
+            esc_html_e( 'Please configure your Twilio credentials in the Settings tab before adding clients.', 'promptless-forms' );
             echo '</p></div>';
             return;
         }
@@ -324,23 +357,23 @@ class FRE_Twilio_Admin {
 
         <div id="fre-twilio-clients">
             <h2>
-                <?php esc_html_e( 'Client Phone Numbers', 'form-runtime-engine' ); ?>
+                <?php esc_html_e( 'Client Phone Numbers', 'promptless-forms' ); ?>
                 <button type="button" id="fre-twilio-add-client" class="page-title-action">
-                    <?php esc_html_e( 'Add Client', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Add Client', 'promptless-forms' ); ?>
                 </button>
             </h2>
 
             <?php if ( empty( $clients ) ) : ?>
-                <p><?php esc_html_e( 'No clients configured yet. Click "Add Client" to set up your first text-back number.', 'form-runtime-engine' ); ?></p>
+                <p><?php esc_html_e( 'No clients configured yet. Click "Add Client" to set up your first text-back number.', 'promptless-forms' ); ?></p>
             <?php else : ?>
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
-                            <th><?php esc_html_e( 'Client Name', 'form-runtime-engine' ); ?></th>
-                            <th><?php esc_html_e( 'Twilio Number', 'form-runtime-engine' ); ?></th>
-                            <th><?php esc_html_e( 'Owner Phone', 'form-runtime-engine' ); ?></th>
-                            <th><?php esc_html_e( 'Status', 'form-runtime-engine' ); ?></th>
-                            <th><?php esc_html_e( 'Actions', 'form-runtime-engine' ); ?></th>
+                            <th><?php esc_html_e( 'Client Name', 'promptless-forms' ); ?></th>
+                            <th><?php esc_html_e( 'Twilio Number', 'promptless-forms' ); ?></th>
+                            <th><?php esc_html_e( 'Owner Phone', 'promptless-forms' ); ?></th>
+                            <th><?php esc_html_e( 'Status', 'promptless-forms' ); ?></th>
+                            <th><?php esc_html_e( 'Actions', 'promptless-forms' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -351,9 +384,9 @@ class FRE_Twilio_Admin {
                                 <td><?php echo esc_html( $client['owner_phone'] ); ?></td>
                                 <td>
                                     <?php if ( $client['is_active'] ) : ?>
-                                        <span style="color: green;">&#9679; <?php esc_html_e( 'Active', 'form-runtime-engine' ); ?></span>
+                                        <span class="fre-twilio-status-active">&#9679; <?php esc_html_e( 'Active', 'promptless-forms' ); ?></span>
                                     <?php else : ?>
-                                        <span style="color: gray;">&#9679; <?php esc_html_e( 'Inactive', 'form-runtime-engine' ); ?></span>
+                                        <span class="fre-twilio-status-inactive">&#9679; <?php esc_html_e( 'Inactive', 'promptless-forms' ); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -365,17 +398,17 @@ class FRE_Twilio_Admin {
                                             data-owner-email="<?php echo esc_attr( $client['owner_email'] ); ?>"
                                             data-auto-reply="<?php echo esc_attr( $client['auto_reply_template'] ); ?>"
                                             data-webhook-url="<?php echo esc_attr( $client['webhook_url'] ); ?>">
-                                        <?php esc_html_e( 'Edit', 'form-runtime-engine' ); ?>
+                                        <?php esc_html_e( 'Edit', 'promptless-forms' ); ?>
                                     </button>
                                     <button type="button" class="button button-small fre-twilio-toggle-client"
                                             data-id="<?php echo esc_attr( $client['id'] ); ?>"
                                             data-active="<?php echo esc_attr( $client['is_active'] ); ?>">
-                                        <?php echo $client['is_active'] ? esc_html__( 'Deactivate', 'form-runtime-engine' ) : esc_html__( 'Activate', 'form-runtime-engine' ); ?>
+                                        <?php echo $client['is_active'] ? esc_html__( 'Deactivate', 'promptless-forms' ) : esc_html__( 'Activate', 'promptless-forms' ); ?>
                                     </button>
                                     <button type="button" class="button button-small button-link-delete fre-twilio-delete-client"
                                             data-id="<?php echo esc_attr( $client['id'] ); ?>"
                                             data-name="<?php echo esc_attr( $client['client_name'] ); ?>">
-                                        <?php esc_html_e( 'Delete', 'form-runtime-engine' ); ?>
+                                        <?php esc_html_e( 'Delete', 'promptless-forms' ); ?>
                                     </button>
                                 </td>
                             </tr>
@@ -386,152 +419,70 @@ class FRE_Twilio_Admin {
         </div>
 
         <!-- Add/Edit Client Modal -->
-        <div id="fre-twilio-client-modal" style="display:none;">
-            <div class="fre-twilio-modal-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100000;overflow-y:auto;">
-                <div style="position:relative;max-width:600px;margin:80px auto;background:#fff;padding:24px;border-radius:4px;max-height:calc(100vh - 160px);overflow-y:auto;">
-                    <h2 id="fre-twilio-modal-title"><?php esc_html_e( 'Add Client', 'form-runtime-engine' ); ?></h2>
+        <div id="fre-twilio-client-modal">
+            <div class="fre-twilio-modal-overlay">
+                <div class="fre-twilio-modal-dialog">
+                    <h2 id="fre-twilio-modal-title"><?php esc_html_e( 'Add Client', 'promptless-forms' ); ?></h2>
                     <input type="hidden" id="fre-twilio-client-id" value="" />
 
                     <table class="form-table">
                         <tr>
-                            <th><label for="fre-twilio-client-name"><?php esc_html_e( 'Business Name', 'form-runtime-engine' ); ?></label></th>
+                            <th><label for="fre-twilio-client-name"><?php esc_html_e( 'Business Name', 'promptless-forms' ); ?></label></th>
                             <td><input type="text" id="fre-twilio-client-name" class="regular-text" placeholder="ABC Roofing" /></td>
                         </tr>
                         <tr>
-                            <th><label for="fre-twilio-client-number"><?php esc_html_e( 'Twilio Number', 'form-runtime-engine' ); ?></label></th>
+                            <th><label for="fre-twilio-client-number"><?php esc_html_e( 'Twilio Number', 'promptless-forms' ); ?></label></th>
                             <td>
                                 <input type="text" id="fre-twilio-client-number" class="regular-text" placeholder="+15551112222" />
-                                <p class="description"><?php esc_html_e( 'E.164 format (e.g., +15551112222)', 'form-runtime-engine' ); ?></p>
+                                <p class="description"><?php esc_html_e( 'E.164 format (e.g., +15551112222)', 'promptless-forms' ); ?></p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="fre-twilio-owner-phone"><?php esc_html_e( 'Owner Phone', 'form-runtime-engine' ); ?></label></th>
+                            <th><label for="fre-twilio-owner-phone"><?php esc_html_e( 'Owner Phone', 'promptless-forms' ); ?></label></th>
                             <td>
                                 <input type="text" id="fre-twilio-owner-phone" class="regular-text" placeholder="+15553334444" />
-                                <p class="description"><?php esc_html_e( 'Business owner\u2019s personal number for call forwarding and notifications.', 'form-runtime-engine' ); ?></p>
+                                <p class="description"><?php esc_html_e( 'Business owner\u2019s personal number for call forwarding and notifications.', 'promptless-forms' ); ?></p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="fre-twilio-owner-email"><?php esc_html_e( 'Owner Email', 'form-runtime-engine' ); ?></label></th>
+                            <th><label for="fre-twilio-owner-email"><?php esc_html_e( 'Owner Email', 'promptless-forms' ); ?></label></th>
                             <td><input type="email" id="fre-twilio-owner-email" class="regular-text" placeholder="owner@abcroofing.com" /></td>
                         </tr>
                         <tr>
-                            <th><label for="fre-twilio-auto-reply"><?php esc_html_e( 'Auto-Reply Template', 'form-runtime-engine' ); ?></label></th>
+                            <th><label for="fre-twilio-auto-reply"><?php esc_html_e( 'Auto-Reply Template', 'promptless-forms' ); ?></label></th>
                             <td>
                                 <textarea id="fre-twilio-auto-reply" rows="4" class="large-text"
                                     placeholder="Thanks for calling {business_name}! Sorry we missed you. How can we help?"
                                 ></textarea>
-                                <p class="description"><?php esc_html_e( 'Use {business_name} as a placeholder. Sent to callers when a call is missed.', 'form-runtime-engine' ); ?></p>
+                                <p class="description"><?php esc_html_e( 'Use {business_name} as a placeholder. Sent to callers when a call is missed.', 'promptless-forms' ); ?></p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="fre-twilio-webhook-url"><?php esc_html_e( 'Webhook URL', 'form-runtime-engine' ); ?></label></th>
+                            <th><label for="fre-twilio-webhook-url"><?php esc_html_e( 'Webhook URL', 'promptless-forms' ); ?></label></th>
                             <td>
                                 <input type="url" id="fre-twilio-webhook-url" class="large-text" placeholder="https://script.google.com/macros/s/..." />
-                                <p class="description"><?php esc_html_e( 'Google Apps Script endpoint for logging leads to this client\u2019s Google Sheet.', 'form-runtime-engine' ); ?></p>
+                                <p class="description"><?php esc_html_e( 'Google Apps Script endpoint for logging leads to this client\u2019s Google Sheet.', 'promptless-forms' ); ?></p>
                             </td>
                         </tr>
                     </table>
 
                     <p>
                         <button type="button" id="fre-twilio-save-client" class="button button-primary">
-                            <?php esc_html_e( 'Save Client', 'form-runtime-engine' ); ?>
+                            <?php esc_html_e( 'Save Client', 'promptless-forms' ); ?>
                         </button>
                         <button type="button" id="fre-twilio-cancel-modal" class="button">
-                            <?php esc_html_e( 'Cancel', 'form-runtime-engine' ); ?>
+                            <?php esc_html_e( 'Cancel', 'promptless-forms' ); ?>
                         </button>
-                        <span id="fre-twilio-save-result" style="margin-left: 10px;"></span>
+                        <span id="fre-twilio-save-result"></span>
                     </p>
                 </div>
             </div>
         </div>
-
-        <script>
-        jQuery(function($) {
-            var nonce = '<?php echo esc_js( wp_create_nonce( 'fre_twilio_admin' ) ); ?>';
-
-            // Add client button.
-            $('#fre-twilio-add-client').on('click', function() {
-                $('#fre-twilio-modal-title').text('Add Client');
-                $('#fre-twilio-client-id').val('');
-                $('#fre-twilio-client-name, #fre-twilio-client-number, #fre-twilio-owner-phone, #fre-twilio-owner-email, #fre-twilio-webhook-url').val('');
-                $('#fre-twilio-auto-reply').val('Thanks for calling {business_name}! Sorry we missed you. How can we help?');
-                $('#fre-twilio-client-modal').show();
-            });
-
-            // Cancel modal.
-            $('#fre-twilio-cancel-modal, .fre-twilio-modal-overlay').on('click', function(e) {
-                if (e.target === this) {
-                    $('#fre-twilio-client-modal').hide();
-                }
-            });
-
-            // Edit client button.
-            $('.fre-twilio-edit-client').on('click', function() {
-                var $btn = $(this);
-                $('#fre-twilio-modal-title').text('Edit Client');
-                $('#fre-twilio-client-id').val($btn.data('id'));
-                $('#fre-twilio-client-name').val($btn.data('name'));
-                $('#fre-twilio-client-number').val($btn.data('number'));
-                $('#fre-twilio-owner-phone').val($btn.data('owner-phone'));
-                $('#fre-twilio-owner-email').val($btn.data('owner-email'));
-                $('#fre-twilio-auto-reply').val($btn.data('auto-reply'));
-                $('#fre-twilio-webhook-url').val($btn.data('webhook-url'));
-                $('#fre-twilio-client-modal').show();
-            });
-
-            // Save client.
-            $('#fre-twilio-save-client').on('click', function() {
-                var $result = $('#fre-twilio-save-result');
-                $result.text('Saving...');
-
-                $.post(ajaxurl, {
-                    action: 'fre_twilio_save_client',
-                    _wpnonce: nonce,
-                    id: $('#fre-twilio-client-id').val(),
-                    client_name: $('#fre-twilio-client-name').val(),
-                    twilio_number: $('#fre-twilio-client-number').val(),
-                    owner_phone: $('#fre-twilio-owner-phone').val(),
-                    owner_email: $('#fre-twilio-owner-email').val(),
-                    auto_reply_template: $('#fre-twilio-auto-reply').val(),
-                    webhook_url: $('#fre-twilio-webhook-url').val()
-                }, function(response) {
-                    if (response.success) {
-                        location.reload();
-                    } else {
-                        $result.html('<span style="color:red;">' + response.data + '</span>');
-                    }
-                });
-            });
-
-            // Toggle client active/inactive.
-            $('.fre-twilio-toggle-client').on('click', function() {
-                var $btn = $(this);
-                $.post(ajaxurl, {
-                    action: 'fre_twilio_toggle_client',
-                    _wpnonce: nonce,
-                    id: $btn.data('id')
-                }, function(response) {
-                    if (response.success) { location.reload(); }
-                });
-            });
-
-            // Delete client.
-            $('.fre-twilio-delete-client').on('click', function() {
-                var name = $(this).data('name');
-                if (!confirm('Delete client "' + name + '"? This cannot be undone.')) return;
-
-                $.post(ajaxurl, {
-                    action: 'fre_twilio_delete_client',
-                    _wpnonce: nonce,
-                    id: $(this).data('id')
-                }, function(response) {
-                    if (response.success) { location.reload(); }
-                });
-            });
-        });
-        </script>
         <?php
+        // The clients-tab modal CRUD handlers (add, edit, save, toggle,
+        // delete) live in assets/js/twilio-admin.js — enqueued on this
+        // page only via FRE_Twilio_Admin::enqueue_assets(). No inline
+        // <script> here per WordPress.org Plugin Check guidelines.
     }
 
     // ──────────────────────────────────────────────────────────────

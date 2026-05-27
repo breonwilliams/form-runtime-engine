@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 $site_name  = get_bloginfo( 'name' );
-$form_title = ! empty( $form_config['title'] ) ? $form_config['title'] : __( 'New Form Submission', 'form-runtime-engine' );
+$form_title = ! empty( $form_config['title'] ) ? $form_config['title'] : __( 'New Form Submission', 'promptless-forms' );
 
 /**
  * Empty-field display behavior.
@@ -64,7 +64,7 @@ $hide_empty_fields = (bool) apply_filters( 'fre_email_hide_empty_fields', $hide_
                 <?php
                 printf(
                     /* translators: %s: date and time */
-                    esc_html__( 'Received on %s', 'form-runtime-engine' ),
+                    esc_html__( 'Received on %s', 'promptless-forms' ),
                     esc_html( current_time( 'F j, Y \a\t g:i a' ) )
                 );
                 ?>
@@ -176,14 +176,14 @@ $hide_empty_fields = (bool) apply_filters( 'fre_email_hide_empty_fields', $hide_
                 <?php
                 printf(
                     /* translators: %s: site name */
-                    esc_html__( 'This email was sent from %s', 'form-runtime-engine' ),
+                    esc_html__( 'This email was sent from %s', 'promptless-forms' ),
                     esc_html( $site_name )
                 );
                 ?>
             </p>
             <p style="margin: 8px 0 0; color: #999999; font-size: 12px;">
                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-entries' ) ); ?>" style="color: #0073aa; text-decoration: none;">
-                    <?php esc_html_e( 'View all entries', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'View all entries', 'promptless-forms' ); ?>
                 </a>
             </p>
         </div>

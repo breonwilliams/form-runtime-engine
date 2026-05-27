@@ -1,6 +1,6 @@
 <?php
 /**
- * Webhook Delivery Log for Form Runtime Engine.
+ * Webhook Delivery Log for Promptless Forms.
  *
  * Tracks webhook delivery attempts, statuses, and retry scheduling.
  * Mirrors the email retry pattern from FRE_Email_Notification.

@@ -1,6 +1,6 @@
 <?php
 /**
- * CSS Validator for Form Runtime Engine.
+ * CSS Validator for Promptless Forms.
  *
  * Validates and sanitizes custom CSS to prevent malicious code injection.
  *
@@ -56,7 +56,7 @@ class FRE_CSS_Validator {
                     'css_unsafe_pattern',
                     sprintf(
                         /* translators: %s: The blocked CSS pattern */
-                        __( 'CSS contains potentially unsafe pattern: %s', 'form-runtime-engine' ),
+                        __( 'CSS contains potentially unsafe pattern: %s', 'promptless-forms' ),
                         $readable_pattern
                     )
                 );
@@ -70,7 +70,7 @@ class FRE_CSS_Validator {
         if ( $open_braces !== $close_braces ) {
             return new WP_Error(
                 'css_unbalanced_braces',
-                __( 'Invalid CSS syntax: unbalanced braces. Check that all { have matching }.', 'form-runtime-engine' )
+                __( 'Invalid CSS syntax: unbalanced braces. Check that all { have matching }.', 'promptless-forms' )
             );
         }
 
@@ -81,7 +81,7 @@ class FRE_CSS_Validator {
         if ( $open_parens !== $close_parens ) {
             return new WP_Error(
                 'css_unbalanced_parens',
-                __( 'Invalid CSS syntax: unbalanced parentheses. Check that all ( have matching ).', 'form-runtime-engine' )
+                __( 'Invalid CSS syntax: unbalanced parentheses. Check that all ( have matching ).', 'promptless-forms' )
             );
         }
 
@@ -89,7 +89,7 @@ class FRE_CSS_Validator {
         if ( preg_match( '/url\s*\(\s*["\']?\s*(javascript|vbscript|data):/i', $css_lower ) ) {
             return new WP_Error(
                 'css_unsafe_url',
-                __( 'CSS contains unsafe URL protocol. Only http, https, and relative URLs are allowed.', 'form-runtime-engine' )
+                __( 'CSS contains unsafe URL protocol. Only http, https, and relative URLs are allowed.', 'promptless-forms' )
             );
         }
 

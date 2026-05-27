@@ -1,6 +1,6 @@
 <?php
 /**
- * Telephone Field Type for Form Runtime Engine.
+ * Telephone Field Type for Promptless Forms.
  *
  * @package FormRuntimeEngine
  */
@@ -74,7 +74,7 @@ class FRE_Field_Tel extends FRE_Field_Type_Abstract {
                     'invalid_phone',
                     sprintf(
                         /* translators: %s: field label */
-                        __( '%s contains invalid characters.', 'form-runtime-engine' ),
+                        __( '%s contains invalid characters.', 'promptless-forms' ),
                         $this->get_label( $field )
                     )
                 );
@@ -87,7 +87,7 @@ class FRE_Field_Tel extends FRE_Field_Type_Abstract {
                     'invalid_phone',
                     sprintf(
                         /* translators: %s: field label */
-                        __( '%s must be a valid phone number.', 'form-runtime-engine' ),
+                        __( '%s must be a valid phone number.', 'promptless-forms' ),
                         $this->get_label( $field )
                     )
                 );

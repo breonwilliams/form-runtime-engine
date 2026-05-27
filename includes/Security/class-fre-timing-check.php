@@ -1,6 +1,6 @@
 <?php
 /**
- * Timing Check Protection for Form Runtime Engine.
+ * Timing Check Protection for Promptless Forms.
  *
  * Detects bot submissions that happen too quickly.
  *
@@ -147,7 +147,7 @@ class FRE_Timing_Check {
         if ( $this->is_too_fast( $form_id, $settings ) ) {
             return new WP_Error(
                 'timing_check_failed',
-                __( 'Please wait a moment before submitting.', 'form-runtime-engine' )
+                __( 'Please wait a moment before submitting.', 'promptless-forms' )
             );
         }
 

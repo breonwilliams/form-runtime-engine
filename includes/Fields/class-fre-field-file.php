@@ -1,6 +1,6 @@
 <?php
 /**
- * File Field Type for Form Runtime Engine.
+ * File Field Type for Promptless Forms.
  *
  * NOTE: Called from submission handler after nonce verification.
  * $_FILES access is safe as the caller has already verified the nonce.
@@ -93,9 +93,9 @@ class FRE_Field_File extends FRE_Field_Type_Abstract {
         $max_size = $this->get_max_size( $field );
         $info     = sprintf(
             '<p class="fre-field__file-info">%s: %s. %s: %s</p>',
-            esc_html__( 'Allowed types', 'form-runtime-engine' ),
+            esc_html__( 'Allowed types', 'promptless-forms' ),
             esc_html( implode( ', ', $allowed_types ) ),
-            esc_html__( 'Max size', 'form-runtime-engine' ),
+            esc_html__( 'Max size', 'promptless-forms' ),
             esc_html( size_format( $max_size ) )
         );
 
@@ -135,7 +135,7 @@ class FRE_Field_File extends FRE_Field_Type_Abstract {
                     'required_field',
                     sprintf(
                         /* translators: %s: field label */
-                        __( '%s is required.', 'form-runtime-engine' ),
+                        __( '%s is required.', 'promptless-forms' ),
                         $this->get_label( $field )
                     )
                 );
@@ -155,7 +155,7 @@ class FRE_Field_File extends FRE_Field_Type_Abstract {
                         'required_field',
                         sprintf(
                             /* translators: %s: field label */
-                            __( '%s is required.', 'form-runtime-engine' ),
+                            __( '%s is required.', 'promptless-forms' ),
                             $this->get_label( $field )
                         )
                     );

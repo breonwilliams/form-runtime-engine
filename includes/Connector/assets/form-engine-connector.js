@@ -114,10 +114,6 @@ const TOOLS = [
           description:
             "JSON string describing fields, settings, steps, etc. Must validate against docs/form-schema.json. Required keys: fields (array of field objects, each with key + type). Tip: JSON.stringify your config object before passing it in.",
         },
-        custom_css: {
-          type: "string",
-          description: "Optional form-scoped CSS. Sanitized by the server.",
-        },
         webhook_enabled: { type: "boolean", default: false },
         webhook_url: {
           type: "string",
@@ -152,7 +148,6 @@ const TOOLS = [
           description:
             "Replacement config JSON string. If omitted, the existing config is preserved.",
         },
-        custom_css: { type: "string" },
         webhook_enabled: { type: "boolean" },
         webhook_url: { type: "string" },
         webhook_preset: {
@@ -399,7 +394,6 @@ async function handleTool(name, args) {
         config: args.config,
       };
       if (args.title !== undefined) payload.title = args.title;
-      if (args.custom_css !== undefined) payload.custom_css = args.custom_css;
       if (args.webhook_enabled !== undefined)
         payload.webhook_enabled = args.webhook_enabled;
       if (args.webhook_url !== undefined) payload.webhook_url = args.webhook_url;
@@ -412,7 +406,6 @@ async function handleTool(name, args) {
       const payload = {};
       if (args.title !== undefined) payload.title = args.title;
       if (args.config !== undefined) payload.config = args.config;
-      if (args.custom_css !== undefined) payload.custom_css = args.custom_css;
       if (args.webhook_enabled !== undefined)
         payload.webhook_enabled = args.webhook_enabled;
       if (args.webhook_url !== undefined) payload.webhook_url = args.webhook_url;

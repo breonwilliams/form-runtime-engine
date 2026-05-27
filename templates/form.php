@@ -64,11 +64,11 @@ if ( ! defined( 'ABSPATH' ) ) {
     <div class="fre-form__submit">
         <button type="submit" class="fre-form__submit-button">
             <span class="fre-form__submit-text">
-                <?php echo esc_html( $settings['submit_button_text'] ?? __( 'Submit', 'form-runtime-engine' ) ); ?>
+                <?php echo esc_html( $settings['submit_button_text'] ?? __( 'Submit', 'promptless-forms' ) ); ?>
             </span>
             <span class="fre-form__submit-loading" aria-hidden="true" style="display:none;">
                 <span class="fre-spinner"></span>
-                <?php esc_html_e( 'Submitting...', 'form-runtime-engine' ); ?>
+                <?php esc_html_e( 'Submitting...', 'promptless-forms' ); ?>
             </span>
         </button>
     </div>

@@ -57,7 +57,7 @@ class FRE_Connector_Settings {
      *
      * @var string
      */
-    const APP_PASSWORD_NAME = 'Form Runtime Engine — Claude Cowork';
+    const APP_PASSWORD_NAME = 'Promptless Forms — Claude Cowork';
 
     /**
      * Is the connector enabled site-wide?

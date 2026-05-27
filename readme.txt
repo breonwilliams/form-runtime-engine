@@ -1,9 +1,9 @@
-=== Form Runtime Engine ===
-Contributors: flowmint
+=== Promptless Forms ===
+Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.0
 Tested up to: 7.0
-Stable tag: 1.6.5
+Stable tag: 1.7.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -12,7 +12,7 @@ Lightweight forms with webhooks, multi-step support, and conditional logic. Inhe
 
 == Description ==
 
-Form Runtime Engine is a lightweight WordPress form plugin built for developers and design-system-aware sites. Configure forms via JSON in the admin UI or via PHP code, render them with a shortcode, and send submissions to webhooks, email, or both.
+Promptless Forms is a lightweight WordPress form plugin built for developers and design-system-aware sites. Configure forms via JSON in the admin UI or via PHP code, render them with a shortcode, and send submissions to webhooks, email, or both.
 
 **Core features**
 
@@ -29,7 +29,7 @@ Form Runtime Engine is a lightweight WordPress form plugin built for developers 
 
 **Integration**
 
-When the Promptless WP plugin is active, Form Runtime Engine automatically inherits design tokens (colors, typography, border radius) from the global brand settings. Forms also support dark mode through Promptless's `theme_variant` setting. The plugin works fully standalone with sensible defaults when Promptless WP is not active.
+When the Promptless WP plugin is active, Promptless Forms automatically inherits design tokens (colors, typography, border radius) from the global brand settings. Forms also support dark mode through Promptless's `theme_variant` setting. The plugin works fully standalone with sensible defaults when Promptless WP is not active.
 
 **For developers**
 
@@ -40,7 +40,7 @@ When the Promptless WP plugin is active, Form Runtime Engine automatically inher
 
 == Installation ==
 
-1. Upload the plugin files to `/wp-content/plugins/form-runtime-engine/` or install through the WordPress Plugins screen.
+1. Upload the plugin files to `/wp-content/plugins/promptless-forms/` or install through the WordPress Plugins screen.
 2. Activate the plugin through the **Plugins** screen in WordPress.
 3. Go to **Form Entries** in your WordPress admin menu to create your first form.
 
@@ -50,7 +50,7 @@ For developer documentation including JSON configuration examples, hook referenc
 
 = Does this plugin require Promptless WP? =
 
-No. Form Runtime Engine works fully standalone with sensible default styling. When Promptless WP is active, forms automatically inherit your brand colors, typography, and design tokens.
+No. Promptless Forms works fully standalone with sensible default styling. When Promptless WP is active, forms automatically inherit your brand colors, typography, and design tokens.
 
 = How do I display a form on a page? =
 
@@ -84,11 +84,22 @@ The optional Twilio module sends SMS messages and handles missed-call text-back 
 **Claude Cowork Connector** (default-disabled, opt-in):
 The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude Cowork) to manage forms via WordPress Application Passwords. Default state is disabled. To enable, an administrator must explicitly toggle the connector on in **Form Entries → Claude Connection** and generate a per-user Application Password. No external requests are made by the connector — it only responds to authenticated incoming requests.
 
+== Screenshots ==
+
+1. Forms Manager admin UI — paste JSON to define a form, or generate one with an AI assistant
+2. A rendered contact form on the frontend, automatically inheriting Promptless WP brand styling when present
+3. Entries dashboard with per-submission detail view and CSV export
+4. Webhook configuration with destination presets (Zapier, Make, Google Sheets) and Test Connection diagnostics
+5. Claude Cowork connector setup screen — default-disabled, opt-in App Password generation
+
 == Changelog ==
 
 See CHANGELOG.md in the plugin folder or visit the GitHub repository for full release notes.
 
 == Upgrade Notice ==
+
+= 1.7.0 =
+WP.org compliance release. The Custom CSS form-setting is removed — use theme CSS or a CSS plugin instead. `[client_form]` is replaced by `[fre_form]` and `[promptless_form]`; update old tags. Form data, entries, webhooks, and css_class are unaffected.
 
 = 1.6.5 =
 Routine maintenance release.

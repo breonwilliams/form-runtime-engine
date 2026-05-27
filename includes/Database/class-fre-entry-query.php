@@ -1,6 +1,6 @@
 <?php
 /**
- * Entry Query Builder for Form Runtime Engine.
+ * Entry Query Builder for Promptless Forms.
  *
  * Provides a fluent interface for querying entries.
  *

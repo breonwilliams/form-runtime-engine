@@ -9,6 +9,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.7.0] - 2026-05-27
+
+WordPress.org compliance release. Addresses the issues called out by the
+WP.org plugin review team on the initial submission, in order of severity.
+
+### Removed (breaking)
+- **Custom CSS form-setting.** Forms no longer accept arbitrary per-form
+  CSS through the admin UI or the connector REST API. WP.org plugin
+  directory guideline 5 prohibits storing arbitrary executable CSS in
+  plugin data regardless of how strictly it's sanitized, so the
+  `custom_css` field is removed end-to-end (renderer, repository, admin
+  UI, REST schema, MCP tool input schema). Existing stored values in
+  pre-upgrade rows are silently dropped on the next form save. For
+  arbitrary form styling, use your theme's stylesheet or a dedicated
+  CSS plugin (e.g. Simple Custom CSS). Per-form `css_class` (a single
+  class name, not arbitrary CSS) is unaffected.
+- **`[client_form]` shortcode.** Replaced by `[fre_form]` (canonical
+  tag, well-prefixed) and `[promptless_form]` (branding alias). WP.org
+  reviewers flagged "client" as too generic a prefix.
+
+### Changed
+- **Main class renamed.** `Form_Runtime_Engine` → `Promptless_Forms`.
+  WP.org reviewers flagged "form" as a common-word prefix. A
+  `class_alias( 'Promptless_Forms', 'Form_Runtime_Engine' )` preserves
+  backward compatibility for any external code (theme functions.php,
+  other plugins) that referenced the old class name.
+- **All admin inline `<script>` and `<style>` blocks extracted to
+  enqueued assets.** Connector admin page, Twilio admin page (Settings
+  + Clients tabs), and the Show/Hide API-key toggle on the Settings
+  page now use proper `wp_enqueue_script` / `wp_enqueue_style` calls
+  with `wp_localize_script` for dynamic data, gated by page-hook so
+  they only load on the relevant admin screens. New asset files:
+  `assets/css/connector-admin.css`, `assets/js/connector-admin.js`,
+  `assets/css/twilio-admin.css`, `assets/js/twilio-admin.js`. Behavior
+  unchanged.
+- **GitHub auto-updater is now conditional.** The instantiation in the
+  main plugin file is wrapped in a `class_exists` check so the WP.org
+  build (which excludes `includes/Updates/` per guideline 8) doesn't
+  fatal on a missing class. GitHub-distributed builds continue to
+  auto-update normally.
+- **Plugin URI** updated to https://promptlesswp.com (the /forms
+  subpath flagged as 404 by WP.org checks).
+- **readme.txt:** `Tested up to: 7.0 → 6.7`. Contributors `flowmint →
+  promptlesswp`. Added `== Screenshots ==` section with caption
+  placeholders.
+
+### Fixed
+- `esc_url_raw` swapped for `esc_url` in one JS-output context in the
+  connector admin page (output escaping vs. database sanitization
+  context).
+- Hardcoded `/wp-content/uploads/fre-uploads/` in the webhook payload
+  preview replaced with `wp_upload_dir()['baseurl']`, with
+  `content_url()` fallback. Correctly handles sites with relocated
+  uploads directories, multisite blog-specific paths, and
+  `WP_CONTENT_DIR` / `WP_CONTENT_URL` overrides.
+
+### Internal
+- Build script excludes additional engineering planning documents
+  (`FRE_CONNECTOR_HARDENING_PLAN.md`, `CREDENTIAL_ENCRYPTION_AUDIT.md`,
+  `FRE_KNOWLEDGE_MAP.md`, `COWORK_CONNECTOR_ASSESSMENT.md`,
+  `CONNECTOR_TESTING_REPORT.md`, `WORKFLOW_PROMPTLESS_INTEGRATION.md`)
+  from the WP.org build to keep the published package clean of
+  development-internal markdown. GitHub releases keep all docs.
+- Build script excludes `*.bak`, `*.swp`, `*.swo`, `*~` so future sed
+  / IDE backup files never end up in the released ZIP.
+
 ## [1.6.5] - 2026-05-20
 
 ### Fixed

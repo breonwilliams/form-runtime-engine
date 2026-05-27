@@ -1,6 +1,6 @@
 <?php
 /**
- * SMS Sender for Form Runtime Engine Twilio integration.
+ * SMS Sender for Promptless Forms Twilio integration.
  *
  * Sends outbound SMS via the Twilio API and logs all messages
  * to the fre_twilio_messages table for conversation tracking.
@@ -239,7 +239,7 @@ class FRE_SMS_Sender {
             );
             return new WP_Error(
                 'rate_limited',
-                __( 'Hourly SMS limit reached for this number.', 'form-runtime-engine' )
+                __( 'Hourly SMS limit reached for this number.', 'promptless-forms' )
             );
         }
 
@@ -254,7 +254,7 @@ class FRE_SMS_Sender {
             );
             return new WP_Error(
                 'rate_limited',
-                __( 'Daily SMS limit reached.', 'form-runtime-engine' )
+                __( 'Daily SMS limit reached.', 'promptless-forms' )
             );
         }
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Message Field Type for Form Runtime Engine.
+ * Message Field Type for Promptless Forms.
  *
  * A display-only field for showing text or HTML content.
  *

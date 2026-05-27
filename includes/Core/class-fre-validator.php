@@ -1,6 +1,6 @@
 <?php
 /**
- * Validator for Form Runtime Engine.
+ * Validator for Promptless Forms.
  *
  * Handles all form field validation.
  *
@@ -90,7 +90,7 @@ class FRE_Validator {
         $this->errors = apply_filters( 'fre_validation_errors', $this->errors, $form_config, $data );
 
         if ( ! empty( $this->errors ) ) {
-            $error = new WP_Error( 'validation_failed', __( 'Please correct the errors below.', 'form-runtime-engine' ) );
+            $error = new WP_Error( 'validation_failed', __( 'Please correct the errors below.', 'promptless-forms' ) );
             $error->add_data( array( 'field_errors' => $this->errors ) );
             return $error;
         }
@@ -114,7 +114,7 @@ class FRE_Validator {
                 'unknown_field_type',
                 sprintf(
                     /* translators: %s: field type */
-                    __( 'Unknown field type: %s', 'form-runtime-engine' ),
+                    __( 'Unknown field type: %s', 'promptless-forms' ),
                     $field['type']
                 )
             );
@@ -182,7 +182,7 @@ class FRE_Validator {
             if ( is_string( $value ) && mb_strlen( $value ) > $max_length ) {
                 return new WP_Error(
                     'input_too_long',
-                    __( 'Input data exceeds maximum allowed length.', 'form-runtime-engine' )
+                    __( 'Input data exceeds maximum allowed length.', 'promptless-forms' )
                 );
             }
 
@@ -191,7 +191,7 @@ class FRE_Validator {
                     if ( is_string( $item ) && mb_strlen( $item ) > $max_length ) {
                         return new WP_Error(
                             'input_too_long',
-                            __( 'Input data exceeds maximum allowed length.', 'form-runtime-engine' )
+                            __( 'Input data exceeds maximum allowed length.', 'promptless-forms' )
                         );
                     }
                 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Honeypot Protection for Form Runtime Engine.
+ * Honeypot Protection for Promptless Forms.
  *
  * NOTE: Called from submission handler after nonce verification.
  * $_POST access is safe as the caller has already verified the nonce.
@@ -160,7 +160,7 @@ class FRE_Honeypot {
         if ( $this->is_triggered( $form_id ) ) {
             return new WP_Error(
                 'honeypot_triggered',
-                __( 'Spam detected.', 'form-runtime-engine' )
+                __( 'Spam detected.', 'promptless-forms' )
             );
         }
 
@@ -189,7 +189,7 @@ class FRE_Honeypot {
 
         return new WP_Error(
             'validation_failed',
-            __( 'Spam protection validation failed. Please try again.', 'form-runtime-engine' )
+            __( 'Spam protection validation failed. Please try again.', 'promptless-forms' )
         );
     }
 

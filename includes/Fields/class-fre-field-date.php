@@ -1,6 +1,6 @@
 <?php
 /**
- * Date Field Type for Form Runtime Engine.
+ * Date Field Type for Promptless Forms.
  *
  * Native HTML5 date input with min/max validation.
  *
@@ -79,7 +79,7 @@ class FRE_Field_Date extends FRE_Field_Type_Abstract {
                 'invalid_date_format',
                 sprintf(
                     /* translators: %s: field label */
-                    __( '%s must be a valid date.', 'form-runtime-engine' ),
+                    __( '%s must be a valid date.', 'promptless-forms' ),
                     $this->get_label( $field )
                 )
             );
@@ -93,7 +93,7 @@ class FRE_Field_Date extends FRE_Field_Type_Abstract {
                     'date_too_early',
                     sprintf(
                         /* translators: 1: field label, 2: minimum date */
-                        __( '%1$s must be on or after %2$s.', 'form-runtime-engine' ),
+                        __( '%1$s must be on or after %2$s.', 'promptless-forms' ),
                         $this->get_label( $field ),
                         $this->format_date_for_display( $min_date )
                     )
@@ -109,7 +109,7 @@ class FRE_Field_Date extends FRE_Field_Type_Abstract {
                     'date_too_late',
                     sprintf(
                         /* translators: 1: field label, 2: maximum date */
-                        __( '%1$s must be on or before %2$s.', 'form-runtime-engine' ),
+                        __( '%1$s must be on or before %2$s.', 'promptless-forms' ),
                         $this->get_label( $field ),
                         $this->format_date_for_display( $max_date )
                     )

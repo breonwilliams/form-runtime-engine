@@ -1,6 +1,6 @@
 <?php
 /**
- * MIME Type Validator for Form Runtime Engine.
+ * MIME Type Validator for Promptless Forms.
  *
  * NOTE: This file uses low-level file operations (fopen, fread, fclose) intentionally.
  * These are required for binary-mode file scanning and MIME type detection.
@@ -277,7 +277,7 @@ class FRE_Mime_Validator {
         if ( $detected_mime === false ) {
             return new WP_Error(
                 'mime_detection_failed',
-                __( 'Unable to verify file type.', 'form-runtime-engine' )
+                __( 'Unable to verify file type.', 'promptless-forms' )
             );
         }
 
@@ -286,7 +286,7 @@ class FRE_Mime_Validator {
         if ( ! in_array( $detected_mime, $allowed_mimes, true ) ) {
             return new WP_Error(
                 'mime_mismatch',
-                __( 'File content does not match allowed types.', 'form-runtime-engine' )
+                __( 'File content does not match allowed types.', 'promptless-forms' )
             );
         }
 
@@ -390,12 +390,12 @@ class FRE_Mime_Validator {
      */
     public function validate_svg( $file_path ) {
         if ( ! file_exists( $file_path ) ) {
-            return new WP_Error( 'file_not_found', __( 'File not found.', 'form-runtime-engine' ) );
+            return new WP_Error( 'file_not_found', __( 'File not found.', 'promptless-forms' ) );
         }
 
         $handle = fopen( $file_path, 'rb' );
         if ( ! $handle ) {
-            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'form-runtime-engine' ) );
+            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'promptless-forms' ) );
         }
 
         // Use overlapping chunks to catch patterns split across chunk boundaries.
@@ -417,7 +417,7 @@ class FRE_Mime_Validator {
             foreach ( self::SVG_DANGEROUS_PATTERNS as $pattern ) {
                 if ( preg_match( $pattern, $chunk ) ) {
                     fclose( $handle );
-                    return new WP_Error( 'svg_malicious', __( 'SVG contains dangerous content.', 'form-runtime-engine' ) );
+                    return new WP_Error( 'svg_malicious', __( 'SVG contains dangerous content.', 'promptless-forms' ) );
                 }
             }
 
@@ -439,12 +439,12 @@ class FRE_Mime_Validator {
      */
     public function scan_for_dangerous_patterns( $file_path ) {
         if ( ! file_exists( $file_path ) ) {
-            return new WP_Error( 'file_not_found', __( 'File not found.', 'form-runtime-engine' ) );
+            return new WP_Error( 'file_not_found', __( 'File not found.', 'promptless-forms' ) );
         }
 
         $handle = fopen( $file_path, 'rb' );
         if ( ! $handle ) {
-            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'form-runtime-engine' ) );
+            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'promptless-forms' ) );
         }
 
         // Fix #12: Use overlapping chunks to catch patterns split across chunk boundaries.
@@ -469,7 +469,7 @@ class FRE_Mime_Validator {
                     fclose( $handle );
                     return new WP_Error(
                         'dangerous_content',
-                        __( 'File contains potentially dangerous content.', 'form-runtime-engine' )
+                        __( 'File contains potentially dangerous content.', 'promptless-forms' )
                     );
                 }
             }
@@ -479,7 +479,7 @@ class FRE_Mime_Validator {
                 fclose( $handle );
                 return new WP_Error(
                     'dangerous_content',
-                    __( 'File contains potentially dangerous content.', 'form-runtime-engine' )
+                    __( 'File contains potentially dangerous content.', 'promptless-forms' )
                 );
             }
 
@@ -488,7 +488,7 @@ class FRE_Mime_Validator {
                 fclose( $handle );
                 return new WP_Error(
                     'dangerous_content',
-                    __( 'File contains potentially dangerous content.', 'form-runtime-engine' )
+                    __( 'File contains potentially dangerous content.', 'promptless-forms' )
                 );
             }
 
@@ -498,7 +498,7 @@ class FRE_Mime_Validator {
                 fclose( $handle );
                 return new WP_Error(
                     'dangerous_content',
-                    __( 'File contains potentially dangerous encoded content.', 'form-runtime-engine' )
+                    __( 'File contains potentially dangerous encoded content.', 'promptless-forms' )
                 );
             }
 
@@ -546,7 +546,7 @@ class FRE_Mime_Validator {
 
         $handle = fopen( $file_path, 'rb' );
         if ( ! $handle ) {
-            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'form-runtime-engine' ) );
+            return new WP_Error( 'read_failed', __( 'Unable to read file.', 'promptless-forms' ) );
         }
 
         // Read first 8 bytes (max magic byte length).
@@ -554,7 +554,7 @@ class FRE_Mime_Validator {
         fclose( $handle );
 
         if ( $header === false || strlen( $header ) < 2 ) {
-            return new WP_Error( 'invalid_file', __( 'Invalid file format.', 'form-runtime-engine' ) );
+            return new WP_Error( 'invalid_file', __( 'Invalid file format.', 'promptless-forms' ) );
         }
 
         // Convert header to byte array.
@@ -577,7 +577,7 @@ class FRE_Mime_Validator {
 
         return new WP_Error(
             'magic_bytes_mismatch',
-            __( 'File content does not match expected format.', 'form-runtime-engine' )
+            __( 'File content does not match expected format.', 'promptless-forms' )
         );
     }
 }

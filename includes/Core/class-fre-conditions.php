@@ -1,6 +1,6 @@
 <?php
 /**
- * Conditional visibility evaluator for Form Runtime Engine.
+ * Conditional visibility evaluator for Promptless Forms.
  *
  * Single source of truth for evaluating whether a field's `conditions` block
  * is met. Used during validation (skip required-field checks for hidden fields)

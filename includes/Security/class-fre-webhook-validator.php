@@ -1,6 +1,6 @@
 <?php
 /**
- * Webhook URL Validator for Form Runtime Engine.
+ * Webhook URL Validator for Promptless Forms.
  *
  * Validates webhook URLs for security including SSRF protection.
  *
@@ -65,27 +65,27 @@ class FRE_Webhook_Validator {
     public static function validate( $url ) {
         // Check if URL is empty.
         if ( empty( $url ) ) {
-            return new WP_Error( 'empty_url', __( 'Webhook URL is required.', 'form-runtime-engine' ) );
+            return new WP_Error( 'empty_url', __( 'Webhook URL is required.', 'promptless-forms' ) );
         }
 
         $url = trim( $url );
 
         // Validate URL format.
         if ( ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
-            return new WP_Error( 'invalid_url', __( 'Invalid webhook URL format.', 'form-runtime-engine' ) );
+            return new WP_Error( 'invalid_url', __( 'Invalid webhook URL format.', 'promptless-forms' ) );
         }
 
         // Parse URL.
         $parsed = wp_parse_url( $url );
 
         if ( ! $parsed || empty( $parsed['host'] ) ) {
-            return new WP_Error( 'invalid_url', __( 'Could not parse webhook URL.', 'form-runtime-engine' ) );
+            return new WP_Error( 'invalid_url', __( 'Could not parse webhook URL.', 'promptless-forms' ) );
         }
 
         // Check scheme (only http/https allowed).
         $scheme = isset( $parsed['scheme'] ) ? strtolower( $parsed['scheme'] ) : '';
         if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
-            return new WP_Error( 'invalid_scheme', __( 'Webhook URL must use http:// or https://.', 'form-runtime-engine' ) );
+            return new WP_Error( 'invalid_scheme', __( 'Webhook URL must use http:// or https://.', 'promptless-forms' ) );
         }
 
         $host = strtolower( $parsed['host'] );
@@ -97,7 +97,7 @@ class FRE_Webhook_Validator {
 
         // Check blocked hostnames.
         if ( in_array( $host, self::$blocked_hosts, true ) ) {
-            return new WP_Error( 'blocked_host', __( 'Webhook URL cannot point to localhost or loopback addresses.', 'form-runtime-engine' ) );
+            return new WP_Error( 'blocked_host', __( 'Webhook URL cannot point to localhost or loopback addresses.', 'promptless-forms' ) );
         }
 
         // Resolve hostname to IP.
@@ -113,7 +113,7 @@ class FRE_Webhook_Validator {
             if ( self::is_private_ip( $ip ) ) {
                 return new WP_Error(
                     'private_ip',
-                    __( 'Webhook URL cannot point to private or internal IP addresses.', 'form-runtime-engine' )
+                    __( 'Webhook URL cannot point to private or internal IP addresses.', 'promptless-forms' )
                 );
             }
         }

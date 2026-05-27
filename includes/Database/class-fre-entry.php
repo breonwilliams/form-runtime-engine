@@ -1,6 +1,6 @@
 <?php
 /**
- * Entry Database Handler for Form Runtime Engine.
+ * Entry Database Handler for Promptless Forms.
  *
  * Handles CRUD operations for form entries.
  *

@@ -1,6 +1,6 @@
 <?php
 /**
- * Form Renderer for Form Runtime Engine.
+ * Form Renderer for Promptless Forms.
  *
  * Generates HTML for forms based on configuration.
  *
@@ -38,7 +38,7 @@ class FRE_Renderer {
             return $this->render_error(
                 sprintf(
                     /* translators: %s: form ID */
-                    __( 'Form not found: %s', 'form-runtime-engine' ),
+                    __( 'Form not found: %s', 'promptless-forms' ),
                     esc_html( $form_id )
                 )
             );
@@ -62,36 +62,6 @@ class FRE_Renderer {
 
         // Build form HTML.
         $html = $this->build_form( $form, $args );
-
-        // Prepend custom CSS if form has it (database-stored forms only).
-        $html = $this->prepend_custom_css( $form_id, $html );
-
-        return $html;
-    }
-
-    /**
-     * Prepend custom CSS for database-stored forms.
-     *
-     * @param string $form_id Form ID.
-     * @param string $html    Form HTML.
-     * @return string HTML with custom CSS prepended.
-     */
-    private function prepend_custom_css( $form_id, $html ) {
-        // Check if FRE_Forms_Manager class exists (it should for DB forms).
-        if ( ! class_exists( 'FRE_Forms_Manager' ) ) {
-            return $html;
-        }
-
-        $db_form = FRE_Forms_Manager::get_form( $form_id );
-
-        if ( $db_form && ! empty( $db_form['custom_css'] ) ) {
-            $css_html = sprintf(
-                '<style id="fre-custom-css-%s">%s</style>',
-                esc_attr( $form_id ),
-                wp_strip_all_tags( $db_form['custom_css'] )
-            );
-            $html = $css_html . $html;
-        }
 
         return $html;
     }
@@ -484,7 +454,7 @@ class FRE_Renderer {
             if ( ! $is_first ) {
                 $html .= sprintf(
                     '<button type="button" class="fre-step__prev fre-btn fre-btn--secondary">%s</button>',
-                    esc_html__( 'Previous', 'form-runtime-engine' )
+                    esc_html__( 'Previous', 'promptless-forms' )
                 );
             }
 
@@ -493,7 +463,7 @@ class FRE_Renderer {
             } else {
                 $html .= sprintf(
                     '<button type="button" class="fre-step__next fre-btn fre-btn--primary">%s</button>',
-                    esc_html__( 'Next', 'form-runtime-engine' )
+                    esc_html__( 'Next', 'promptless-forms' )
                 );
             }
 
@@ -802,7 +772,7 @@ class FRE_Renderer {
             return $this->render_error(
                 sprintf(
                     /* translators: %s: field type */
-                    __( 'Unknown field type: %s', 'form-runtime-engine' ),
+                    __( 'Unknown field type: %s', 'promptless-forms' ),
                     esc_html( $type )
                 )
             );
@@ -874,7 +844,7 @@ class FRE_Renderer {
     private function render_submit_button( array $settings, $extra_class = '' ) {
         $text = ! empty( $settings['submit_button_text'] )
             ? $settings['submit_button_text']
-            : __( 'Submit', 'form-runtime-engine' );
+            : __( 'Submit', 'promptless-forms' );
 
         $wrapper_classes = array( 'fre-form__submit' );
         if ( ! empty( $extra_class ) ) {
@@ -891,7 +861,7 @@ class FRE_Renderer {
                 </span>
             </button>',
             esc_html( $text ),
-            esc_html__( 'Submitting...', 'form-runtime-engine' )
+            esc_html__( 'Submitting...', 'promptless-forms' )
         );
         $html .= '</div>';
 

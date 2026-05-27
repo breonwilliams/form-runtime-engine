@@ -1,6 +1,6 @@
 <?php
 /**
- * Entry Detail View for Form Runtime Engine.
+ * Entry Detail View for Promptless Forms.
  *
  * NOTE: Uses $_GET parameters for entry ID and navigation which is standard
  * for WordPress admin detail views. Admin page context provides security.
@@ -74,7 +74,7 @@ class FRE_Entry_Detail {
      */
     public function render() {
         if ( ! $this->entry ) {
-            wp_die( esc_html__( 'Entry not found.', 'form-runtime-engine' ) );
+            wp_die( esc_html__( 'Entry not found.', 'promptless-forms' ) );
         }
 
         // Build back URL - preserve form_id filter if coming from filtered view.
@@ -98,14 +98,14 @@ class FRE_Entry_Detail {
                 <?php
                 printf(
                     /* translators: %d: entry ID */
-                    esc_html__( 'Entry #%d', 'form-runtime-engine' ),
+                    esc_html__( 'Entry #%d', 'promptless-forms' ),
                     (int) $this->entry_id
                 );
                 ?>
             </h1>
 
             <a href="<?php echo esc_url( $back_url ); ?>" class="page-title-action">
-                <?php esc_html_e( 'Back to Entries', 'form-runtime-engine' ); ?>
+                <?php esc_html_e( 'Back to Entries', 'promptless-forms' ); ?>
             </a>
 
             <hr class="wp-header-end">
@@ -116,7 +116,7 @@ class FRE_Entry_Detail {
                     <!-- Main Content -->
                     <div id="post-body-content">
                         <div class="postbox">
-                            <h2 class="hndle"><?php esc_html_e( 'Submission Data', 'form-runtime-engine' ); ?></h2>
+                            <h2 class="hndle"><?php esc_html_e( 'Submission Data', 'promptless-forms' ); ?></h2>
                             <div class="inside">
                                 <?php $this->render_fields(); ?>
                             </div>
@@ -124,7 +124,7 @@ class FRE_Entry_Detail {
 
                         <?php if ( ! empty( $this->entry['files'] ) ) : ?>
                             <div class="postbox">
-                                <h2 class="hndle"><?php esc_html_e( 'Uploaded Files', 'form-runtime-engine' ); ?></h2>
+                                <h2 class="hndle"><?php esc_html_e( 'Uploaded Files', 'promptless-forms' ); ?></h2>
                                 <div class="inside">
                                     <?php $this->render_files(); ?>
                                 </div>
@@ -137,14 +137,14 @@ class FRE_Entry_Detail {
                     <!-- Sidebar -->
                     <div id="postbox-container-1" class="postbox-container">
                         <div class="postbox">
-                            <h2 class="hndle"><?php esc_html_e( 'Entry Details', 'form-runtime-engine' ); ?></h2>
+                            <h2 class="hndle"><?php esc_html_e( 'Entry Details', 'promptless-forms' ); ?></h2>
                             <div class="inside">
                                 <?php $this->render_sidebar(); ?>
                             </div>
                         </div>
 
                         <div class="postbox">
-                            <h2 class="hndle"><?php esc_html_e( 'Actions', 'form-runtime-engine' ); ?></h2>
+                            <h2 class="hndle"><?php esc_html_e( 'Actions', 'promptless-forms' ); ?></h2>
                             <div class="inside">
                                 <?php $this->render_actions(); ?>
                             </div>
@@ -164,12 +164,12 @@ class FRE_Entry_Detail {
         $fields = $this->entry['fields'] ?? array();
 
         if ( empty( $fields ) ) {
-            echo '<p>' . esc_html__( 'No data submitted.', 'form-runtime-engine' ) . '</p>';
+            echo '<p>' . esc_html__( 'No data submitted.', 'promptless-forms' ) . '</p>';
             return;
         }
 
         echo '<table class="widefat striped">';
-        echo '<thead><tr><th style="width:30%;">' . esc_html__( 'Field', 'form-runtime-engine' ) . '</th><th>' . esc_html__( 'Value', 'form-runtime-engine' ) . '</th></tr></thead>';
+        echo '<thead><tr><th style="width:30%;">' . esc_html__( 'Field', 'promptless-forms' ) . '</th><th>' . esc_html__( 'Value', 'promptless-forms' ) . '</th></tr></thead>';
         echo '<tbody>';
 
         foreach ( $fields as $field_key => $value ) {
@@ -198,7 +198,7 @@ class FRE_Entry_Detail {
      */
     private function render_field_value( $key, $value, $config = null ) {
         if ( $value === null || $value === '' ) {
-            return '<em>' . esc_html__( '(empty)', 'form-runtime-engine' ) . '</em>';
+            return '<em>' . esc_html__( '(empty)', 'promptless-forms' ) . '</em>';
         }
 
         $type = $config ? ( $config['type'] ?? 'text' ) : 'text';
@@ -228,11 +228,11 @@ class FRE_Entry_Detail {
 
         echo '<table class="widefat striped">';
         echo '<thead><tr>';
-        echo '<th>' . esc_html__( 'Field', 'form-runtime-engine' ) . '</th>';
-        echo '<th>' . esc_html__( 'Filename', 'form-runtime-engine' ) . '</th>';
-        echo '<th>' . esc_html__( 'Size', 'form-runtime-engine' ) . '</th>';
-        echo '<th>' . esc_html__( 'Type', 'form-runtime-engine' ) . '</th>';
-        echo '<th>' . esc_html__( 'Actions', 'form-runtime-engine' ) . '</th>';
+        echo '<th>' . esc_html__( 'Field', 'promptless-forms' ) . '</th>';
+        echo '<th>' . esc_html__( 'Filename', 'promptless-forms' ) . '</th>';
+        echo '<th>' . esc_html__( 'Size', 'promptless-forms' ) . '</th>';
+        echo '<th>' . esc_html__( 'Type', 'promptless-forms' ) . '</th>';
+        echo '<th>' . esc_html__( 'Actions', 'promptless-forms' ) . '</th>';
         echo '</tr></thead>';
         echo '<tbody>';
 
@@ -254,7 +254,7 @@ class FRE_Entry_Detail {
             echo '<td>';
             if ( $download_url ) {
                 echo '<a href="' . esc_url( $download_url ) . '" download class="button button-small">';
-                echo esc_html__( 'Download', 'form-runtime-engine' );
+                echo esc_html__( 'Download', 'promptless-forms' );
                 echo '</a>';
             }
             echo '</td>';
@@ -274,33 +274,33 @@ class FRE_Entry_Detail {
         ?>
         <ul class="fre-entry-meta">
             <li>
-                <strong><?php esc_html_e( 'Form:', 'form-runtime-engine' ); ?></strong>
+                <strong><?php esc_html_e( 'Form:', 'promptless-forms' ); ?></strong>
                 <?php echo esc_html( $form_title ); ?>
                 <?php if ( ! $this->form ) : ?>
-                    <em>(<?php esc_html_e( 'deleted', 'form-runtime-engine' ); ?>)</em>
+                    <em>(<?php esc_html_e( 'deleted', 'promptless-forms' ); ?>)</em>
                 <?php endif; ?>
             </li>
             <li>
-                <strong><?php esc_html_e( 'Status:', 'form-runtime-engine' ); ?></strong>
+                <strong><?php esc_html_e( 'Status:', 'promptless-forms' ); ?></strong>
                 <?php
                 if ( ! empty( $entry['is_spam'] ) ) {
-                    echo '<span style="color:#d63638;">' . esc_html__( 'Spam', 'form-runtime-engine' ) . '</span>';
+                    echo '<span style="color:#d63638;">' . esc_html__( 'Spam', 'promptless-forms' ) . '</span>';
                 } else {
                     echo esc_html( ucfirst( $entry['status'] ) );
                 }
                 ?>
             </li>
             <li>
-                <strong><?php esc_html_e( 'Submitted:', 'form-runtime-engine' ); ?></strong>
+                <strong><?php esc_html_e( 'Submitted:', 'promptless-forms' ); ?></strong>
                 <?php echo esc_html( date_i18n( 'F j, Y \a\t g:i a', strtotime( $entry['created_at'] ) ) ); ?>
             </li>
             <li>
-                <strong><?php esc_html_e( 'IP Address:', 'form-runtime-engine' ); ?></strong>
+                <strong><?php esc_html_e( 'IP Address:', 'promptless-forms' ); ?></strong>
                 <?php echo esc_html( $entry['ip_address'] ?: '-' ); ?>
             </li>
             <?php if ( $entry['user_id'] ) : ?>
                 <li>
-                    <strong><?php esc_html_e( 'User:', 'form-runtime-engine' ); ?></strong>
+                    <strong><?php esc_html_e( 'User:', 'promptless-forms' ); ?></strong>
                     <?php
                     $user = get_user_by( 'id', $entry['user_id'] );
                     if ( $user ) {
@@ -314,20 +314,20 @@ class FRE_Entry_Detail {
                 </li>
             <?php endif; ?>
             <li>
-                <strong><?php esc_html_e( 'Email Notification:', 'form-runtime-engine' ); ?></strong>
+                <strong><?php esc_html_e( 'Email Notification:', 'promptless-forms' ); ?></strong>
                 <?php
                 if ( ! empty( $entry['notification_sent'] ) ) {
-                    echo '<span style="color:#46b450;">' . esc_html__( 'Sent', 'form-runtime-engine' ) . '</span>';
+                    echo '<span style="color:#46b450;">' . esc_html__( 'Sent', 'promptless-forms' ) . '</span>';
                     if ( ! empty( $entry['notification_sent_at'] ) ) {
                         echo ' <small>(' . esc_html( date_i18n( 'M j, g:i a', strtotime( $entry['notification_sent_at'] ) ) ) . ')</small>';
                     }
                 } elseif ( isset( $entry['notification_sent'] ) && $entry['notification_sent'] === '0' ) {
-                    echo '<span style="color:#d63638;">' . esc_html__( 'Failed', 'form-runtime-engine' ) . '</span>';
+                    echo '<span style="color:#d63638;">' . esc_html__( 'Failed', 'promptless-forms' ) . '</span>';
                     if ( ! empty( $entry['notification_error'] ) ) {
                         echo '<br><small>' . esc_html( $entry['notification_error'] ) . '</small>';
                     }
                 } else {
-                    echo esc_html__( 'Not sent', 'form-runtime-engine' );
+                    echo esc_html__( 'Not sent', 'promptless-forms' );
                 }
                 ?>
             </li>
@@ -335,7 +335,7 @@ class FRE_Entry_Detail {
 
         <?php if ( ! empty( $entry['user_agent'] ) ) : ?>
             <details style="margin-top:15px;">
-                <summary style="cursor:pointer;"><?php esc_html_e( 'User Agent', 'form-runtime-engine' ); ?></summary>
+                <summary style="cursor:pointer;"><?php esc_html_e( 'User Agent', 'promptless-forms' ); ?></summary>
                 <p style="font-size:11px;word-break:break-all;margin-top:5px;">
                     <?php echo esc_html( $entry['user_agent'] ); ?>
                 </p>
@@ -354,22 +354,22 @@ class FRE_Entry_Detail {
         <div class="fre-entry-actions">
             <?php if ( $entry['status'] === 'read' ) : ?>
                 <button type="button" class="button fre-mark-unread" data-entry-id="<?php echo (int) $entry['id']; ?>">
-                    <?php esc_html_e( 'Mark as Unread', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Mark as Unread', 'promptless-forms' ); ?>
                 </button>
             <?php else : ?>
                 <button type="button" class="button fre-mark-read" data-entry-id="<?php echo (int) $entry['id']; ?>">
-                    <?php esc_html_e( 'Mark as Read', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Mark as Read', 'promptless-forms' ); ?>
                 </button>
             <?php endif; ?>
 
             <?php if ( empty( $entry['is_spam'] ) ) : ?>
                 <button type="button" class="button fre-mark-spam" data-entry-id="<?php echo (int) $entry['id']; ?>">
-                    <?php esc_html_e( 'Mark as Spam', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Mark as Spam', 'promptless-forms' ); ?>
                 </button>
             <?php endif; ?>
 
             <button type="button" class="button button-link-delete fre-delete-entry" data-entry-id="<?php echo (int) $entry['id']; ?>" style="color:#b32d2e;">
-                <?php esc_html_e( 'Delete Entry', 'form-runtime-engine' ); ?>
+                <?php esc_html_e( 'Delete Entry', 'promptless-forms' ); ?>
             </button>
         </div>
         <?php
@@ -420,7 +420,7 @@ class FRE_Entry_Detail {
 
         ?>
         <div class="postbox">
-            <h2 class="hndle"><?php esc_html_e( 'SMS Conversation', 'form-runtime-engine' ); ?></h2>
+            <h2 class="hndle"><?php esc_html_e( 'SMS Conversation', 'promptless-forms' ); ?></h2>
             <div class="inside">
                 <div class="fre-sms-thread" style="max-width:600px;">
                     <?php foreach ( $messages as $msg ) : ?>
@@ -433,8 +433,8 @@ class FRE_Entry_Detail {
                             ? '12px 12px 2px 12px'
                             : '12px 12px 12px 2px';
                         $label        = $is_outbound
-                            ? __( 'Auto-reply', 'form-runtime-engine' )
-                            : __( 'Customer', 'form-runtime-engine' );
+                            ? __( 'Auto-reply', 'promptless-forms' )
+                            : __( 'Customer', 'promptless-forms' );
                         $time         = date_i18n( 'M j, g:i a', strtotime( $msg['created_at'] ) );
 
                         // Status indicator for outbound messages.
@@ -442,14 +442,14 @@ class FRE_Entry_Detail {
                         if ( $is_outbound && ! empty( $msg['status'] ) ) {
                             switch ( $msg['status'] ) {
                                 case 'delivered':
-                                    $status_icon = '<span style="color:#46b450;" title="' . esc_attr__( 'Delivered', 'form-runtime-engine' ) . '">&#10003;&#10003;</span>';
+                                    $status_icon = '<span style="color:#46b450;" title="' . esc_attr__( 'Delivered', 'promptless-forms' ) . '">&#10003;&#10003;</span>';
                                     break;
                                 case 'sent':
-                                    $status_icon = '<span style="color:#999;" title="' . esc_attr__( 'Sent', 'form-runtime-engine' ) . '">&#10003;</span>';
+                                    $status_icon = '<span style="color:#999;" title="' . esc_attr__( 'Sent', 'promptless-forms' ) . '">&#10003;</span>';
                                     break;
                                 case 'failed':
                                 case 'undelivered':
-                                    $status_icon = '<span style="color:#d63638;" title="' . esc_attr__( 'Failed', 'form-runtime-engine' ) . '">&#10007;</span>';
+                                    $status_icon = '<span style="color:#d63638;" title="' . esc_attr__( 'Failed', 'promptless-forms' ) . '">&#10007;</span>';
                                     break;
                             }
                         }

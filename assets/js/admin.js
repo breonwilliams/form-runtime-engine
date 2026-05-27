@@ -49,6 +49,25 @@
                     FREAdmin.markSpam($(this).data('entry-id'), $(this));
                 }
             });
+
+            // Show / Hide sensitive input field (e.g. Google Places API
+            // key on the Settings page). Was previously an inline <script>
+            // in the Settings render method; extracted in 1.6.5 to
+            // satisfy Plugin Check's wp_enqueue guideline.
+            $(document).on('click', '.fre-toggle-api-key', function() {
+                var $btn = $(this);
+                var $input = $('#' + $btn.data('target'));
+                if (!$input.length) {
+                    return;
+                }
+                if ($input.attr('type') === 'password') {
+                    $input.attr('type', 'text');
+                    $btn.text(freAdmin.strings.apiKeyHide);
+                } else {
+                    $input.attr('type', 'password');
+                    $btn.text(freAdmin.strings.apiKeyShow);
+                }
+            });
         },
 
         /**
@@ -596,11 +615,11 @@
             var $spinner = $('#fre-forms-spinner');
             var $notices = $('#fre-forms-notices');
 
-            // Get form data.
+            // Get form data. (customCss removed in 1.6.5 — feature retired
+            // for WordPress.org guideline 5 compliance.)
             var formId = $('#fre-form-id').val().trim();
             var title = $('#fre-form-title').val().trim();
             var config = $('#fre-form-config').val().trim();
-            var customCss = $('#fre-form-custom-css').val().trim();
             var webhookEnabled = $('#fre-webhook-enabled').is(':checked');
             var webhookUrl = $('#fre-webhook-url').val().trim();
             var webhookSecret = $('#fre-webhook-secret').val().trim();
@@ -638,15 +657,6 @@
                 console.warn('FRE Form Schema Warnings:', schemaResult.warnings);
             }
 
-            // Validate CSS if provided.
-            if (customCss) {
-                var cssResult = this.validateCss(customCss);
-                if (!cssResult.valid) {
-                    this.showNotice($notices, 'error', cssResult.errors.join(' '));
-                    return;
-                }
-            }
-
             // Validate webhook URL if enabled.
             if (webhookEnabled) {
                 var webhookResult = this.validateWebhookUrl(webhookUrl);
@@ -671,7 +681,6 @@
                     form_id: formId,
                     title: title,
                     config: config,
-                    custom_css: customCss,
                     webhook_enabled: webhookEnabled ? '1' : '0',
                     webhook_url: webhookUrl,
                     webhook_secret: webhookSecret,

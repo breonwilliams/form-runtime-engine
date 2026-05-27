@@ -1,6 +1,6 @@
 <?php
 /**
- * Shortcode Handler for Form Runtime Engine.
+ * Shortcode Handler for Promptless Forms.
  *
  * @package FormRuntimeEngine
  */
@@ -12,24 +12,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Shortcode handler class.
+ *
+ * Tag registration (1.6.5+):
+ *   - `fre_form`         — canonical tag (well-prefixed, documented).
+ *   - `promptless_form`  — branding alias matching the WordPress.org name.
+ *
+ * Tag retired in 1.6.5:
+ *   - `client_form` — flagged by WP.org reviewers because "client" is too
+ *     generic a prefix. Sites that used `[client_form id="..."]` should
+ *     migrate to `[fre_form id="..."]`.
  */
 class FRE_Shortcode {
 
     /**
-     * Shortcode tag.
+     * Canonical shortcode tag.
      *
      * @var string
      */
-    private $tag = 'client_form';
+    private $tag = 'fre_form';
 
     /**
      * Constructor.
      */
     public function __construct() {
+        // Canonical tag.
         add_shortcode( $this->tag, array( $this, 'render_shortcode' ) );
 
-        // Also register fre_form as an alias.
-        add_shortcode( 'fre_form', array( $this, 'render_shortcode' ) );
+        // Branding alias — same handler.
+        add_shortcode( 'promptless_form', array( $this, 'render_shortcode' ) );
     }
 
     /**
@@ -56,7 +66,7 @@ class FRE_Shortcode {
 
         if ( empty( $form_id ) ) {
             return $this->render_admin_error(
-                __( 'Form ID is required. Usage: [client_form id="contact"]', 'form-runtime-engine' )
+                __( 'Form ID is required. Usage: [fre_form id="contact"]', 'promptless-forms' )
             );
         }
 
@@ -83,7 +93,7 @@ class FRE_Shortcode {
                 '<div class="fre-shortcode-error" style="background:#fef7f7;border:1px solid #f5c6cb;padding:10px;color:#721c24;">
                     <strong>%s</strong> %s
                 </div>',
-                esc_html__( 'Form Runtime Engine:', 'form-runtime-engine' ),
+                esc_html__( 'Promptless Forms:', 'promptless-forms' ),
                 esc_html( $message )
             );
         }

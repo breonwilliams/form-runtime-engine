@@ -1,6 +1,6 @@
 <?php
 /**
- * Hidden Field Type for Form Runtime Engine.
+ * Hidden Field Type for Promptless Forms.
  *
  * @package FormRuntimeEngine
  */
@@ -110,7 +110,7 @@ class FRE_Field_Hidden extends FRE_Field_Type_Abstract {
         if ( isset( $field['expected_value'] ) && (string) $value !== (string) $field['expected_value'] ) {
             return new WP_Error(
                 'invalid_value',
-                __( 'Invalid form data.', 'form-runtime-engine' )
+                __( 'Invalid form data.', 'promptless-forms' )
             );
         }
 

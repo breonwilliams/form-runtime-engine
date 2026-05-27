@@ -1,6 +1,6 @@
 <?php
 /**
- * Abstract Field Type for Form Runtime Engine.
+ * Abstract Field Type for Promptless Forms.
  *
  * Base class for all field types with common functionality.
  *
@@ -101,7 +101,7 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
                 'required_field',
                 sprintf(
                     /* translators: %s: field label */
-                    __( '%s is required.', 'form-runtime-engine' ),
+                    __( '%s is required.', 'promptless-forms' ),
                     $this->get_label( $field )
                 )
             );
@@ -114,7 +114,7 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
                     'max_length_exceeded',
                     sprintf(
                         /* translators: %1$s: field label, %2$d: max length */
-                        __( '%1$s must not exceed %2$d characters.', 'form-runtime-engine' ),
+                        __( '%1$s must not exceed %2$d characters.', 'promptless-forms' ),
                         $this->get_label( $field ),
                         (int) $field['maxlength']
                     )
@@ -129,7 +129,7 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
                     'min_length_not_met',
                     sprintf(
                         /* translators: %1$s: field label, %2$d: min length */
-                        __( '%1$s must be at least %2$d characters.', 'form-runtime-engine' ),
+                        __( '%1$s must be at least %2$d characters.', 'promptless-forms' ),
                         $this->get_label( $field ),
                         (int) $field['minlength']
                     )
@@ -219,8 +219,8 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
         // Single checkbox (no options) renders as a Yes/No toggle.
         if ( $type === 'checkbox' && empty( $options ) ) {
             $result = ! empty( $value )
-                ? __( 'Yes', 'form-runtime-engine' )
-                : __( 'No', 'form-runtime-engine' );
+                ? __( 'Yes', 'promptless-forms' )
+                : __( 'No', 'promptless-forms' );
         } elseif ( in_array( $type, array( 'select', 'radio', 'checkbox' ), true ) && ! empty( $options ) ) {
             // Build value → label map once for this lookup.
             $map = array();

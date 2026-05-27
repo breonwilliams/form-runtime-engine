@@ -1,6 +1,6 @@
 <?php
 /**
- * Twilio Webhook Handler for Form Runtime Engine.
+ * Twilio Webhook Handler for Promptless Forms.
  *
  * Registers REST API endpoints that receive Twilio webhooks for incoming calls,
  * call status updates, incoming SMS, and SMS delivery status. Processes missed

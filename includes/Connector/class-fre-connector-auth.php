@@ -109,7 +109,7 @@ class FRE_Connector_Auth {
         if ( ! FRE_Connector_Settings::is_enabled() ) {
             return new WP_Error(
                 'connector_disabled',
-                __( 'The Claude Cowork connector is not enabled on this site. A site administrator can enable it under Form Entries → Claude Connection.', 'form-runtime-engine' ),
+                __( 'The Claude Cowork connector is not enabled on this site. A site administrator can enable it under Form Entries → Claude Connection.', 'promptless-forms' ),
                 array( 'status' => 403 )
             );
         }
@@ -118,7 +118,7 @@ class FRE_Connector_Auth {
         if ( ! is_user_logged_in() ) {
             return new WP_Error(
                 'rest_not_logged_in',
-                __( 'Authentication required. Use a WordPress Application Password generated through the Claude Connection admin page.', 'form-runtime-engine' ),
+                __( 'Authentication required. Use a WordPress Application Password generated through the Claude Connection admin page.', 'promptless-forms' ),
                 array( 'status' => 401 )
             );
         }
@@ -127,7 +127,7 @@ class FRE_Connector_Auth {
         if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
             return new WP_Error(
                 'rest_forbidden',
-                __( 'Your account does not have permission to manage forms through the connector.', 'form-runtime-engine' ),
+                __( 'Your account does not have permission to manage forms through the connector.', 'promptless-forms' ),
                 array( 'status' => 403 )
             );
         }
@@ -136,7 +136,7 @@ class FRE_Connector_Auth {
         if ( $requires_entry_read && ! FRE_Connector_Settings::is_entry_read_enabled() ) {
             return new WP_Error(
                 'entry_access_disabled',
-                __( 'Entry read access is not enabled for the connector. A site administrator can enable it under Form Entries → Claude Connection.', 'form-runtime-engine' ),
+                __( 'Entry read access is not enabled for the connector. A site administrator can enable it under Form Entries → Claude Connection.', 'promptless-forms' ),
                 array( 'status' => 403 )
             );
         }
@@ -190,7 +190,7 @@ class FRE_Connector_Auth {
                 'rate_limit_exceeded',
                 sprintf(
                     /* translators: 1: limit per minute, 2: route identifier */
-                    __( 'Rate limit exceeded for this connector endpoint (%1$d requests/minute on "%2$s"). Retry after a moment.', 'form-runtime-engine' ),
+                    __( 'Rate limit exceeded for this connector endpoint (%1$d requests/minute on "%2$s"). Retry after a moment.', 'promptless-forms' ),
                     $limit,
                     $route_key
                 ),

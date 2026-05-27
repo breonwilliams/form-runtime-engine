@@ -1,6 +1,6 @@
 <?php
 /**
- * Capability management for Form Runtime Engine.
+ * Capability management for Promptless Forms.
  *
  * Centralizes the plugin's custom capabilities so callers never hard-code
  * capability strings. All form and entry management checks go through the

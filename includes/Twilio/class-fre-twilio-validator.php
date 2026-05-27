@@ -74,7 +74,7 @@ class FRE_Twilio_Validator {
             FRE_Logger::error( 'Twilio Validator: Missing X-Twilio-Signature header.' );
             return new WP_Error(
                 'missing_signature',
-                __( 'Missing Twilio signature.', 'form-runtime-engine' ),
+                __( 'Missing Twilio signature.', 'promptless-forms' ),
                 array( 'status' => 403 )
             );
         }
@@ -93,7 +93,7 @@ class FRE_Twilio_Validator {
             FRE_Logger::error( 'Twilio Validator: Invalid signature for URL: ' . $url );
             return new WP_Error(
                 'invalid_signature',
-                __( 'Invalid Twilio signature.', 'form-runtime-engine' ),
+                __( 'Invalid Twilio signature.', 'promptless-forms' ),
                 array( 'status' => 403 )
             );
         }

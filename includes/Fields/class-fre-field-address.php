@@ -1,6 +1,6 @@
 <?php
 /**
- * Address Field Type for Form Runtime Engine.
+ * Address Field Type for Promptless Forms.
  *
  * Address autocomplete field using Google Places API.
  *
@@ -66,9 +66,9 @@ class FRE_Field_Address extends FRE_Field_Type_Abstract {
         if ( empty( $api_key ) && current_user_can( 'manage_options' ) ) {
             $input .= sprintf(
                 '<p class="fre-field__warning">%s <a href="%s">%s</a></p>',
-                esc_html__( 'Address autocomplete requires a Google Places API key.', 'form-runtime-engine' ),
+                esc_html__( 'Address autocomplete requires a Google Places API key.', 'promptless-forms' ),
                 esc_url( admin_url( 'admin.php?page=fre-settings' ) ),
-                esc_html__( 'Configure API key', 'form-runtime-engine' )
+                esc_html__( 'Configure API key', 'promptless-forms' )
             );
         }
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Submission Handler for Form Runtime Engine.
+ * Submission Handler for Promptless Forms.
  *
  * Processes form submissions through the complete lifecycle.
  *
@@ -82,7 +82,7 @@ class FRE_Submission_Handler {
                 : '';
 
             if ( empty( $form_id ) ) {
-                $this->send_error( 'invalid_form', __( 'Invalid form submission.', 'form-runtime-engine' ) );
+                $this->send_error( 'invalid_form', __( 'Invalid form submission.', 'promptless-forms' ) );
             }
 
             // Step 1: Nonce verification FIRST (Fix #9: CSRF protection).
@@ -101,7 +101,7 @@ class FRE_Submission_Handler {
             // Fix #16: Improved error logging when form config not found.
             if ( ! $form_config ) {
                 $this->log_form_config_error( $form_id );
-                $this->send_error( 'form_not_found', __( 'Form configuration not found.', 'form-runtime-engine' ) );
+                $this->send_error( 'form_not_found', __( 'Form configuration not found.', 'promptless-forms' ) );
             }
 
             /**
@@ -149,7 +149,7 @@ class FRE_Submission_Handler {
                 $entry_id = $this->entry_repo->create( $form_id, $sanitized_data );
 
                 if ( is_wp_error( $entry_id ) ) {
-                    $this->send_error( 'database_error', __( 'An error occurred saving your submission.', 'form-runtime-engine' ) );
+                    $this->send_error( 'database_error', __( 'An error occurred saving your submission.', 'promptless-forms' ) );
                 }
             }
 
@@ -238,7 +238,7 @@ class FRE_Submission_Handler {
 
         } catch ( Exception $e ) {
             FRE_Logger::error( 'Submission Error: ' . $e->getMessage() );
-            $this->send_error( 'processing_error', __( 'An error occurred processing your submission. Please try again.', 'form-runtime-engine' ) );
+            $this->send_error( 'processing_error', __( 'An error occurred processing your submission. Please try again.', 'promptless-forms' ) );
         }
     }
 
@@ -299,7 +299,7 @@ class FRE_Submission_Handler {
 
         $form_id = sanitize_key( $form_id );
         if ( '' === $form_id ) {
-            return new WP_Error( 'invalid_form_id', __( 'Form ID is required.', 'form-runtime-engine' ) );
+            return new WP_Error( 'invalid_form_id', __( 'Form ID is required.', 'promptless-forms' ) );
         }
 
         // Look up the form config from the runtime registry. DB-stored forms
@@ -309,7 +309,7 @@ class FRE_Submission_Handler {
         if ( ! is_array( $form_config ) ) {
             return new WP_Error(
                 'form_not_found',
-                __( 'Form configuration not found.', 'form-runtime-engine' ),
+                __( 'Form configuration not found.', 'promptless-forms' ),
                 array( 'form_id' => $form_id )
             );
         }
@@ -467,7 +467,7 @@ class FRE_Submission_Handler {
         if ( ! wp_verify_nonce( $nonce, 'fre_submit_' . $form_id ) ) {
             wp_send_json_error( array(
                 'code'           => 'nonce_expired',
-                'message'        => __( 'Your session expired. The form has been refreshed.', 'form-runtime-engine' ),
+                'message'        => __( 'Your session expired. The form has been refreshed.', 'promptless-forms' ),
                 'new_nonce'      => wp_create_nonce( 'fre_submit_' . $form_id ),
                 'submitted_data' => $this->get_safe_repopulation_data( $_POST ),
             ) );
@@ -526,14 +526,14 @@ class FRE_Submission_Handler {
 
             // Check global rate limit (per-form).
             if ( $rate_limiter->is_global_exceeded( $form_id ) ) {
-                $this->send_error( 'global_rate_limit', __( 'This form is receiving too many submissions. Please try again later.', 'form-runtime-engine' ) );
+                $this->send_error( 'global_rate_limit', __( 'This form is receiving too many submissions. Please try again later.', 'promptless-forms' ) );
             }
 
             // Fix #3: Check global IP rate limit (across all forms).
             // This was implemented but never called - prevents single IP from
             // submitting too many forms across the entire site.
             if ( $rate_limiter->is_global_ip_exceeded() ) {
-                $this->send_error( 'global_ip_limit', __( 'Too many submissions. Please try again later.', 'form-runtime-engine' ) );
+                $this->send_error( 'global_ip_limit', __( 'Too many submissions. Please try again later.', 'promptless-forms' ) );
             }
         }
     }
@@ -828,7 +828,7 @@ class FRE_Submission_Handler {
                     // Still processing - tell client to wait.
                     wp_send_json_error( array(
                         'code'    => 'submission_processing',
-                        'message' => __( 'Your submission is being processed. Please wait.', 'form-runtime-engine' ),
+                        'message' => __( 'Your submission is being processed. Please wait.', 'promptless-forms' ),
                     ) );
                 }
                 return $cached['response'];
@@ -946,7 +946,7 @@ class FRE_Submission_Handler {
 
         $count = get_transient( $key );
         if ( $count !== false && (int) $count >= 10 ) {
-            wp_send_json_error( array( 'message' => __( 'Too many requests. Please try again later.', 'form-runtime-engine' ) ) );
+            wp_send_json_error( array( 'message' => __( 'Too many requests. Please try again later.', 'promptless-forms' ) ) );
         }
 
         // Increment counter.
@@ -955,12 +955,12 @@ class FRE_Submission_Handler {
         $form_id = isset( $_POST['form_id'] ) ? sanitize_key( $_POST['form_id'] ) : '';
 
         if ( empty( $form_id ) ) {
-            wp_send_json_error( array( 'message' => __( 'Invalid form ID.', 'form-runtime-engine' ) ) );
+            wp_send_json_error( array( 'message' => __( 'Invalid form ID.', 'promptless-forms' ) ) );
         }
 
         // Validate form exists.
         if ( ! fre()->registry->get( $form_id ) ) {
-            wp_send_json_error( array( 'message' => __( 'Invalid form ID.', 'form-runtime-engine' ) ) );
+            wp_send_json_error( array( 'message' => __( 'Invalid form ID.', 'promptless-forms' ) ) );
         }
 
         // Fix #5: Verify that the requester had a previous (possibly expired) nonce.
@@ -981,7 +981,7 @@ class FRE_Submission_Handler {
 
                 // If not within grace period, reject.
                 if ( ! hash_equals( $expected_old, $old_nonce ) ) {
-                    wp_send_json_error( array( 'message' => __( 'Invalid request. Please reload the page.', 'form-runtime-engine' ) ) );
+                    wp_send_json_error( array( 'message' => __( 'Invalid request. Please reload the page.', 'promptless-forms' ) ) );
                 }
             }
         }

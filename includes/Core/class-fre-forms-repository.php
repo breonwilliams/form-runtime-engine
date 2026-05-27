@@ -1,6 +1,6 @@
 <?php
 /**
- * Forms repository for Form Runtime Engine.
+ * Forms repository for Promptless Forms.
  *
  * Pure data-access layer for database-stored form configurations. Every form
  * CRUD operation in the plugin goes through this class — the admin UI
@@ -19,7 +19,6 @@
  *     'id'                 => string,   // form_id (lowercase alphanumeric + dash/underscore)
  *     'title'              => string,   // human-readable title
  *     'config'             => string,   // JSON form config (validated by FRE_JSON_Schema_Validator)
- *     'custom_css'         => string,   // optional, sanitized by FRE_CSS_Validator
  *     'webhook_enabled'    => bool,
  *     'webhook_url'        => string,   // validated by FRE_Webhook_Validator
  *     'webhook_secret'     => string,   // 32-char HMAC key
@@ -29,6 +28,13 @@
  *     'created'            => int,      // unix ts
  *     'modified'           => int,      // unix ts
  *   ]
+ *
+ * Removed in 1.6.5: `custom_css`. The arbitrary-CSS feature was retired
+ * to comply with WordPress.org plugin directory guideline 5 (no arbitrary
+ * code insertion). Existing stored values in pre-upgrade rows are silently
+ * dropped on the next save. Per-form CSS classes are still supported via
+ * the JSON config's `settings.css_class` field — that's a class-name
+ * string, not arbitrary CSS, and survives.
  *
  * Backward compatibility: existing forms stored before Phase 1 lack the
  * `managed_by` and `connector_version` keys. `get()` and `get_all()` normalize
@@ -152,7 +158,6 @@ class FRE_Forms_Repository {
      *
      *     @type string $title           Form title. Defaults to the title in config, or empty.
      *     @type string $config          JSON form config. Required.
-     *     @type string $custom_css      Custom CSS. Default empty.
      *     @type bool   $webhook_enabled Whether webhook is enabled. Default false.
      *     @type string $webhook_url     Webhook endpoint. Default empty.
      *     @type string $webhook_secret  HMAC secret. Auto-generated on first enable.
@@ -172,14 +177,14 @@ class FRE_Forms_Repository {
         // Extract and validate config.
         $json_config = isset( $input['config'] ) ? (string) $input['config'] : '';
         if ( '' === $json_config ) {
-            return new WP_Error( 'empty_config', __( 'Form configuration is required.', 'form-runtime-engine' ) );
+            return new WP_Error( 'empty_config', __( 'Form configuration is required.', 'promptless-forms' ) );
         }
 
         $config = json_decode( $json_config, true );
         if ( JSON_ERROR_NONE !== json_last_error() ) {
             return new WP_Error(
                 'invalid_json',
-                __( 'Invalid JSON syntax: ', 'form-runtime-engine' ) . json_last_error_msg()
+                __( 'Invalid JSON syntax: ', 'promptless-forms' ) . json_last_error_msg()
             );
         }
 
@@ -196,15 +201,10 @@ class FRE_Forms_Repository {
             }
         }
 
-        // Custom CSS: validate + sanitize if provided.
-        $custom_css = isset( $input['custom_css'] ) ? (string) $input['custom_css'] : '';
-        if ( '' !== $custom_css ) {
-            $css_result = FRE_CSS_Validator::validate( $custom_css );
-            if ( is_wp_error( $css_result ) ) {
-                return $css_result;
-            }
-            $custom_css = FRE_CSS_Validator::sanitize( $custom_css );
-        }
+        // custom_css input is silently dropped — the arbitrary-CSS feature
+        // was removed in 1.6.5 to comply with WordPress.org guideline 5.
+        // Callers that still send it (legacy admin save, MCP tool, etc.)
+        // won't error; the value simply isn't persisted or rendered.
 
         // Webhook: validate URL if enabled.
         $webhook_enabled = ! empty( $input['webhook_enabled'] );
@@ -254,12 +254,13 @@ class FRE_Forms_Repository {
             ? 1
             : ( (int) ( $existing['connector_version'] ?? 0 ) + 1 );
 
-        // Build record.
+        // Build record. Note: `custom_css` is intentionally absent — see
+        // class docblock. Existing pre-upgrade rows containing custom_css
+        // get silently dropped here when the form is next saved.
         $record = array(
             'id'                => $form_id,
             'title'             => sanitize_text_field( $title ),
             'config'            => $json_config,
-            'custom_css'        => $custom_css,
             'webhook_enabled'   => $webhook_enabled,
             'webhook_url'       => $webhook_url,
             'webhook_secret'    => $webhook_secret,
@@ -338,7 +339,7 @@ class FRE_Forms_Repository {
         $forms = get_option( self::OPTION_KEY, array() );
 
         if ( ! is_array( $forms ) || ! isset( $forms[ $form_id ] ) ) {
-            return new WP_Error( 'form_not_found', __( 'Form not found.', 'form-runtime-engine' ) );
+            return new WP_Error( 'form_not_found', __( 'Form not found.', 'promptless-forms' ) );
         }
 
         $new_secret = wp_generate_password( 32, false );
@@ -400,13 +401,13 @@ class FRE_Forms_Repository {
      */
     private static function validate_form_id( $form_id ) {
         if ( empty( $form_id ) ) {
-            return new WP_Error( 'empty_id', __( 'Form ID is required.', 'form-runtime-engine' ) );
+            return new WP_Error( 'empty_id', __( 'Form ID is required.', 'promptless-forms' ) );
         }
 
         if ( ! preg_match( '/^[a-z0-9\-_]+$/', $form_id ) ) {
             return new WP_Error(
                 'invalid_id',
-                __( 'Form ID must be lowercase alphanumeric with dashes or underscores only.', 'form-runtime-engine' )
+                __( 'Form ID must be lowercase alphanumeric with dashes or underscores only.', 'promptless-forms' )
             );
         }
 
@@ -462,7 +463,6 @@ class FRE_Forms_Repository {
             'id'                => $form_id,
             'title'             => '',
             'config'            => '',
-            'custom_css'        => '',
             'webhook_enabled'   => false,
             'webhook_url'       => '',
             'webhook_secret'    => '',
@@ -474,6 +474,10 @@ class FRE_Forms_Repository {
         );
 
         $record = array_merge( $defaults, $record );
+
+        // Strip legacy custom_css if a pre-1.6.5 row still carries it. Keeps
+        // the read shape clean even before the row gets re-saved.
+        unset( $record['custom_css'] );
 
         // Coerce types for fields that might have been stored with looser types in earlier versions.
         $record['webhook_enabled']   = (bool) $record['webhook_enabled'];

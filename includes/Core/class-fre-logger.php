@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Logger class for Form Runtime Engine.
+ * Logger class for Promptless Forms.
  *
  * Provides centralized logging that only outputs when WP_DEBUG is enabled,
  * satisfying WordPress Plugin Check requirements.

@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin Handler for Form Runtime Engine.
+ * Admin Handler for Promptless Forms.
  *
  * NOTE: Nonce verification is performed at the start of handler methods
  * via check_admin_referer() or check_ajax_referer(). PHPCS flags subsequent
@@ -58,8 +58,8 @@ class FRE_Admin {
     public function add_menu_pages() {
         // Main menu.
         add_menu_page(
-            __( 'Form Entries', 'form-runtime-engine' ),
-            __( 'Form Entries', 'form-runtime-engine' ),
+            __( 'Form Entries', 'promptless-forms' ),
+            __( 'Form Entries', 'promptless-forms' ),
             FRE_Capabilities::MANAGE_FORMS,
             'fre-entries',
             array( $this, 'render_entries_page' ),
@@ -70,8 +70,8 @@ class FRE_Admin {
         // Entry detail page (hidden from menu).
         add_submenu_page(
             null,
-            __( 'Entry Details', 'form-runtime-engine' ),
-            __( 'Entry Details', 'form-runtime-engine' ),
+            __( 'Entry Details', 'promptless-forms' ),
+            __( 'Entry Details', 'promptless-forms' ),
             FRE_Capabilities::MANAGE_FORMS,
             'fre-entry',
             array( $this, 'render_entry_page' )
@@ -80,8 +80,8 @@ class FRE_Admin {
         // Export page.
         add_submenu_page(
             'fre-entries',
-            __( 'Export Entries', 'form-runtime-engine' ),
-            __( 'Export', 'form-runtime-engine' ),
+            __( 'Export Entries', 'promptless-forms' ),
+            __( 'Export', 'promptless-forms' ),
             FRE_Capabilities::MANAGE_FORMS,
             'fre-export',
             array( $this, 'render_export_page' )
@@ -90,8 +90,8 @@ class FRE_Admin {
         // Forms management page.
         add_submenu_page(
             'fre-entries',
-            __( 'Manage Forms', 'form-runtime-engine' ),
-            __( 'Forms', 'form-runtime-engine' ),
+            __( 'Manage Forms', 'promptless-forms' ),
+            __( 'Forms', 'promptless-forms' ),
             FRE_Capabilities::MANAGE_FORMS,
             'fre-forms',
             array( 'FRE_Forms_Manager', 'render_page' )
@@ -100,8 +100,8 @@ class FRE_Admin {
         // Settings page.
         add_submenu_page(
             'fre-entries',
-            __( 'Settings', 'form-runtime-engine' ),
-            __( 'Settings', 'form-runtime-engine' ),
+            __( 'Settings', 'promptless-forms' ),
+            __( 'Settings', 'promptless-forms' ),
             FRE_Capabilities::MANAGE_FORMS,
             'fre-settings',
             array( $this, 'render_settings_page' )
@@ -124,14 +124,14 @@ class FRE_Admin {
 
         add_settings_section(
             'fre_api_keys_section',
-            __( 'API Keys', 'form-runtime-engine' ),
+            __( 'API Keys', 'promptless-forms' ),
             array( $this, 'render_api_keys_section' ),
             'fre-settings'
         );
 
         add_settings_field(
             'fre_google_places_api_key',
-            __( 'Google Places API Key', 'form-runtime-engine' ),
+            __( 'Google Places API Key', 'promptless-forms' ),
             array( $this, 'render_google_places_api_key_field' ),
             'fre-settings',
             'fre_api_keys_section'
@@ -142,7 +142,7 @@ class FRE_Admin {
      * Render API keys section description.
      */
     public function render_api_keys_section() {
-        echo '<p>' . esc_html__( 'Configure API keys for advanced form field features.', 'form-runtime-engine' ) . '</p>';
+        echo '<p>' . esc_html__( 'Configure API keys for advanced form field features.', 'promptless-forms' ) . '</p>';
     }
 
     /**
@@ -158,25 +158,25 @@ class FRE_Admin {
                class="regular-text"
                autocomplete="off" />
         <button type="button" class="button fre-toggle-api-key" data-target="fre_google_places_api_key">
-            <?php esc_html_e( 'Show', 'form-runtime-engine' ); ?>
+            <?php esc_html_e( 'Show', 'promptless-forms' ); ?>
         </button>
         <button type="button" class="button fre-test-api-key" id="fre-test-api-key">
-            <?php esc_html_e( 'Test Connection', 'form-runtime-engine' ); ?>
+            <?php esc_html_e( 'Test Connection', 'promptless-forms' ); ?>
         </button>
         <span id="fre-api-key-status" class="fre-api-key-status"></span>
         <p class="description">
             <?php
             printf(
                 /* translators: %s: link to Google Cloud Console */
-                esc_html__( 'Required for address autocomplete fields. Get an API key from the %s.', 'form-runtime-engine' ),
+                esc_html__( 'Required for address autocomplete fields. Get an API key from the %s.', 'promptless-forms' ),
                 '<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">' .
-                esc_html__( 'Google Cloud Console', 'form-runtime-engine' ) .
+                esc_html__( 'Google Cloud Console', 'promptless-forms' ) .
                 '</a>'
             );
             ?>
         </p>
         <p class="description">
-            <?php esc_html_e( 'Make sure to enable the Places API and Maps JavaScript API for your project.', 'form-runtime-engine' ); ?>
+            <?php esc_html_e( 'Make sure to enable the Places API and Maps JavaScript API for your project.', 'promptless-forms' ); ?>
         </p>
         <?php
     }
@@ -186,12 +186,12 @@ class FRE_Admin {
      */
     public function render_settings_page() {
         if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
-            wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e( 'Form Runtime Engine Settings', 'form-runtime-engine' ); ?></h1>
+            <h1><?php esc_html_e( 'Promptless Forms Settings', 'promptless-forms' ); ?></h1>
 
             <form method="post" action="options.php">
                 <?php
@@ -201,23 +201,12 @@ class FRE_Admin {
                 ?>
             </form>
         </div>
-
-        <script>
-        jQuery(document).ready(function($) {
-            $('.fre-toggle-api-key').on('click', function() {
-                var $btn = $(this);
-                var $input = $('#' + $btn.data('target'));
-                if ($input.attr('type') === 'password') {
-                    $input.attr('type', 'text');
-                    $btn.text('<?php echo esc_js( __( 'Hide', 'form-runtime-engine' ) ); ?>');
-                } else {
-                    $input.attr('type', 'password');
-                    $btn.text('<?php echo esc_js( __( 'Show', 'form-runtime-engine' ) ); ?>');
-                }
-            });
-        });
-        </script>
         <?php
+        // The Show/Hide API-key toggle handler lives in
+        // assets/js/admin.js (enqueued on all FRE admin pages). No inline
+        // <script> here per WordPress.org Plugin Check guidelines.
+        // Translated Show / Hide labels are passed via wp_localize_script
+        // in enqueue_admin_assets() below.
     }
 
     /**
@@ -251,20 +240,25 @@ class FRE_Admin {
             'nonce'   => wp_create_nonce( 'fre_admin_nonce' ),
             'strings' => array(
                 // Entry management strings.
-                'confirmDelete'      => __( 'Are you sure you want to delete this entry? This cannot be undone.', 'form-runtime-engine' ),
-                'confirmSpam'        => __( 'Mark this entry as spam?', 'form-runtime-engine' ),
+                'confirmDelete'      => __( 'Are you sure you want to delete this entry? This cannot be undone.', 'promptless-forms' ),
+                'confirmSpam'        => __( 'Mark this entry as spam?', 'promptless-forms' ),
                 // Forms management strings.
-                'confirmDeleteForm'  => __( 'Are you sure you want to delete this form? This cannot be undone.', 'form-runtime-engine' ),
-                'copied'             => __( 'Shortcode copied to clipboard!', 'form-runtime-engine' ),
-                'copyFailed'         => __( 'Failed to copy. Please select and copy manually.', 'form-runtime-engine' ),
-                'saving'             => __( 'Saving...', 'form-runtime-engine' ),
-                'deleting'           => __( 'Deleting...', 'form-runtime-engine' ),
-                'formIdRequired'     => __( 'Form ID is required.', 'form-runtime-engine' ),
-                'configRequired'     => __( 'Configuration is required.', 'form-runtime-engine' ),
+                'confirmDeleteForm'  => __( 'Are you sure you want to delete this form? This cannot be undone.', 'promptless-forms' ),
+                'copied'             => __( 'Shortcode copied to clipboard!', 'promptless-forms' ),
+                'copyFailed'         => __( 'Failed to copy. Please select and copy manually.', 'promptless-forms' ),
+                'saving'             => __( 'Saving...', 'promptless-forms' ),
+                'deleting'           => __( 'Deleting...', 'promptless-forms' ),
+                'formIdRequired'     => __( 'Form ID is required.', 'promptless-forms' ),
+                'configRequired'     => __( 'Configuration is required.', 'promptless-forms' ),
                 // API key testing strings.
-                'testing'            => __( 'Testing...', 'form-runtime-engine' ),
-                'testConnection'     => __( 'Test Connection', 'form-runtime-engine' ),
-                'connectionError'    => __( 'Connection error. Please try again.', 'form-runtime-engine' ),
+                'testing'            => __( 'Testing...', 'promptless-forms' ),
+                'testConnection'     => __( 'Test Connection', 'promptless-forms' ),
+                'connectionError'    => __( 'Connection error. Please try again.', 'promptless-forms' ),
+                // Show/Hide toggle for sensitive admin inputs (Google
+                // Places API key, etc.). Used by the .fre-toggle-api-key
+                // click handler in admin.js.
+                'apiKeyShow'         => __( 'Show', 'promptless-forms' ),
+                'apiKeyHide'         => __( 'Hide', 'promptless-forms' ),
             ),
         ) );
     }
@@ -275,7 +269,7 @@ class FRE_Admin {
     public function render_entries_page() {
         // Check user capability.
         if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
-            wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
         // Create list table.
@@ -302,36 +296,36 @@ class FRE_Admin {
                     <?php
                     printf(
                         /* translators: %s: form title */
-                        esc_html__( 'Entries for: %s', 'form-runtime-engine' ),
+                        esc_html__( 'Entries for: %s', 'promptless-forms' ),
                         esc_html( $form_title )
                     );
                     ?>
                 </h1>
                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-entries' ) ); ?>" class="page-title-action">
-                    <?php esc_html_e( 'View All Entries', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'View All Entries', 'promptless-forms' ); ?>
                 </a>
                 <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $current_form_id ) ); ?>" class="page-title-action">
-                    <?php esc_html_e( 'Edit Form', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Edit Form', 'promptless-forms' ); ?>
                 </a>
                 <hr class="wp-header-end">
 
                 <!-- Tab navigation to match form edit page -->
                 <h2 class="nav-tab-wrapper fre-form-tabs">
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $current_form_id ) ); ?>" class="nav-tab">
-                        <?php esc_html_e( 'Settings', 'form-runtime-engine' ); ?>
+                        <?php esc_html_e( 'Settings', 'promptless-forms' ); ?>
                     </a>
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-entries&form_id=' . $current_form_id ) ); ?>" class="nav-tab nav-tab-active">
-                        <?php esc_html_e( 'Entries', 'form-runtime-engine' ); ?>
+                        <?php esc_html_e( 'Entries', 'promptless-forms' ); ?>
                     </a>
                 </h2>
             <?php else : ?>
-                <h1 class="wp-heading-inline"><?php esc_html_e( 'Form Entries', 'form-runtime-engine' ); ?></h1>
+                <h1 class="wp-heading-inline"><?php esc_html_e( 'Form Entries', 'promptless-forms' ); ?></h1>
             <?php endif; ?>
 
             <form method="get">
                 <input type="hidden" name="page" value="fre-entries" />
                 <?php
-                $list_table->search_box( __( 'Search Entries', 'form-runtime-engine' ), 'fre-search' );
+                $list_table->search_box( __( 'Search Entries', 'promptless-forms' ), 'fre-search' );
                 $list_table->display();
                 ?>
             </form>
@@ -344,13 +338,13 @@ class FRE_Admin {
      */
     public function render_entry_page() {
         if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
-            wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
         $entry_id = isset( $_GET['entry_id'] ) ? (int) $_GET['entry_id'] : 0;
 
         if ( ! $entry_id ) {
-            wp_die( esc_html__( 'Invalid entry ID.', 'form-runtime-engine' ) );
+            wp_die( esc_html__( 'Invalid entry ID.', 'promptless-forms' ) );
         }
 
         $entry_detail = new FRE_Entry_Detail( $entry_id );
@@ -362,7 +356,7 @@ class FRE_Admin {
      */
     public function render_export_page() {
         if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
-            wp_die( esc_html__( 'You do not have permission to access this page.', 'form-runtime-engine' ) );
+            wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
         $query    = new FRE_Entry_Query();
@@ -370,7 +364,7 @@ class FRE_Admin {
 
         ?>
         <div class="wrap">
-            <h1><?php esc_html_e( 'Export Entries', 'form-runtime-engine' ); ?></h1>
+            <h1><?php esc_html_e( 'Export Entries', 'promptless-forms' ); ?></h1>
 
             <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                 <input type="hidden" name="action" value="fre_export_csv" />
@@ -379,11 +373,11 @@ class FRE_Admin {
                 <table class="form-table">
                     <tr>
                         <th scope="row">
-                            <label for="form_id"><?php esc_html_e( 'Form', 'form-runtime-engine' ); ?></label>
+                            <label for="form_id"><?php esc_html_e( 'Form', 'promptless-forms' ); ?></label>
                         </th>
                         <td>
                             <select name="form_id" id="form_id">
-                                <option value=""><?php esc_html_e( 'All Forms', 'form-runtime-engine' ); ?></option>
+                                <option value=""><?php esc_html_e( 'All Forms', 'promptless-forms' ); ?></option>
                                 <?php foreach ( $form_ids as $form_id ) : ?>
                                     <?php
                                     $form  = fre()->registry->get( $form_id );
@@ -398,7 +392,7 @@ class FRE_Admin {
                     </tr>
                     <tr>
                         <th scope="row">
-                            <label for="date_from"><?php esc_html_e( 'Date Range', 'form-runtime-engine' ); ?></label>
+                            <label for="date_from"><?php esc_html_e( 'Date Range', 'promptless-forms' ); ?></label>
                         </th>
                         <td>
                             <input type="date" name="date_from" id="date_from" />
@@ -408,13 +402,13 @@ class FRE_Admin {
                     </tr>
                     <tr>
                         <th scope="row">
-                            <label for="status"><?php esc_html_e( 'Status', 'form-runtime-engine' ); ?></label>
+                            <label for="status"><?php esc_html_e( 'Status', 'promptless-forms' ); ?></label>
                         </th>
                         <td>
                             <select name="status" id="status">
-                                <option value=""><?php esc_html_e( 'All', 'form-runtime-engine' ); ?></option>
-                                <option value="unread"><?php esc_html_e( 'Unread', 'form-runtime-engine' ); ?></option>
-                                <option value="read"><?php esc_html_e( 'Read', 'form-runtime-engine' ); ?></option>
+                                <option value=""><?php esc_html_e( 'All', 'promptless-forms' ); ?></option>
+                                <option value="unread"><?php esc_html_e( 'Unread', 'promptless-forms' ); ?></option>
+                                <option value="read"><?php esc_html_e( 'Read', 'promptless-forms' ); ?></option>
                             </select>
                         </td>
                     </tr>
@@ -423,7 +417,7 @@ class FRE_Admin {
                         <td>
                             <label>
                                 <input type="checkbox" name="exclude_spam" value="1" checked />
-                                <?php esc_html_e( 'Exclude spam entries', 'form-runtime-engine' ); ?>
+                                <?php esc_html_e( 'Exclude spam entries', 'promptless-forms' ); ?>
                             </label>
                         </td>
                     </tr>
@@ -431,7 +425,7 @@ class FRE_Admin {
 
                 <p class="submit">
                     <button type="submit" class="button button-primary">
-                        <?php esc_html_e( 'Export CSV', 'form-runtime-engine' ); ?>
+                        <?php esc_html_e( 'Export CSV', 'promptless-forms' ); ?>
                     </button>
                 </p>
             </form>
@@ -455,11 +449,11 @@ class FRE_Admin {
             ?>
             <div class="notice notice-warning is-dismissible">
                 <p>
-                    <strong><?php esc_html_e( 'Form Runtime Engine:', 'form-runtime-engine' ); ?></strong>
+                    <strong><?php esc_html_e( 'Promptless Forms:', 'promptless-forms' ); ?></strong>
                     <?php
                     printf(
                         /* translators: %d: number of failed emails */
-                        esc_html__( '%d email notifications have failed recently. Please check your email configuration.', 'form-runtime-engine' ),
+                        esc_html__( '%d email notifications have failed recently. Please check your email configuration.', 'promptless-forms' ),
                         (int) $failures
                     );
                     ?>
@@ -482,7 +476,7 @@ class FRE_Admin {
      */
     public function handle_csv_export() {
         if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
-            wp_die( esc_html__( 'Unauthorized', 'form-runtime-engine' ) );
+            wp_die( esc_html__( 'Unauthorized', 'promptless-forms' ) );
         }
 
         check_admin_referer( 'fre_export_csv', 'fre_export_nonce' );
@@ -643,7 +637,7 @@ class FRE_Admin {
      */
     public function ajax_test_google_api_key() {
         if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
-            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'form-runtime-engine' ) ) );
+            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'promptless-forms' ) ) );
         }
 
         check_ajax_referer( 'fre_admin_nonce', 'nonce' );
@@ -651,7 +645,7 @@ class FRE_Admin {
         $api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
 
         if ( empty( $api_key ) ) {
-            wp_send_json_error( array( 'message' => __( 'Please enter an API key.', 'form-runtime-engine' ) ) );
+            wp_send_json_error( array( 'message' => __( 'Please enter an API key.', 'promptless-forms' ) ) );
         }
 
         // Test the API key with Google Places Find Place From Text endpoint.
@@ -670,7 +664,7 @@ class FRE_Admin {
         if ( is_wp_error( $response ) ) {
             wp_send_json_error(
                 array(
-                    'message' => __( 'Could not connect to Google API. Please check your server\'s internet connection.', 'form-runtime-engine' ),
+                    'message' => __( 'Could not connect to Google API. Please check your server\'s internet connection.', 'promptless-forms' ),
                 )
             );
         }
@@ -681,7 +675,7 @@ class FRE_Admin {
         if ( ! $data ) {
             wp_send_json_error(
                 array(
-                    'message' => __( 'Invalid response from Google API.', 'form-runtime-engine' ),
+                    'message' => __( 'Invalid response from Google API.', 'promptless-forms' ),
                 )
             );
         }
@@ -694,7 +688,7 @@ class FRE_Admin {
                 // Both indicate a valid, working API key.
                 wp_send_json_success(
                     array(
-                        'message' => __( 'API key is valid and working.', 'form-runtime-engine' ),
+                        'message' => __( 'API key is valid and working.', 'promptless-forms' ),
                     )
                 );
                 break;
@@ -705,14 +699,14 @@ class FRE_Admin {
                 if ( strpos( $error_message, 'not authorized' ) !== false || strpos( $error_message, 'API key' ) !== false ) {
                     wp_send_json_error(
                         array(
-                            'message' => __( 'Invalid API key or Places API not enabled for this key.', 'form-runtime-engine' ),
+                            'message' => __( 'Invalid API key or Places API not enabled for this key.', 'promptless-forms' ),
                         )
                     );
                 } else {
                     wp_send_json_error(
                         array(
                             /* translators: %s: error message from Google API */
-                            'message' => sprintf( __( 'Request denied: %s', 'form-runtime-engine' ), $error_message ),
+                            'message' => sprintf( __( 'Request denied: %s', 'promptless-forms' ), $error_message ),
                         )
                     );
                 }
@@ -721,7 +715,7 @@ class FRE_Admin {
             case 'OVER_QUERY_LIMIT':
                 wp_send_json_error(
                     array(
-                        'message' => __( 'API key works but you have exceeded your quota. Check your Google Cloud billing.', 'form-runtime-engine' ),
+                        'message' => __( 'API key works but you have exceeded your quota. Check your Google Cloud billing.', 'promptless-forms' ),
                     )
                 );
                 break;
@@ -729,7 +723,7 @@ class FRE_Admin {
             case 'INVALID_REQUEST':
                 wp_send_json_error(
                     array(
-                        'message' => __( 'Invalid request. The API key may be malformed.', 'form-runtime-engine' ),
+                        'message' => __( 'Invalid request. The API key may be malformed.', 'promptless-forms' ),
                     )
                 );
                 break;
@@ -739,7 +733,7 @@ class FRE_Admin {
                 wp_send_json_error(
                     array(
                         /* translators: %s: error status or message from Google API */
-                        'message' => sprintf( __( 'API error: %s', 'form-runtime-engine' ), $error_message ),
+                        'message' => sprintf( __( 'API error: %s', 'promptless-forms' ), $error_message ),
                     )
                 );
                 break;

@@ -1,17 +1,16 @@
 <?php
 /**
- * Plugin Name: Form Runtime Engine
- * Plugin URI: https://developer.developer.developer
- * Description: A lightweight WordPress form runtime engine that processes form submissions via configuration.
- * Version: 1.6.5
+ * Plugin Name: Promptless Forms
+ * Plugin URI: https://promptlesswp.com
+ * Description: Lightweight forms with webhooks, multi-step support, and conditional logic. Inherits brand styling when Promptless WP is active.
+ * Version: 1.7.0
  * Requires at least: 5.0
  * Requires PHP: 7.4
- * Author: Developer
- * Author URI: https://developer.developer.developer
+ * Author: Promptless WP
+ * Author URI: https://promptlesswp.com
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: form-runtime-engine
- * Domain Path: /languages
+ * Text Domain: promptless-forms
  *
  * @package FormRuntimeEngine
  */
@@ -22,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin version.
-define( 'FRE_VERSION', '1.6.5' );
+define( 'FRE_VERSION', '1.7.0' );
 
 // Plugin directory path.
 define( 'FRE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -47,12 +46,12 @@ require_once FRE_PLUGIN_DIR . 'includes/class-fre-autoloader.php';
 /**
  * Main plugin class.
  */
-final class Form_Runtime_Engine {
+final class Promptless_Forms {
 
     /**
      * Single instance of the plugin.
      *
-     * @var Form_Runtime_Engine
+     * @var Promptless_Forms
      */
     private static $instance = null;
 
@@ -73,7 +72,7 @@ final class Form_Runtime_Engine {
     /**
      * Get single instance of the plugin.
      *
-     * @return Form_Runtime_Engine
+     * @return Promptless_Forms
      */
     public static function instance() {
         if ( is_null( self::$instance ) ) {
@@ -207,8 +206,15 @@ final class Form_Runtime_Engine {
         if ( is_admin() ) {
             $this->init_admin();
 
-            // Initialize GitHub updater for update checks.
-            new FRE_GitHub_Updater();
+            // Initialize GitHub auto-updater. The updater is intentionally
+            // shipped only in the GitHub distribution build — the WordPress.org
+            // build excludes includes/Updates/ entirely (WP.org guideline #8
+            // prohibits plugins from overriding the core update mechanism).
+            // The class_exists() gate lets the same bootstrap code run cleanly
+            // in both distributions without a fatal in the WP.org build.
+            if ( class_exists( 'FRE_GitHub_Updater' ) ) {
+                new FRE_GitHub_Updater();
+            }
 
             // Claude Cowork connector admin page (registers submenu + AJAX).
             ( new FRE_Connector_Admin() )->init();
@@ -231,9 +237,9 @@ final class Form_Runtime_Engine {
         $this->init_twilio();
 
         /**
-         * Fires after the Form Runtime Engine is fully initialized.
+         * Fires after the Promptless Forms is fully initialized.
          *
-         * @param Form_Runtime_Engine $this The plugin instance.
+         * @param Promptless_Forms $this The plugin instance.
          */
         do_action( 'fre_init', $this );
     }
@@ -370,8 +376,8 @@ final class Form_Runtime_Engine {
             // until the condition resolves (tables created via re-activation).
             add_action( 'admin_notices', function() use ( $health ) {
                 echo '<div class="notice notice-error is-dismissible">';
-                echo '<p><strong>' . esc_html__( 'Form Runtime Engine:', 'form-runtime-engine' ) . '</strong> ';
-                echo esc_html__( 'Database tables are missing: ', 'form-runtime-engine' );
+                echo '<p><strong>' . esc_html__( 'Promptless Forms:', 'promptless-forms' ) . '</strong> ';
+                echo esc_html__( 'Database tables are missing: ', 'promptless-forms' );
                 echo esc_html( implode( ', ', $health ) );
                 echo '</p></div>';
             } );
@@ -385,8 +391,8 @@ final class Form_Runtime_Engine {
             // firing entirely. Until then it reappears on every admin page load.
             add_action( 'admin_notices', function() {
                 echo '<div class="notice notice-error is-dismissible">';
-                echo '<p><strong>' . esc_html__( 'Form Runtime Engine:', 'form-runtime-engine' ) . '</strong> ';
-                echo esc_html__( 'Database migration failed. Please check error logs or contact support.', 'form-runtime-engine' );
+                echo '<p><strong>' . esc_html__( 'Promptless Forms:', 'promptless-forms' ) . '</strong> ';
+                echo esc_html__( 'Database migration failed. Please check error logs or contact support.', 'promptless-forms' );
                 echo '</p></div>';
             } );
         }
@@ -399,11 +405,11 @@ final class Form_Runtime_Engine {
             // every admin page load until the user addresses the engine mismatch.
             add_action( 'admin_notices', function() use ( $innodb_check ) {
                 echo '<div class="notice notice-warning is-dismissible">';
-                echo '<p><strong>' . esc_html__( 'Form Runtime Engine:', 'form-runtime-engine' ) . '</strong> ';
-                echo esc_html__( 'Tables not using InnoDB engine: ', 'form-runtime-engine' );
+                echo '<p><strong>' . esc_html__( 'Promptless Forms:', 'promptless-forms' ) . '</strong> ';
+                echo esc_html__( 'Tables not using InnoDB engine: ', 'promptless-forms' );
                 echo esc_html( implode( ', ', $innodb_check ) );
                 echo '<br>';
-                echo esc_html__( 'InnoDB is required for transaction support. Form submissions may not work correctly.', 'form-runtime-engine' );
+                echo esc_html__( 'InnoDB is required for transaction support. Form submissions may not work correctly.', 'promptless-forms' );
                 echo '</p></div>';
             } );
         }
@@ -430,13 +436,21 @@ final class Form_Runtime_Engine {
     }
 }
 
+// Backward-compatibility alias. The main class was renamed from
+// `Form_Runtime_Engine` to `Promptless_Forms` in 1.6.5 to comply with
+// WordPress.org plugin guideline 11 (avoid common-word prefixes like
+// "form"). Third-party code, theme functions.php hooks, or other plugins
+// that still reference `Form_Runtime_Engine::instance()` continue to
+// work via this alias.
+class_alias( 'Promptless_Forms', 'Form_Runtime_Engine' );
+
 /**
  * Get the main plugin instance.
  *
- * @return Form_Runtime_Engine
+ * @return Promptless_Forms
  */
 function fre() {
-    return Form_Runtime_Engine::instance();
+    return Promptless_Forms::instance();
 }
 
 /**

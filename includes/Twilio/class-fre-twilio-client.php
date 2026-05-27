@@ -1,6 +1,6 @@
 <?php
 /**
- * Twilio API client for Form Runtime Engine.
+ * Twilio API client for Promptless Forms.
  *
  * Handles all communication with the Twilio REST API using
  * WordPress native wp_remote_post() instead of the Twilio SDK.
@@ -114,7 +114,7 @@ class FRE_Twilio_Client {
         if ( ! $sid_was_stored || ! $token_was_stored || empty( $account_sid ) || empty( $auth_token ) ) {
             return new WP_Error(
                 'twilio_not_configured',
-                __( 'Twilio credentials are not configured.', 'form-runtime-engine' )
+                __( 'Twilio credentials are not configured.', 'promptless-forms' )
             );
         }
 
@@ -270,7 +270,7 @@ class FRE_Twilio_Client {
         if ( ! function_exists( 'openssl_encrypt' ) ) {
             return new WP_Error(
                 'twilio_openssl_missing',
-                __( 'Twilio integration requires the PHP openssl extension to encrypt credentials. The credential was NOT saved. Please contact your host to enable openssl, then save again.', 'form-runtime-engine' )
+                __( 'Twilio integration requires the PHP openssl extension to encrypt credentials. The credential was NOT saved. Please contact your host to enable openssl, then save again.', 'promptless-forms' )
             );
         }
 
@@ -283,7 +283,7 @@ class FRE_Twilio_Client {
         if ( $encrypted === false ) {
             return new WP_Error(
                 'twilio_encryption_failed',
-                __( 'Failed to encrypt Twilio credential — openssl reported an error. The credential was NOT saved. This usually indicates a corrupted PHP installation.', 'form-runtime-engine' )
+                __( 'Failed to encrypt Twilio credential — openssl reported an error. The credential was NOT saved. This usually indicates a corrupted PHP installation.', 'promptless-forms' )
             );
         }
 
@@ -336,7 +336,7 @@ class FRE_Twilio_Client {
             if ( $decoded === false ) {
                 return new WP_Error(
                     'twilio_decryption_failed',
-                    __( 'Stored Twilio credential is in legacy base64 format but cannot be decoded. Please re-enter the credential in Settings → Twilio.', 'form-runtime-engine' )
+                    __( 'Stored Twilio credential is in legacy base64 format but cannot be decoded. Please re-enter the credential in Settings → Twilio.', 'promptless-forms' )
                 );
             }
             return $decoded;
@@ -346,7 +346,7 @@ class FRE_Twilio_Client {
         if ( ! function_exists( 'openssl_decrypt' ) ) {
             return new WP_Error(
                 'twilio_openssl_missing',
-                __( 'Stored Twilio credential is encrypted but the PHP openssl extension is unavailable on this server. Please contact your host to enable openssl.', 'form-runtime-engine' )
+                __( 'Stored Twilio credential is encrypted but the PHP openssl extension is unavailable on this server. Please contact your host to enable openssl.', 'promptless-forms' )
             );
         }
 
@@ -359,7 +359,7 @@ class FRE_Twilio_Client {
         if ( $decrypted === false ) {
             return new WP_Error(
                 'twilio_decryption_failed',
-                __( 'Stored Twilio credential present but could not be decrypted. This usually means the WordPress security salts have rotated since the credential was saved. Please re-enter the credential in Settings → Twilio.', 'form-runtime-engine' )
+                __( 'Stored Twilio credential present but could not be decrypted. This usually means the WordPress security salts have rotated since the credential was saved. Please re-enter the credential in Settings → Twilio.', 'promptless-forms' )
             );
         }
 

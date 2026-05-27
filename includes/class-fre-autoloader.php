@@ -1,6 +1,6 @@
 <?php
 /**
- * Autoloader for Form Runtime Engine classes.
+ * Autoloader for Promptless Forms classes.
  *
  * @package FormRuntimeEngine
  */

@@ -1,6 +1,6 @@
 <?php
 /**
- * Entries List Table for Form Runtime Engine.
+ * Entries List Table for Promptless Forms.
  *
  * NOTE: This list table uses $_GET parameters for filtering/sorting which is
  * standard WP_List_Table behavior. The admin page context provides implicit
@@ -66,12 +66,12 @@ class FRE_Entries_List_Table extends WP_List_Table {
     public function get_columns() {
         return array(
             'cb'           => '<input type="checkbox" />',
-            'entry'        => __( 'Entry', 'form-runtime-engine' ),
-            'form_id'      => __( 'Form', 'form-runtime-engine' ),
-            'status'       => __( 'Status', 'form-runtime-engine' ),
-            'notification' => __( 'Email', 'form-runtime-engine' ),
-            'webhook'      => __( 'Webhook', 'form-runtime-engine' ),
-            'created_at'   => __( 'Date', 'form-runtime-engine' ),
+            'entry'        => __( 'Entry', 'promptless-forms' ),
+            'form_id'      => __( 'Form', 'promptless-forms' ),
+            'status'       => __( 'Status', 'promptless-forms' ),
+            'notification' => __( 'Email', 'promptless-forms' ),
+            'webhook'      => __( 'Webhook', 'promptless-forms' ),
+            'created_at'   => __( 'Date', 'promptless-forms' ),
         );
     }
 
@@ -153,7 +153,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
             'view'   => sprintf(
                 '<a href="%s">%s</a>',
                 esc_url( $view_url ),
-                esc_html__( 'View', 'form-runtime-engine' )
+                esc_html__( 'View', 'promptless-forms' )
             ),
         );
 
@@ -162,14 +162,14 @@ class FRE_Entries_List_Table extends WP_List_Table {
             $actions['spam'] = sprintf(
                 '<a href="#" class="fre-mark-spam" data-entry-id="%d">%s</a>',
                 (int) $item['id'],
-                esc_html__( 'Spam', 'form-runtime-engine' )
+                esc_html__( 'Spam', 'promptless-forms' )
             );
         }
 
         $actions['delete'] = sprintf(
             '<a href="#" class="fre-delete-entry submitdelete" data-entry-id="%d">%s</a>',
             (int) $item['id'],
-            esc_html__( 'Delete', 'form-runtime-engine' )
+            esc_html__( 'Delete', 'promptless-forms' )
         );
 
         return $summary_html . ' ' . $entry_id_html . $this->row_actions( $actions );
@@ -188,7 +188,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
             return sprintf(
                 '<a class="row-title" href="%s"><em>%s</em></a>',
                 esc_url( $view_url ),
-                esc_html__( 'No data', 'form-runtime-engine' )
+                esc_html__( 'No data', 'promptless-forms' )
             );
         }
 
@@ -269,7 +269,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
         return sprintf(
             '<code>%s</code>%s',
             esc_html( $item['form_id'] ),
-            $form ? '' : ' <em>(' . esc_html__( 'deleted', 'form-runtime-engine' ) . ')</em>'
+            $form ? '' : ' <em>(' . esc_html__( 'deleted', 'promptless-forms' ) . ')</em>'
         );
     }
 
@@ -283,11 +283,11 @@ class FRE_Entries_List_Table extends WP_List_Table {
         $status = $item['status'];
 
         if ( ! empty( $item['is_spam'] ) ) {
-            return '<span class="fre-status fre-status--spam">' . esc_html__( 'Spam', 'form-runtime-engine' ) . '</span>';
+            return '<span class="fre-status fre-status--spam">' . esc_html__( 'Spam', 'promptless-forms' ) . '</span>';
         }
 
         $class = $status === 'unread' ? 'fre-status--unread' : 'fre-status--read';
-        $label = $status === 'unread' ? __( 'Unread', 'form-runtime-engine' ) : __( 'Read', 'form-runtime-engine' );
+        $label = $status === 'unread' ? __( 'Unread', 'promptless-forms' ) : __( 'Read', 'promptless-forms' );
 
         return sprintf(
             '<span class="fre-status %s">%s</span>',
@@ -304,18 +304,18 @@ class FRE_Entries_List_Table extends WP_List_Table {
      */
     public function column_notification( $item ) {
         if ( ! empty( $item['notification_sent'] ) ) {
-            return '<span class="dashicons dashicons-yes" style="color:#46b450;" title="' . esc_attr__( 'Sent', 'form-runtime-engine' ) . '"></span>';
+            return '<span class="dashicons dashicons-yes" style="color:#46b450;" title="' . esc_attr__( 'Sent', 'promptless-forms' ) . '"></span>';
         }
 
         if ( isset( $item['notification_sent'] ) && $item['notification_sent'] === '0' ) {
             $title = ! empty( $item['notification_error'] )
                 ? $item['notification_error']
-                : __( 'Failed', 'form-runtime-engine' );
+                : __( 'Failed', 'promptless-forms' );
 
             return '<span class="dashicons dashicons-warning" style="color:#d63638;" title="' . esc_attr( $title ) . '"></span>';
         }
 
-        return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'Not sent', 'form-runtime-engine' ) . '"></span>';
+        return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'Not sent', 'promptless-forms' ) . '"></span>';
     }
 
     /**
@@ -328,28 +328,28 @@ class FRE_Entries_List_Table extends WP_List_Table {
         $log = new FRE_Webhook_Log();
 
         if ( ! $log->table_exists() ) {
-            return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'No log table', 'form-runtime-engine' ) . '"></span>';
+            return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'No log table', 'promptless-forms' ) . '"></span>';
         }
 
         $status = $log->get_entry_status( (int) $item['id'] );
 
         if ( $status === null ) {
             // No webhook was sent for this entry.
-            return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'No webhook configured', 'form-runtime-engine' ) . '"></span>';
+            return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'No webhook configured', 'promptless-forms' ) . '"></span>';
         }
 
         switch ( $status ) {
             case FRE_Webhook_Log::STATUS_SUCCESS:
-                return '<span class="dashicons dashicons-yes" style="color:#46b450;" title="' . esc_attr__( 'Delivered', 'form-runtime-engine' ) . '"></span>';
+                return '<span class="dashicons dashicons-yes" style="color:#46b450;" title="' . esc_attr__( 'Delivered', 'promptless-forms' ) . '"></span>';
 
             case FRE_Webhook_Log::STATUS_RETRYING:
-                return '<span class="dashicons dashicons-update" style="color:#dba617;" title="' . esc_attr__( 'Retrying', 'form-runtime-engine' ) . '"></span>';
+                return '<span class="dashicons dashicons-update" style="color:#dba617;" title="' . esc_attr__( 'Retrying', 'promptless-forms' ) . '"></span>';
 
             case FRE_Webhook_Log::STATUS_PENDING:
-                return '<span class="dashicons dashicons-clock" style="color:#999;" title="' . esc_attr__( 'Pending', 'form-runtime-engine' ) . '"></span>';
+                return '<span class="dashicons dashicons-clock" style="color:#999;" title="' . esc_attr__( 'Pending', 'promptless-forms' ) . '"></span>';
 
             case FRE_Webhook_Log::STATUS_FAILED:
-                return '<span class="dashicons dashicons-warning" style="color:#d63638;" title="' . esc_attr__( 'Failed', 'form-runtime-engine' ) . '"></span>';
+                return '<span class="dashicons dashicons-warning" style="color:#d63638;" title="' . esc_attr__( 'Failed', 'promptless-forms' ) . '"></span>';
 
             default:
                 return '<span class="dashicons dashicons-minus" style="color:#999;"></span>';
@@ -368,7 +368,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
         return sprintf(
             '<abbr title="%s">%s</abbr>',
             esc_attr( date_i18n( 'Y-m-d H:i:s', $timestamp ) ),
-            esc_html( human_time_diff( $timestamp, current_time( 'timestamp' ) ) . ' ' . __( 'ago', 'form-runtime-engine' ) )
+            esc_html( human_time_diff( $timestamp, current_time( 'timestamp' ) ) . ' ' . __( 'ago', 'promptless-forms' ) )
         );
     }
 
@@ -379,10 +379,10 @@ class FRE_Entries_List_Table extends WP_List_Table {
      */
     public function get_bulk_actions() {
         return array(
-            'mark_read'   => __( 'Mark as Read', 'form-runtime-engine' ),
-            'mark_unread' => __( 'Mark as Unread', 'form-runtime-engine' ),
-            'mark_spam'   => __( 'Mark as Spam', 'form-runtime-engine' ),
-            'delete'      => __( 'Delete', 'form-runtime-engine' ),
+            'mark_read'   => __( 'Mark as Read', 'promptless-forms' ),
+            'mark_unread' => __( 'Mark as Unread', 'promptless-forms' ),
+            'mark_spam'   => __( 'Mark as Spam', 'promptless-forms' ),
+            'delete'      => __( 'Delete', 'promptless-forms' ),
         );
     }
 
@@ -448,7 +448,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
         ?>
         <div class="alignleft actions">
             <select name="form_id">
-                <option value=""><?php esc_html_e( 'All Forms', 'form-runtime-engine' ); ?></option>
+                <option value=""><?php esc_html_e( 'All Forms', 'promptless-forms' ); ?></option>
                 <?php foreach ( $form_ids as $form_id ) : ?>
                     <?php
                     $form  = fre()->registry->get( $form_id );
@@ -461,21 +461,21 @@ class FRE_Entries_List_Table extends WP_List_Table {
             </select>
 
             <select name="status">
-                <option value=""><?php esc_html_e( 'All Statuses', 'form-runtime-engine' ); ?></option>
+                <option value=""><?php esc_html_e( 'All Statuses', 'promptless-forms' ); ?></option>
                 <option value="unread" <?php selected( $current_status, 'unread' ); ?>>
-                    <?php esc_html_e( 'Unread', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Unread', 'promptless-forms' ); ?>
                 </option>
                 <option value="read" <?php selected( $current_status, 'read' ); ?>>
-                    <?php esc_html_e( 'Read', 'form-runtime-engine' ); ?>
+                    <?php esc_html_e( 'Read', 'promptless-forms' ); ?>
                 </option>
             </select>
 
             <label>
                 <input type="checkbox" name="show_spam" value="1" <?php checked( $show_spam ); ?> />
-                <?php esc_html_e( 'Include Spam', 'form-runtime-engine' ); ?>
+                <?php esc_html_e( 'Include Spam', 'promptless-forms' ); ?>
             </label>
 
-            <button type="submit" class="button"><?php esc_html_e( 'Filter', 'form-runtime-engine' ); ?></button>
+            <button type="submit" class="button"><?php esc_html_e( 'Filter', 'promptless-forms' ); ?></button>
         </div>
         <?php
     }
@@ -546,7 +546,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
      * Message for no items.
      */
     public function no_items() {
-        esc_html_e( 'No entries found.', 'form-runtime-engine' );
+        esc_html_e( 'No entries found.', 'promptless-forms' );
     }
 
     /**

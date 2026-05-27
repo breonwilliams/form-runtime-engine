@@ -1,6 +1,6 @@
 <?php
 /**
- * Uninstall Form Runtime Engine.
+ * Uninstall Promptless Forms.
  *
  * This file runs when the plugin is uninstalled (deleted) from WordPress.
  * It removes all plugin data including database tables and options.

@@ -1,6 +1,6 @@
 <?php
 /**
- * Upload Handler for Form Runtime Engine.
+ * Upload Handler for Promptless Forms.
  *
  * Handles secure file uploads with comprehensive validation.
  *
@@ -226,7 +226,7 @@ class FRE_Upload_Handler {
                         $this->rollback_uploads( $successful_uploads );
                         return new WP_Error(
                             'total_size_exceeded',
-                            __( 'Total upload size exceeds maximum allowed.', 'form-runtime-engine' )
+                            __( 'Total upload size exceeds maximum allowed.', 'promptless-forms' )
                         );
                     }
 
@@ -251,7 +251,7 @@ class FRE_Upload_Handler {
                     $this->rollback_uploads( $successful_uploads );
                     return new WP_Error(
                         'total_size_exceeded',
-                        __( 'Total upload size exceeds maximum allowed.', 'form-runtime-engine' )
+                        __( 'Total upload size exceeds maximum allowed.', 'promptless-forms' )
                     );
                 }
 
@@ -315,7 +315,7 @@ class FRE_Upload_Handler {
         // Verify it's an uploaded file (TOCTOU protection step 1).
         if ( ! is_uploaded_file( $file['tmp_name'] ) ) {
             $this->log_upload_rejection( $file['name'], 'not_uploaded_file' );
-            return new WP_Error( 'invalid_upload', __( 'Invalid file upload.', 'form-runtime-engine' ) );
+            return new WP_Error( 'invalid_upload', __( 'Invalid file upload.', 'promptless-forms' ) );
         }
 
         // Fix #19: Check disk space before processing upload.
@@ -339,7 +339,7 @@ class FRE_Upload_Handler {
 
         $quarantine_file = $quarantine_path . '/' . wp_generate_uuid4() . '_' . basename( $sanitized_filename );
         if ( ! move_uploaded_file( $file['tmp_name'], $quarantine_file ) ) {
-            return new WP_Error( 'move_failed', __( 'Failed to process upload.', 'form-runtime-engine' ) );
+            return new WP_Error( 'move_failed', __( 'Failed to process upload.', 'promptless-forms' ) );
         }
 
         // Validate quarantined file (TOCTOU protection step 3).
@@ -367,13 +367,13 @@ class FRE_Upload_Handler {
         if ( file_exists( $final_path ) || is_link( $final_path ) ) {
             @unlink( $quarantine_file );
             FRE_Logger::warning( 'Upload blocked: Target path already exists - ' . $secure_filename );
-            return new WP_Error( 'file_exists', __( 'Upload failed. Please try again.', 'form-runtime-engine' ) );
+            return new WP_Error( 'file_exists', __( 'Upload failed. Please try again.', 'promptless-forms' ) );
         }
 
         // Move from quarantine to final location (TOCTOU protection step 4).
         if ( ! rename( $quarantine_file, $final_path ) ) {
             @unlink( $quarantine_file );
-            return new WP_Error( 'move_failed', __( 'Failed to complete upload.', 'form-runtime-engine' ) );
+            return new WP_Error( 'move_failed', __( 'Failed to complete upload.', 'promptless-forms' ) );
         }
 
         /**
@@ -472,14 +472,14 @@ class FRE_Upload_Handler {
 
         // Check length.
         if ( mb_strlen( $filename ) > 255 || mb_strlen( $filename ) < 1 ) {
-            return new WP_Error( 'invalid_filename', __( 'Invalid filename.', 'form-runtime-engine' ) );
+            return new WP_Error( 'invalid_filename', __( 'Invalid filename.', 'promptless-forms' ) );
         }
 
         // Fix #7: Check for non-ASCII characters in extension (homograph attacks).
         // Only allow ASCII in file extension to prevent Cyrillic 'а' vs Latin 'a'.
         $ext = pathinfo( $filename, PATHINFO_EXTENSION );
         if ( ! empty( $ext ) && preg_match( '/[^\x20-\x7E]/', $ext ) ) {
-            return new WP_Error( 'invalid_extension', __( 'File extension contains invalid characters.', 'form-runtime-engine' ) );
+            return new WP_Error( 'invalid_extension', __( 'File extension contains invalid characters.', 'promptless-forms' ) );
         }
 
         // Build pattern from blocked extensions.
@@ -487,7 +487,7 @@ class FRE_Upload_Handler {
 
         // Check for blocked extension anywhere in filename (catches double extensions).
         if ( preg_match( '/\.(' . $blocked_pattern . ')(\.|$)/i', $filename ) ) {
-            return new WP_Error( 'blocked_extension', __( 'File type not allowed.', 'form-runtime-engine' ) );
+            return new WP_Error( 'blocked_extension', __( 'File type not allowed.', 'promptless-forms' ) );
         }
 
         return $filename;
@@ -519,7 +519,7 @@ class FRE_Upload_Handler {
         // Create quarantine directory if it doesn't exist.
         if ( ! file_exists( $quarantine_path ) ) {
             if ( ! wp_mkdir_p( $quarantine_path ) ) {
-                return new WP_Error( 'quarantine_create_failed', __( 'Failed to create quarantine directory.', 'form-runtime-engine' ) );
+                return new WP_Error( 'quarantine_create_failed', __( 'Failed to create quarantine directory.', 'promptless-forms' ) );
             }
 
             // Fix #9: Set restrictive permissions (0700 - owner only).
@@ -610,7 +610,7 @@ class FRE_Upload_Handler {
                     'file_too_small',
                     sprintf(
                         /* translators: 1: file extension (e.g. AI, EPS, DST), 2: minimum size in human-readable form */
-                        __( 'File appears too small to be a valid %1$s file (minimum %2$s).', 'form-runtime-engine' ),
+                        __( 'File appears too small to be a valid %1$s file (minimum %2$s).', 'promptless-forms' ),
                         strtoupper( $ext ),
                         size_format( (int) $min_sizes[ $ext ] )
                     )
@@ -635,7 +635,7 @@ class FRE_Upload_Handler {
                 'file_too_large',
                 sprintf(
                     /* translators: %s: max file size */
-                    __( 'File exceeds maximum size of %s.', 'form-runtime-engine' ),
+                    __( 'File exceeds maximum size of %s.', 'promptless-forms' ),
                     size_format( $max_size )
                 )
             );
@@ -693,7 +693,7 @@ class FRE_Upload_Handler {
         if ( in_array( $ext, self::BLOCKED_EXTENSIONS, true ) ) {
             return new WP_Error(
                 'blocked_extension',
-                __( 'File type not allowed.', 'form-runtime-engine' )
+                __( 'File type not allowed.', 'promptless-forms' )
             );
         }
 
@@ -707,7 +707,7 @@ class FRE_Upload_Handler {
                 'extension_not_allowed',
                 sprintf(
                     /* translators: %s: allowed file types */
-                    __( 'Allowed file types: %s', 'form-runtime-engine' ),
+                    __( 'Allowed file types: %s', 'promptless-forms' ),
                     implode( ', ', $allowed_types )
                 )
             );
@@ -743,7 +743,7 @@ class FRE_Upload_Handler {
                 'file_too_large',
                 sprintf(
                     /* translators: %s: max file size */
-                    __( 'File exceeds maximum size of %s.', 'form-runtime-engine' ),
+                    __( 'File exceeds maximum size of %s.', 'promptless-forms' ),
                     size_format( $max_bytes )
                 )
             );
@@ -755,7 +755,7 @@ class FRE_Upload_Handler {
             if ( $actual_size > $max_bytes ) {
                 return new WP_Error(
                     'file_too_large',
-                    __( 'File exceeds maximum size.', 'form-runtime-engine' )
+                    __( 'File exceeds maximum size.', 'promptless-forms' )
                 );
             }
         }
@@ -789,18 +789,18 @@ class FRE_Upload_Handler {
      */
     private function get_upload_error_message( $error_code ) {
         $messages = array(
-            UPLOAD_ERR_INI_SIZE   => __( 'File exceeds server upload limit.', 'form-runtime-engine' ),
-            UPLOAD_ERR_FORM_SIZE  => __( 'File exceeds form upload limit.', 'form-runtime-engine' ),
-            UPLOAD_ERR_PARTIAL    => __( 'File was only partially uploaded.', 'form-runtime-engine' ),
-            UPLOAD_ERR_NO_FILE    => __( 'No file was uploaded.', 'form-runtime-engine' ),
-            UPLOAD_ERR_NO_TMP_DIR => __( 'Server configuration error.', 'form-runtime-engine' ),
-            UPLOAD_ERR_CANT_WRITE => __( 'Failed to write file.', 'form-runtime-engine' ),
-            UPLOAD_ERR_EXTENSION  => __( 'Upload blocked by server.', 'form-runtime-engine' ),
+            UPLOAD_ERR_INI_SIZE   => __( 'File exceeds server upload limit.', 'promptless-forms' ),
+            UPLOAD_ERR_FORM_SIZE  => __( 'File exceeds form upload limit.', 'promptless-forms' ),
+            UPLOAD_ERR_PARTIAL    => __( 'File was only partially uploaded.', 'promptless-forms' ),
+            UPLOAD_ERR_NO_FILE    => __( 'No file was uploaded.', 'promptless-forms' ),
+            UPLOAD_ERR_NO_TMP_DIR => __( 'Server configuration error.', 'promptless-forms' ),
+            UPLOAD_ERR_CANT_WRITE => __( 'Failed to write file.', 'promptless-forms' ),
+            UPLOAD_ERR_EXTENSION  => __( 'Upload blocked by server.', 'promptless-forms' ),
         );
 
         return isset( $messages[ $error_code ] )
             ? $messages[ $error_code ]
-            : __( 'Unknown upload error.', 'form-runtime-engine' );
+            : __( 'Unknown upload error.', 'promptless-forms' );
     }
 
     /**
@@ -890,7 +890,7 @@ class FRE_Upload_Handler {
                 'disk_full',
                 sprintf(
                     /* translators: %s: available disk space */
-                    __( 'Insufficient disk space. Only %s available.', 'form-runtime-engine' ),
+                    __( 'Insufficient disk space. Only %s available.', 'promptless-forms' ),
                     size_format( $free_space )
                 )
             );
