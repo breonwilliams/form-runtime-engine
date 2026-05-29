@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Abstract base class for field types.
  */
-abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
+abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
 
     /**
      * Field type slug.
@@ -54,7 +54,7 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
      * @return string
      */
     public function get_name( array $field ) {
-        return 'fre_field_' . sanitize_key( $field['key'] );
+        return 'pforms_field_' . sanitize_key( $field['key'] );
     }
 
     /**
@@ -203,7 +203,7 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
      * - All other types: returns the value as a string (arrays joined
      *   with ", ").
      *
-     * Filterable via `fre_field_display_value` so site owners or
+     * Filterable via `pforms_field_display_value` so site owners or
      * extensions can customize translation (e.g., localize labels,
      * inject icons, redact sensitive option values).
      *
@@ -263,7 +263,7 @@ abstract class FRE_Field_Type_Abstract implements FRE_Field_Type {
          * @param mixed  $value  The raw stored value.
          * @param array  $field  Field configuration.
          */
-        return (string) apply_filters( 'fre_field_display_value', $result, $value, $field );
+        return (string) apply_filters( 'pforms_field_display_value', $result, $value, $field );
     }
 
     /**

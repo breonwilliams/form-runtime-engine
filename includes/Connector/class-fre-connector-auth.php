@@ -7,7 +7,7 @@
  *
  *   1. Connector enabled toggle      — else 403 connector_disabled
  *   2. is_user_logged_in()            — else 401 rest_not_logged_in
- *   3. current_user_can(fre_manage_forms) — else 403 rest_forbidden
+ *   3. current_user_can(pforms_manage_forms) — else 403 rest_forbidden
  *
  * Plus an orthogonal fourth check for entry-read endpoints only:
  *
@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Connector auth and rate-limit enforcement.
  */
-class FRE_Connector_Auth {
+class PForms_Connector_Auth {
 
     /**
      * Per-route-per-user rate limits, in requests per minute.
@@ -76,7 +76,7 @@ class FRE_Connector_Auth {
      *   register_rest_route( 'fre/v1', '/connector/forms', array(
      *       'methods'             => 'GET',
      *       'callback'            => array( $this, 'handle_list_forms' ),
-     *       'permission_callback' => FRE_Connector_Auth::build_callback( 'list_forms' ),
+     *       'permission_callback' => PForms_Connector_Auth::build_callback( 'list_forms' ),
      *   ) );
      *
      * @param string $route_key     Route identifier used for rate-limit bucketing.
@@ -106,7 +106,7 @@ class FRE_Connector_Auth {
      */
     public static function run_permission_stack( $route_key, $requires_entry_read, $request ) {
         // Gate 1: connector enabled.
-        if ( ! FRE_Connector_Settings::is_enabled() ) {
+        if ( ! PForms_Connector_Settings::is_enabled() ) {
             return new WP_Error(
                 'connector_disabled',
                 __( 'The Claude Cowork connector is not enabled on this site. A site administrator can enable it under Form Entries → Claude Connection.', 'promptless-forms' ),
@@ -124,7 +124,7 @@ class FRE_Connector_Auth {
         }
 
         // Authorization: capability check.
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             return new WP_Error(
                 'rest_forbidden',
                 __( 'Your account does not have permission to manage forms through the connector.', 'promptless-forms' ),
@@ -133,7 +133,7 @@ class FRE_Connector_Auth {
         }
 
         // Gate 2: entry-read toggle (only for /entries routes).
-        if ( $requires_entry_read && ! FRE_Connector_Settings::is_entry_read_enabled() ) {
+        if ( $requires_entry_read && ! PForms_Connector_Settings::is_entry_read_enabled() ) {
             return new WP_Error(
                 'entry_access_disabled',
                 __( 'Entry read access is not enabled for the connector. A site administrator can enable it under Form Entries → Claude Connection.', 'promptless-forms' ),
@@ -168,7 +168,7 @@ class FRE_Connector_Auth {
     public static function enforce_rate_limit( $route_key, $user_id ) {
         $limit = self::RATE_LIMITS[ $route_key ] ?? self::DEFAULT_RATE_LIMIT;
 
-        $transient_key = 'fre_connector_rate_' . sanitize_key( $route_key ) . '_' . (int) $user_id;
+        $transient_key = 'pforms_connector_rate_' . sanitize_key( $route_key ) . '_' . (int) $user_id;
 
         $current = get_transient( $transient_key );
 

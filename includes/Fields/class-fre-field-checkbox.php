@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Checkbox field type.
  */
-class FRE_Field_Checkbox extends FRE_Field_Type_Abstract {
+class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

@@ -29,7 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Form entry database handler.
  */
-class FRE_Entry {
+class PForms_Entry {
 
     /**
      * Maximum length for user agent string storage.
@@ -107,7 +107,7 @@ class FRE_Entry {
             if ( $result === false ) {
                 $this->wpdb->query( 'ROLLBACK' );
                 // Fix #29: Sanitize error logs - don't expose raw MySQL errors.
-                FRE_Logger::error( 'DB Error: Entry creation failed for form ' . sanitize_key( $form_id ) );
+                PForms_Logger::error( 'DB Error: Entry creation failed for form ' . sanitize_key( $form_id ) );
                 throw new Exception( 'Database error' );
             }
 
@@ -118,7 +118,7 @@ class FRE_Entry {
                 $meta_result = $this->add_meta( $entry_id, $field_key, $value );
                 if ( $meta_result === false ) {
                     $this->wpdb->query( 'ROLLBACK' );
-                    FRE_Logger::error( 'DB Error: Entry metadata creation failed for form ' . sanitize_key( $form_id ) . ', field ' . sanitize_key( $field_key ) );
+                    PForms_Logger::error( 'DB Error: Entry metadata creation failed for form ' . sanitize_key( $form_id ) . ', field ' . sanitize_key( $field_key ) );
                     throw new Exception( 'Database error' );
                 }
             }
@@ -130,27 +130,27 @@ class FRE_Entry {
             // connector_version bumps monotonically, and every entry submitted
             // against that form carries the version it was answered under.
             //
-            // The field key is prefixed with an underscore (`_fre_form_version`)
+            // The field key is prefixed with an underscore (`_pforms_form_version`)
             // to mark it as internal metadata, matching the WordPress convention
             // for hidden post meta. This also keeps it out of webhook payloads
             // and CSV exports by default unless explicitly whitelisted.
             //
             // Only DB-stored forms have a connector_version; runtime-registered
-            // forms (via fre_register_form() in PHP code) do not, and their
+            // forms (via pforms_register_form() in PHP code) do not, and their
             // entries skip this stamp. The meta absence is the signal that the
             // entry has no version context.
-            if ( class_exists( 'FRE_Forms_Repository' ) ) {
-                $form_record = FRE_Forms_Repository::get( $form_id );
+            if ( class_exists( 'PForms_Forms_Repository' ) ) {
+                $form_record = PForms_Forms_Repository::get( $form_id );
                 if ( is_array( $form_record ) && ! empty( $form_record['connector_version'] ) ) {
                     $version_meta_result = $this->add_meta(
                         $entry_id,
-                        '_fre_form_version',
+                        '_pforms_form_version',
                         (int) $form_record['connector_version']
                     );
 
                     if ( $version_meta_result === false ) {
                         $this->wpdb->query( 'ROLLBACK' );
-                        FRE_Logger::error( 'DB Error: Form version stamp failed for form ' . sanitize_key( $form_id ) );
+                        PForms_Logger::error( 'DB Error: Form version stamp failed for form ' . sanitize_key( $form_id ) );
                         throw new Exception( 'Database error' );
                     }
                 }
@@ -166,7 +166,7 @@ class FRE_Entry {
              * @param string $form_id  Form ID.
              * @param array  $data     Entry field data.
              */
-            do_action( 'fre_entry_created', $entry_id, $form_id, $data );
+            do_action( 'pforms_entry_created', $entry_id, $form_id, $data );
 
             return $entry_id;
 
@@ -254,7 +254,7 @@ class FRE_Entry {
      */
     public function delete( $entry_id ) {
         // Delete files first.
-        $upload_handler = new FRE_Upload_Handler();
+        $upload_handler = new PForms_Upload_Handler();
         $upload_handler->delete_entry_files( $entry_id );
 
         // Delete file records.
@@ -497,7 +497,7 @@ class FRE_Entry {
 
         // Fix #20: Use SHA-256 instead of MD5.
         $hash        = hash( 'sha256', $form_id . wp_json_encode( $data ) );
-        $key         = 'fre_submission_' . $hash;
+        $key         = 'pforms_submission_' . $hash;
         $option_name = '_transient_' . $key;
         $timeout_key = '_transient_timeout_' . $key;
         $expiry_time = time() + $window;
@@ -555,7 +555,7 @@ class FRE_Entry {
 
         } catch ( Exception $e ) {
             $wpdb->query( 'ROLLBACK' );
-            FRE_Logger::error( 'Duplicate Check Error: ' . $e->getMessage() );
+            PForms_Logger::error( 'Duplicate Check Error: ' . $e->getMessage() );
             return false; // Fail open on error.
         }
     }
@@ -574,7 +574,7 @@ class FRE_Entry {
             "DELETE FROM {$wpdb->options}
              WHERE option_name LIKE %s
              AND CAST(option_value AS UNSIGNED) < %d",
-            '_transient_fre_submission_%',
+            '_transient_pforms_submission_%',
             time()
         ) );
 

@@ -29,7 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Handles checking for updates from GitHub releases and providing
  * update information to WordPress.
  */
-class FRE_GitHub_Updater {
+class PForms_GitHub_Updater {
 
     /**
      * Plugin slug.
@@ -64,7 +64,7 @@ class FRE_GitHub_Updater {
      *
      * @var string
      */
-    private $cache_key = 'fre_github_update_check';
+    private $cache_key = 'pforms_github_update_check';
 
     /**
      * Cache expiry time in seconds (12 hours).
@@ -91,8 +91,8 @@ class FRE_GitHub_Updater {
      * Constructor.
      */
     public function __construct() {
-        $this->version      = FRE_VERSION;
-        $this->github_token = defined( 'FRE_GITHUB_TOKEN' ) ? FRE_GITHUB_TOKEN : '';
+        $this->version      = PForms_VERSION;
+        $this->github_token = defined( 'PForms_GITHUB_TOKEN' ) ? PForms_GITHUB_TOKEN : '';
         $this->init_hooks();
     }
 
@@ -414,7 +414,7 @@ class FRE_GitHub_Updater {
             . '<li>Go to WordPress Admin → Plugins → Add New</li>'
             . '<li>Click "Upload Plugin" and select the ZIP file</li>'
             . '<li>Activate the plugin</li>'
-            . '<li>Forms can be created via the admin UI or by using the <code>fre_register_form()</code> function</li>'
+            . '<li>Forms can be created via the admin UI or by using the <code>pforms_register_form()</code> function</li>'
             . '</ol>';
     }
 
@@ -489,7 +489,7 @@ class FRE_GitHub_Updater {
      * Useful for debugging or forcing an update check.
      */
     public static function force_check() {
-        delete_transient( 'fre_github_update_check' );
+        delete_transient( 'pforms_github_update_check' );
         delete_site_transient( 'update_plugins' );
     }
 }

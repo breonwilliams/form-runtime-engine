@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Radio button group field type.
  */
-class FRE_Field_Radio extends FRE_Field_Type_Abstract {
+class PForms_Field_Radio extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

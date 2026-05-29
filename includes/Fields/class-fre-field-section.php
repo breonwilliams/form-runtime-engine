@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Section field type (container for grouping fields).
  */
-class FRE_Field_Section extends FRE_Field_Type_Abstract {
+class PForms_Field_Section extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

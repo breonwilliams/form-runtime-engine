@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Hidden input field type.
  */
-class FRE_Field_Hidden extends FRE_Field_Type_Abstract {
+class PForms_Field_Hidden extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.
@@ -78,7 +78,7 @@ class FRE_Field_Hidden extends FRE_Field_Type_Abstract {
          *
          * @param array $replacements Key-value pairs of replacements.
          */
-        $replacements = apply_filters( 'fre_hidden_field_replacements', $replacements );
+        $replacements = apply_filters( 'pforms_hidden_field_replacements', $replacements );
 
         return str_replace( array_keys( $replacements ), array_values( $replacements ), $value );
     }

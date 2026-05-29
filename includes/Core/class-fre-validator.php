@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Form validation handler.
  */
-class FRE_Validator {
+class PForms_Validator {
 
     /**
      * Field type instances cache.
@@ -63,8 +63,8 @@ class FRE_Validator {
             // The submission handler additionally strips hidden field values
             // from the sanitized data before storage so storage / email /
             // webhook / sheet / CSV never see orphan values.
-            // Note: Client _fre_hidden_fields hint removed - server-side is authoritative.
-            if ( ! FRE_Conditions::field_is_visible( $field, $form_config, $data ) ) {
+            // Note: Client _pforms_hidden_fields hint removed - server-side is authoritative.
+            if ( ! PForms_Conditions::field_is_visible( $field, $form_config, $data ) ) {
                 continue;
             }
 
@@ -87,7 +87,7 @@ class FRE_Validator {
          * @param array $form_config Form configuration.
          * @param array $data        Submitted data.
          */
-        $this->errors = apply_filters( 'fre_validation_errors', $this->errors, $form_config, $data );
+        $this->errors = apply_filters( 'pforms_validation_errors', $this->errors, $form_config, $data );
 
         if ( ! empty( $this->errors ) ) {
             $error = new WP_Error( 'validation_failed', __( 'Please correct the errors below.', 'promptless-forms' ) );
@@ -205,14 +205,14 @@ class FRE_Validator {
      * Get field type instance.
      *
      * @param string $type Field type slug.
-     * @return FRE_Field_Type|null
+     * @return PForms_Field_Type|null
      */
     private function get_field_instance( $type ) {
         if ( isset( $this->field_instances[ $type ] ) ) {
             return $this->field_instances[ $type ];
         }
 
-        $class_name = FRE_Autoloader::get_field_class( $type );
+        $class_name = PForms_Autoloader::get_field_class( $type );
 
         if ( ! $class_name || ! class_exists( $class_name ) ) {
             return null;
@@ -226,12 +226,12 @@ class FRE_Validator {
     /**
      * Evaluate conditions for a field (server-side verification).
      *
-     * @deprecated 1.5.0 Delegates to FRE_Conditions::evaluate_conditions().
+     * @deprecated 1.5.0 Delegates to PForms_Conditions::evaluate_conditions().
      *                  Kept as a thin shim for any external code that may have
      *                  reflected on the previous private method (none expected;
      *                  this was always a private helper) and for backward-
      *                  compat with downstream forks. New code should call
-     *                  FRE_Conditions directly.
+     *                  PForms_Conditions directly.
      *
      * @param array $conditions   Conditions configuration.
      * @param array $form_config  Form configuration.
@@ -239,6 +239,6 @@ class FRE_Validator {
      * @return bool True if conditions are met (field should be shown/validated).
      */
     private function evaluate_conditions( array $conditions, array $form_config, array $data ) {
-        return FRE_Conditions::evaluate_conditions( $conditions, $form_config, $data );
+        return PForms_Conditions::evaluate_conditions( $conditions, $form_config, $data );
     }
 }

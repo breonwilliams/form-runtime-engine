@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Form registry class.
  */
-class FRE_Registry {
+class PForms_Registry {
 
     /**
      * Registered forms.
@@ -29,7 +29,7 @@ class FRE_Registry {
      *
      * @var string
      */
-    private $cache_group = 'fre_forms';
+    private $cache_group = 'pforms_forms';
 
     /**
      * Default form settings.
@@ -108,7 +108,7 @@ class FRE_Registry {
         $validated = $this->validate_config( $config );
 
         if ( is_wp_error( $validated ) ) {
-            FRE_Logger::error( 'Form registration failed - ' . $validated->get_error_message() );
+            PForms_Logger::error( 'Form registration failed - ' . $validated->get_error_message() );
             return false;
         }
 
@@ -128,7 +128,7 @@ class FRE_Registry {
          * @param string $form_id Form ID.
          * @param array  $config  Form configuration.
          */
-        do_action( 'fre_form_registered', $form_id, $config );
+        do_action( 'pforms_form_registered', $form_id, $config );
 
         return true;
     }
@@ -284,7 +284,7 @@ class FRE_Registry {
          *
          * @param array $valid_types Array of valid field type slugs.
          */
-        $valid_types = apply_filters( 'fre_field_types', $valid_types );
+        $valid_types = apply_filters( 'pforms_field_types', $valid_types );
 
         return in_array( $type, $valid_types, true );
     }

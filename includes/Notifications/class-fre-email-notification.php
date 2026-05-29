@@ -21,12 +21,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Email notification handler.
  */
-class FRE_Email_Notification {
+class PForms_Email_Notification {
 
     /**
      * Entry repository instance.
      *
-     * @var FRE_Entry
+     * @var PForms_Entry
      */
     private $entry_repo;
 
@@ -48,7 +48,7 @@ class FRE_Email_Notification {
      * Constructor.
      */
     public function __construct() {
-        $this->entry_repo = new FRE_Entry();
+        $this->entry_repo = new PForms_Entry();
     }
 
     /**
@@ -57,12 +57,12 @@ class FRE_Email_Notification {
      * Call this method during plugin initialization.
      */
     public static function init_hooks() {
-        add_action( 'fre_retry_failed_email', array( __CLASS__, 'process_retry' ), 10, 2 );
-        add_action( 'fre_process_email_queue', array( __CLASS__, 'process_queue' ) );
+        add_action( 'pforms_retry_failed_email', array( __CLASS__, 'process_retry' ), 10, 2 );
+        add_action( 'pforms_process_email_queue', array( __CLASS__, 'process_queue' ) );
 
         // Schedule hourly queue processing if not already scheduled.
-        if ( ! wp_next_scheduled( 'fre_process_email_queue' ) ) {
-            wp_schedule_event( time(), 'hourly', 'fre_process_email_queue' );
+        if ( ! wp_next_scheduled( 'pforms_process_email_queue' ) ) {
+            wp_schedule_event( time(), 'hourly', 'pforms_process_email_queue' );
         }
     }
 
@@ -111,7 +111,7 @@ class FRE_Email_Notification {
          * @param array  $entry_data  Entry data.
          * @param int    $entry_id    Entry ID.
          */
-        $body = apply_filters( 'fre_notification_body', $body, $form_config, $entry_data, $entry_id );
+        $body = apply_filters( 'pforms_notification_body', $body, $form_config, $entry_data, $entry_id );
 
         // Send email.
         $sent = wp_mail( $to, $subject, $body, $headers, $attachments );
@@ -120,7 +120,7 @@ class FRE_Email_Notification {
         $this->update_notification_status( $entry_id, $sent, $sent ? null : 'wp_mail returned false' );
 
         if ( ! $sent ) {
-            FRE_Logger::error( "Email notification failed for entry {$entry_id}" );
+            PForms_Logger::error( "Email notification failed for entry {$entry_id}" );
             $this->increment_failure_counter();
 
             // Fix #1: Schedule retry for failed email.
@@ -135,7 +135,7 @@ class FRE_Email_Notification {
          * @param array  $form_config Form configuration.
          * @param array  $entry_data  Entry data.
          */
-        do_action( 'fre_notification_sent', $sent, $entry_id, $form_config, $entry_data );
+        do_action( 'pforms_notification_sent', $sent, $entry_id, $form_config, $entry_data );
 
         return $sent;
     }
@@ -176,7 +176,7 @@ class FRE_Email_Notification {
      * placeholder resolves to the human-readable option label rather than
      * the raw stored value (e.g. "Home services (HVAC, plumbing, roofing,
      * etc.)" instead of "home_services"). Resolution is delegated to
-     * FRE_Field_Type_Abstract::resolve_display_value() so every display
+     * PForms_Field_Type_Abstract::resolve_display_value() so every display
      * site shares one source of truth.
      *
      * @param string $template    Template string.
@@ -207,7 +207,7 @@ class FRE_Email_Notification {
 
                 // Resolve to human-readable label when we know the field's options.
                 if ( isset( $field_map[ $field_key ] ) ) {
-                    return FRE_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $field_key ] );
+                    return PForms_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $field_key ] );
                 }
 
                 // Fallback when no field config (legacy callers without form_config).
@@ -241,7 +241,7 @@ class FRE_Email_Notification {
         ob_start();
 
         // Try to load template.
-        $template = FRE_PLUGIN_DIR . 'templates/email/notification.php';
+        $template = PForms_PLUGIN_DIR . 'templates/email/notification.php';
 
         if ( file_exists( $template ) ) {
             include $template;
@@ -308,7 +308,7 @@ class FRE_Email_Notification {
                     // Resolve raw value to human-readable display text once.
                     // resolve_display_value handles select/radio/checkbox-with-options
                     // (value → label) and single checkbox ("1" → "Yes" / "" → "No").
-                    $display_value = FRE_Field_Type_Abstract::resolve_display_value( $raw_value, $field );
+                    $display_value = PForms_Field_Type_Abstract::resolve_display_value( $raw_value, $field );
                     $label         = ! empty( $field['label'] ) ? $field['label'] : ucfirst( $field['key'] );
                     ?>
                     <tr>
@@ -489,15 +489,15 @@ class FRE_Email_Notification {
      * Increment email failure counter.
      */
     private function increment_failure_counter() {
-        $failures = get_option( 'fre_email_failures', 0 );
-        update_option( 'fre_email_failures', $failures + 1 );
+        $failures = get_option( 'pforms_email_failures', 0 );
+        update_option( 'pforms_email_failures', $failures + 1 );
     }
 
     /**
      * Reset email failure counter.
      */
     public function reset_failure_counter() {
-        delete_option( 'fre_email_failures' );
+        delete_option( 'pforms_email_failures' );
     }
 
     /**
@@ -506,7 +506,7 @@ class FRE_Email_Notification {
      * @return int
      */
     public function get_failure_count() {
-        return (int) get_option( 'fre_email_failures', 0 );
+        return (int) get_option( 'pforms_email_failures', 0 );
     }
 
     /**
@@ -529,11 +529,11 @@ class FRE_Email_Notification {
 
         wp_schedule_single_event(
             time() + $delay,
-            'fre_retry_failed_email',
+            'pforms_retry_failed_email',
             array( $entry_id, $attempt + 1 )
         );
 
-        FRE_Logger::info( sprintf(
+        PForms_Logger::info( sprintf(
             'Scheduled email retry for entry %d, attempt %d, delay %d seconds',
             $entry_id,
             $attempt + 1,
@@ -552,7 +552,7 @@ class FRE_Email_Notification {
         $entry   = $handler->entry_repo->get( $entry_id );
 
         if ( ! $entry ) {
-            FRE_Logger::error( "Email retry failed - entry {$entry_id} not found" );
+            PForms_Logger::error( "Email retry failed - entry {$entry_id} not found" );
             return;
         }
 
@@ -562,7 +562,7 @@ class FRE_Email_Notification {
         }
 
         // Get form configuration.
-        $form_config = fre()->registry->get( $entry['form_id'] );
+        $form_config = pforms()->registry->get( $entry['form_id'] );
 
         if ( ! $form_config || empty( $form_config['settings']['notification']['enabled'] ) ) {
             return;
@@ -603,10 +603,10 @@ class FRE_Email_Notification {
         ) );
 
         if ( $sent ) {
-            FRE_Logger::info( "Email retry succeeded for entry {$entry_id} on attempt {$attempt}" );
+            PForms_Logger::info( "Email retry succeeded for entry {$entry_id} on attempt {$attempt}" );
             $handler->reset_failure_counter();
         } else {
-            FRE_Logger::error( "Email retry failed for entry {$entry_id} on attempt {$attempt}" );
+            PForms_Logger::error( "Email retry failed for entry {$entry_id} on attempt {$attempt}" );
             // Schedule next retry.
             $handler->schedule_retry( $entry_id, $form_config, $entry_data, array(), $attempt );
         }
@@ -619,7 +619,7 @@ class FRE_Email_Notification {
      * @param array $form_config Form configuration.
      */
     private function add_to_failed_queue( $entry_id, array $form_config ) {
-        $failed_queue = get_option( 'fre_failed_email_queue', array() );
+        $failed_queue = get_option( 'pforms_failed_email_queue', array() );
 
         $failed_queue[] = array(
             'entry_id'  => $entry_id,
@@ -634,14 +634,14 @@ class FRE_Email_Notification {
 
         // Use autoload=false to prevent loading on every request.
         // This option can grow large and is only needed in admin context.
-        update_option( 'fre_failed_email_queue', $failed_queue, false );
+        update_option( 'pforms_failed_email_queue', $failed_queue, false );
 
         // Update entry with final failure status.
         $this->entry_repo->update( $entry_id, array(
             'notification_error' => 'Max retries exceeded - added to failed queue',
         ) );
 
-        FRE_Logger::warning( "Entry {$entry_id} added to failed email queue after max retries" );
+        PForms_Logger::warning( "Entry {$entry_id} added to failed email queue after max retries" );
 
         /**
          * Fires when an email fails permanently after all retries.
@@ -649,7 +649,7 @@ class FRE_Email_Notification {
          * @param int   $entry_id    Entry ID.
          * @param array $form_config Form configuration.
          */
-        do_action( 'fre_email_permanently_failed', $entry_id, $form_config );
+        do_action( 'pforms_email_permanently_failed', $entry_id, $form_config );
     }
 
     /**
@@ -658,14 +658,14 @@ class FRE_Email_Notification {
      * @return array
      */
     public static function get_failed_queue() {
-        return get_option( 'fre_failed_email_queue', array() );
+        return get_option( 'pforms_failed_email_queue', array() );
     }
 
     /**
      * Clear failed email queue (Fix #1).
      */
     public static function clear_failed_queue() {
-        delete_option( 'fre_failed_email_queue' );
+        delete_option( 'pforms_failed_email_queue' );
     }
 
     /**
@@ -674,11 +674,11 @@ class FRE_Email_Notification {
      * @param int $entry_id Entry ID.
      */
     public static function remove_from_failed_queue( $entry_id ) {
-        $queue = get_option( 'fre_failed_email_queue', array() );
+        $queue = get_option( 'pforms_failed_email_queue', array() );
         $queue = array_filter( $queue, function( $item ) use ( $entry_id ) {
             return $item['entry_id'] != $entry_id;
         } );
-        update_option( 'fre_failed_email_queue', array_values( $queue ) );
+        update_option( 'pforms_failed_email_queue', array_values( $queue ) );
     }
 
     /**
@@ -704,11 +704,11 @@ class FRE_Email_Notification {
 
         foreach ( $failed_entries as $entry ) {
             // Check if retry is already scheduled.
-            $scheduled = wp_next_scheduled( 'fre_retry_failed_email', array( (int) $entry->id, 1 ) );
+            $scheduled = wp_next_scheduled( 'pforms_retry_failed_email', array( (int) $entry->id, 1 ) );
 
             if ( ! $scheduled ) {
                 // Schedule a new retry.
-                $form_config = fre()->registry->get( $entry->form_id );
+                $form_config = pforms()->registry->get( $entry->form_id );
                 if ( $form_config ) {
                     $handler->schedule_retry( $entry->id, $form_config, array(), array(), 0 );
                 }

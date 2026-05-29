@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Provides centralized logging that only outputs when WP_DEBUG is enabled,
  * satisfying WordPress Plugin Check requirements.
  */
-class FRE_Logger {
+class PForms_Logger {
 
 	/**
 	 * Log a message if WP_DEBUG is enabled.

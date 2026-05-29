@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Timing-based spam protection.
  */
-class FRE_Timing_Check {
+class PForms_Timing_Check {
 
     /**
      * Default minimum submission time in seconds.
@@ -39,11 +39,11 @@ class FRE_Timing_Check {
      * @return bool True if submission was too fast (likely bot).
      */
     public function is_too_fast( $form_id, array $settings = array() ) {
-        $token = isset( $_POST['_fre_timing_token'] ) ? sanitize_text_field( wp_unslash( $_POST['_fre_timing_token'] ) ) : '';
+        $token = isset( $_POST['_pforms_timing_token'] ) ? sanitize_text_field( wp_unslash( $_POST['_pforms_timing_token'] ) ) : '';
 
         // Fallback: Check for legacy timestamp (for backwards compatibility).
         if ( empty( $token ) ) {
-            $timestamp = isset( $_POST['_fre_timestamp'] ) ? (int) $_POST['_fre_timestamp'] : 0;
+            $timestamp = isset( $_POST['_pforms_timestamp'] ) ? (int) $_POST['_pforms_timestamp'] : 0;
 
             if ( empty( $timestamp ) ) {
                 // No timestamp provided, fail closed for security.
@@ -163,7 +163,7 @@ class FRE_Timing_Check {
      * @return bool True if form is too old.
      */
     public function is_too_old( $max_age = 86400 ) {
-        $timestamp = isset( $_POST['_fre_timestamp'] ) ? (int) $_POST['_fre_timestamp'] : 0;
+        $timestamp = isset( $_POST['_pforms_timestamp'] ) ? (int) $_POST['_pforms_timestamp'] : 0;
 
         if ( empty( $timestamp ) ) {
             return false;
@@ -180,7 +180,7 @@ class FRE_Timing_Check {
      * @return int Elapsed seconds, or 0 if timestamp not available.
      */
     public function get_elapsed_time() {
-        $timestamp = isset( $_POST['_fre_timestamp'] ) ? (int) $_POST['_fre_timestamp'] : 0;
+        $timestamp = isset( $_POST['_pforms_timestamp'] ) ? (int) $_POST['_pforms_timestamp'] : 0;
 
         if ( empty( $timestamp ) ) {
             return 0;
@@ -201,7 +201,7 @@ class FRE_Timing_Check {
             ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
             : 'unknown';
 
-        FRE_Logger::warning( sprintf(
+        PForms_Logger::warning( sprintf(
             'Spam blocked: form=%s, reason=%s, elapsed=%ds, ip=%s',
             $form_id,
             $reason,
@@ -216,6 +216,6 @@ class FRE_Timing_Check {
          * @param string $reason  Detection reason.
          * @param string $ip      Client IP.
          */
-        do_action( 'fre_spam_detected', $form_id, $reason, $ip );
+        do_action( 'pforms_spam_detected', $form_id, $reason, $ip );
     }
 }

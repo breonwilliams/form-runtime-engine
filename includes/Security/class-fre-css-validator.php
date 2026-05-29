@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * CSS validator class.
  */
-class FRE_CSS_Validator {
+class PForms_CSS_Validator {
 
     /**
      * Blocked dangerous patterns that can execute code.

@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Fix #13: Added server-side session token as fallback for non-JS users.
  */
-class FRE_Honeypot {
+class PForms_Honeypot {
 
     /**
      * Session token validity period in seconds (2 hours).
@@ -35,11 +35,11 @@ class FRE_Honeypot {
      * @return string Secret key.
      */
     private function get_secret() {
-        $secret = get_option( 'fre_honeypot_secret' );
+        $secret = get_option( 'pforms_honeypot_secret' );
 
         if ( ! $secret ) {
             $secret = wp_generate_password( 32, true, true );
-            update_option( 'fre_honeypot_secret', $secret, false );
+            update_option( 'pforms_honeypot_secret', $secret, false );
         }
 
         return $secret;
@@ -111,7 +111,7 @@ class FRE_Honeypot {
      * @return string Field name.
      */
     public function get_session_token_field_name( $form_id ) {
-        return '_fre_session_' . substr( hash_hmac( 'sha256', $form_id, $this->get_secret() ), 0, 8 );
+        return '_pforms_session_' . substr( hash_hmac( 'sha256', $form_id, $this->get_secret() ), 0, 8 );
     }
 
     /**
@@ -125,7 +125,7 @@ class FRE_Honeypot {
      */
     public function get_field_name( $form_id ) {
         $hash = hash_hmac( 'sha256', $form_id, $this->get_secret() );
-        return '_fre_website_url_' . substr( $hash, 0, 8 );
+        return '_pforms_website_url_' . substr( $hash, 0, 8 );
     }
 
     /**
@@ -202,7 +202,7 @@ class FRE_Honeypot {
     private function log_spam_attempt( $form_id, $reason ) {
         $ip = $this->get_client_ip();
 
-        FRE_Logger::warning( sprintf(
+        PForms_Logger::warning( sprintf(
             'Spam blocked: form=%s, reason=%s, ip=%s',
             $form_id,
             $reason,
@@ -216,7 +216,7 @@ class FRE_Honeypot {
          * @param string $reason  Detection reason.
          * @param string $ip      Client IP.
          */
-        do_action( 'fre_spam_detected', $form_id, $reason, $ip );
+        do_action( 'pforms_spam_detected', $form_id, $reason, $ip );
     }
 
     /**

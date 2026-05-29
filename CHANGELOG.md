@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.8.0] - 2026-05-29
+
+WordPress.org compliance release — round 3. Addresses the prefix-length
+issue raised by the WP.org plugin review team: the 3-character `fre` /
+`FRE_` prefix is below WP.org's required 4-character minimum, so the
+entire symbol and option surface was re-prefixed to `pforms` / `PForms_`.
+
+### Changed (breaking — see migration note)
+- **Re-prefixed all 166 flagged elements** from `fre`/`FRE_` to
+  `pforms`/`PForms_`: class names, the plugin's global constants
+  (`PForms_VERSION`, `PForms_PLUGIN_DIR`, etc.), public API functions
+  (`pforms_register_form()`, `pforms_get_form()`, …), the `pforms()`
+  accessor, all action/filter hook names (`pforms_submission_complete`,
+  `pforms_webhook_payload`, …), option keys, AJAX action names,
+  transient keys, the capability (`pforms_manage_forms`), and the
+  `_pforms_connector_configured_at` user-meta key.
+- **Canonical shortcode is now `[promptless_form]`** (with `[pforms_form]`
+  also registered). `[fre_form]` and `[client_form]` are removed —
+  update any page content that used them.
+- **Custom DB table names are intentionally unchanged** (`wp_fre_entries`,
+  `wp_fre_twilio_clients`, etc.). Table names are not subject to the
+  prefix rule and renaming them would force a destructive migration on
+  live data.
+
+### Added
+- **Automatic one-time option migration** (`PForms_Upgrader::migrate_legacy_prefix_options()`).
+  On upgrade from any pre-1.8.0 version it copies every persisted option
+  from its `fre_` key to the matching `pforms_` key — saved forms,
+  settings, Google Places API key, Twilio credentials, honeypot secret,
+  connector toggles, failed-email queue, and version markers — then
+  removes the old keys and revokes the orphaned `fre_manage_forms`
+  capability. Idempotent and gated so it's a no-op on the hot path once
+  complete. No user action required.
+
+### Compatibility
+- `class_alias( 'Promptless_Forms', 'Form_Runtime_Engine' )` is retained
+  for any external code referencing the old main-class name.
+- **FlowMint Workflows users:** FlowMint couples to this plugin's hook,
+  classes, and accessor. FlowMint 0.6.1 speaks the new names
+  (`pforms_submission_complete`, `PForms_Entry`, `PForms_Entry_Query`,
+  `pforms()`); deploy FRE 1.8.0 and FlowMint 0.6.1 to a site together.
+
 ## [1.7.1] - 2026-05-27
 
 ### Fixed

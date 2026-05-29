@@ -37,7 +37,7 @@
             // Delete entry.
             $(document).on('click', '.fre-delete-entry', function(e) {
                 e.preventDefault();
-                if (confirm(freAdmin.strings.confirmDelete)) {
+                if (confirm(pformsAdmin.strings.confirmDelete)) {
                     FREAdmin.deleteEntry($(this).data('entry-id'), $(this));
                 }
             });
@@ -45,7 +45,7 @@
             // Mark as spam.
             $(document).on('click', '.fre-mark-spam', function(e) {
                 e.preventDefault();
-                if (confirm(freAdmin.strings.confirmSpam)) {
+                if (confirm(pformsAdmin.strings.confirmSpam)) {
                     FREAdmin.markSpam($(this).data('entry-id'), $(this));
                 }
             });
@@ -62,10 +62,10 @@
                 }
                 if ($input.attr('type') === 'password') {
                     $input.attr('type', 'text');
-                    $btn.text(freAdmin.strings.apiKeyHide);
+                    $btn.text(pformsAdmin.strings.apiKeyHide);
                 } else {
                     $input.attr('type', 'password');
-                    $btn.text(freAdmin.strings.apiKeyShow);
+                    $btn.text(pformsAdmin.strings.apiKeyShow);
                 }
             });
         },
@@ -77,7 +77,7 @@
          * @param {jQuery} $button - Button element.
          */
         markRead: function(entryId, $button) {
-            this.ajaxRequest('fre_mark_read', entryId, $button, function() {
+            this.ajaxRequest('pforms_mark_read', entryId, $button, function() {
                 // Update UI.
                 const $row = $button.closest('tr');
                 if ($row.length) {
@@ -96,7 +96,7 @@
          * @param {jQuery} $button - Button element.
          */
         markUnread: function(entryId, $button) {
-            this.ajaxRequest('fre_mark_unread', entryId, $button, function() {
+            this.ajaxRequest('pforms_mark_unread', entryId, $button, function() {
                 // Update UI.
                 const $row = $button.closest('tr');
                 if ($row.length) {
@@ -115,7 +115,7 @@
          * @param {jQuery} $button - Button element.
          */
         deleteEntry: function(entryId, $button) {
-            this.ajaxRequest('fre_delete_entry', entryId, $button, function() {
+            this.ajaxRequest('pforms_delete_entry', entryId, $button, function() {
                 // Remove row from table.
                 const $row = $button.closest('tr');
                 if ($row.length) {
@@ -124,7 +124,7 @@
                     });
                 } else {
                     // On detail page, redirect to list.
-                    window.location.href = freAdmin.listUrl || 'admin.php?page=fre-entries';
+                    window.location.href = pformsAdmin.listUrl || 'admin.php?page=pforms-entries';
                 }
             });
         },
@@ -136,7 +136,7 @@
          * @param {jQuery} $button - Button element.
          */
         markSpam: function(entryId, $button) {
-            this.ajaxRequest('fre_mark_spam', entryId, $button, function() {
+            this.ajaxRequest('pforms_mark_spam', entryId, $button, function() {
                 // Update UI.
                 const $row = $button.closest('tr');
                 if ($row.length) {
@@ -163,12 +163,12 @@
             $button.prop('disabled', true).text('...');
 
             $.ajax({
-                url: freAdmin.ajaxUrl,
+                url: pformsAdmin.ajaxUrl,
                 type: 'POST',
                 data: {
                     action: action,
                     entry_id: entryId,
-                    nonce: freAdmin.nonce
+                    nonce: pformsAdmin.nonce
                 },
                 success: function(response) {
                     if (response.success) {
@@ -210,7 +210,7 @@
             $(document).on('click', '#fre-test-api-key', this.handleTestApiKey.bind(this));
 
             // Clear status when API key input changes.
-            $(document).on('input', '#fre_google_places_api_key', function() {
+            $(document).on('input', '#pforms_google_places_api_key', function() {
                 $('#fre-api-key-status').html('').removeClass('success error');
             });
         },
@@ -225,20 +225,20 @@
 
             var $btn = $(e.currentTarget);
             var $status = $('#fre-api-key-status');
-            var apiKey = $('#fre_google_places_api_key').val().trim();
+            var apiKey = $('#pforms_google_places_api_key').val().trim();
             var originalText = $btn.text();
 
             // Show loading state.
-            $btn.prop('disabled', true).text(freAdmin.strings.testing);
+            $btn.prop('disabled', true).text(pformsAdmin.strings.testing);
             $status.html('').removeClass('success error');
 
             $.ajax({
-                url: freAdmin.ajaxUrl,
+                url: pformsAdmin.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'fre_test_google_api_key',
+                    action: 'pforms_test_google_api_key',
                     api_key: apiKey,
-                    nonce: freAdmin.nonce
+                    nonce: pformsAdmin.nonce
                 },
                 success: function(response) {
                     if (response.success) {
@@ -248,10 +248,10 @@
                     }
                 },
                 error: function() {
-                    $status.addClass('error').html('<span class="dashicons dashicons-dismiss"></span> ' + freAdmin.strings.connectionError);
+                    $status.addClass('error').html('<span class="dashicons dashicons-dismiss"></span> ' + pformsAdmin.strings.connectionError);
                 },
                 complete: function() {
-                    $btn.prop('disabled', false).text(freAdmin.strings.testConnection);
+                    $btn.prop('disabled', false).text(pformsAdmin.strings.testConnection);
                 }
             });
         }
@@ -429,11 +429,11 @@
             $result.hide();
 
             $.ajax({
-                url: freAdmin.ajaxUrl,
+                url: pformsAdmin.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'fre_test_webhook',
-                    nonce: freAdmin.nonce,
+                    action: 'pforms_test_webhook',
+                    nonce: pformsAdmin.nonce,
                     webhook_url: webhookUrl,
                     webhook_secret: webhookSecret,
                     form_id: formId
@@ -504,11 +504,11 @@
             $spinner.addClass('is-active');
 
             $.ajax({
-                url: freAdmin.ajaxUrl,
+                url: pformsAdmin.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'fre_preview_payload',
-                    nonce: freAdmin.nonce,
+                    action: 'pforms_preview_payload',
+                    nonce: pformsAdmin.nonce,
                     form_id: formId
                 },
                 success: function(response) {
@@ -552,11 +552,11 @@
             $btn.prop('disabled', true);
 
             $.ajax({
-                url: freAdmin.ajaxUrl,
+                url: pformsAdmin.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'fre_regenerate_secret',
-                    nonce: freAdmin.nonce,
+                    action: 'pforms_regenerate_secret',
+                    nonce: pformsAdmin.nonce,
                     form_id: formId
                 },
                 success: function(response) {
@@ -595,7 +595,7 @@
             var $btn = $(e.currentTarget);
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(secret).then(function() {
-                    FREFormsManager.showCopyTooltip($btn, freAdmin.strings.copied || 'Copied!');
+                    FREFormsManager.showCopyTooltip($btn, pformsAdmin.strings.copied || 'Copied!');
                 });
             } else {
                 FREFormsManager.fallbackCopy(secret, $btn);
@@ -627,12 +627,12 @@
 
             // Client-side validation.
             if (!formId) {
-                this.showNotice($notices, 'error', freAdmin.strings.formIdRequired);
+                this.showNotice($notices, 'error', pformsAdmin.strings.formIdRequired);
                 return;
             }
 
             if (!config) {
-                this.showNotice($notices, 'error', freAdmin.strings.configRequired);
+                this.showNotice($notices, 'error', pformsAdmin.strings.configRequired);
                 return;
             }
 
@@ -667,17 +667,17 @@
             }
 
             // Show loading state.
-            $submitBtn.prop('disabled', true).text(freAdmin.strings.saving);
+            $submitBtn.prop('disabled', true).text(pformsAdmin.strings.saving);
             $spinner.addClass('is-active');
             $notices.empty();
 
             // Send AJAX request.
             $.ajax({
-                url: freAdmin.ajaxUrl,
+                url: pformsAdmin.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'fre_save_form',
-                    nonce: freAdmin.nonce,
+                    action: 'pforms_save_form',
+                    nonce: pformsAdmin.nonce,
                     form_id: formId,
                     title: title,
                     config: config,
@@ -697,7 +697,7 @@
 
                         // If adding new form, redirect to edit view.
                         if (!$('#fre-form-id').prop('readonly')) {
-                            window.location.href = freAdmin.ajaxUrl.replace('admin-ajax.php', 'admin.php?page=fre-forms&action=edit&form=' + formId + '&saved=1');
+                            window.location.href = pformsAdmin.ajaxUrl.replace('admin-ajax.php', 'admin.php?page=pforms-forms&action=edit&form=' + formId + '&saved=1');
                         }
                     } else {
                         FREFormsManager.showNotice($notices, 'error', response.data.message);
@@ -724,19 +724,19 @@
             var $btn = $(e.currentTarget);
             var formId = $btn.data('form-id');
 
-            if (!confirm(freAdmin.strings.confirmDeleteForm)) {
+            if (!confirm(pformsAdmin.strings.confirmDeleteForm)) {
                 return;
             }
 
             var originalText = $btn.text();
-            $btn.prop('disabled', true).text(freAdmin.strings.deleting);
+            $btn.prop('disabled', true).text(pformsAdmin.strings.deleting);
 
             $.ajax({
-                url: freAdmin.ajaxUrl,
+                url: pformsAdmin.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'fre_delete_form',
-                    nonce: freAdmin.nonce,
+                    action: 'pforms_delete_form',
+                    nonce: pformsAdmin.nonce,
                     form_id: formId
                 },
                 success: function(response) {
@@ -776,7 +776,7 @@
             // Copy to clipboard.
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(shortcode).then(function() {
-                    FREFormsManager.showCopyTooltip($btn, freAdmin.strings.copied);
+                    FREFormsManager.showCopyTooltip($btn, pformsAdmin.strings.copied);
                 }).catch(function() {
                     FREFormsManager.fallbackCopy(shortcode, $btn);
                 });
@@ -799,12 +799,12 @@
             try {
                 var success = document.execCommand('copy');
                 if (success) {
-                    this.showCopyTooltip($btn, freAdmin.strings.copied);
+                    this.showCopyTooltip($btn, pformsAdmin.strings.copied);
                 } else {
-                    this.showCopyTooltip($btn, freAdmin.strings.copyFailed);
+                    this.showCopyTooltip($btn, pformsAdmin.strings.copyFailed);
                 }
             } catch (err) {
-                this.showCopyTooltip($btn, freAdmin.strings.copyFailed);
+                this.showCopyTooltip($btn, pformsAdmin.strings.copyFailed);
             }
 
             $temp.remove();

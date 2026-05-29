@@ -14,22 +14,22 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Shortcode handler class.
  *
  * Tag registration (1.6.5+):
- *   - `fre_form`         — canonical tag (well-prefixed, documented).
+ *   - `pforms_form`         — canonical tag (well-prefixed, documented).
  *   - `promptless_form`  — branding alias matching the WordPress.org name.
  *
  * Tag retired in 1.6.5:
  *   - `client_form` — flagged by WP.org reviewers because "client" is too
  *     generic a prefix. Sites that used `[client_form id="..."]` should
- *     migrate to `[fre_form id="..."]`.
+ *     migrate to `[pforms_form id="..."]`.
  */
-class FRE_Shortcode {
+class PForms_Shortcode {
 
     /**
      * Canonical shortcode tag.
      *
      * @var string
      */
-    private $tag = 'fre_form';
+    private $tag = 'pforms_form';
 
     /**
      * Constructor.
@@ -66,7 +66,7 @@ class FRE_Shortcode {
 
         if ( empty( $form_id ) ) {
             return $this->render_admin_error(
-                __( 'Form ID is required. Usage: [fre_form id="contact"]', 'promptless-forms' )
+                __( 'Form ID is required. Usage: [pforms_form id="contact"]', 'promptless-forms' )
             );
         }
 
@@ -77,7 +77,7 @@ class FRE_Shortcode {
         );
 
         // Render form.
-        $renderer = new FRE_Renderer();
+        $renderer = new PForms_Renderer();
         return $renderer->render( sanitize_key( $form_id ), $args );
     }
 

@@ -2,7 +2,7 @@
  * Connector admin page — Generate / Revoke / Copy-Command workflow.
  *
  * Reads dynamic data (ajax URL, nonce, connector script URL, site URL,
- * translated strings) from window.freConnectorAdmin which is injected via
+ * translated strings) from window.pformsConnectorAdmin which is injected via
  * wp_localize_script() in PHP. No PHP interpolation in this file —
  * makes Plugin Check happy and lets browsers cache the file across sites.
  *
@@ -15,7 +15,7 @@
 (function() {
     'use strict';
 
-    var data = window.freConnectorAdmin || {};
+    var data = window.pformsConnectorAdmin || {};
     if ( ! data.ajaxUrl ) {
         return;
     }
@@ -130,7 +130,7 @@
             var originalLabel = genBtn.textContent;
             genBtn.disabled = true;
             genBtn.textContent = i18n.generating;
-            var r = await post( 'fre_connector_generate_password' );
+            var r = await post( 'pforms_connector_generate_password' );
             genBtn.disabled = false;
             if ( r.success ) {
                 // Reveal the success notice in Step 1 card.
@@ -209,7 +209,7 @@
                 return;
             }
             revokeBtn.disabled = true;
-            var r = await post( 'fre_connector_revoke_password' );
+            var r = await post( 'pforms_connector_revoke_password' );
             revokeBtn.disabled = false;
             if ( r.success ) {
                 window.location.reload();

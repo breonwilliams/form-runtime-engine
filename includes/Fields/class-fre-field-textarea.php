@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Textarea field type.
  */
-class FRE_Field_Textarea extends FRE_Field_Type_Abstract {
+class PForms_Field_Textarea extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

@@ -29,12 +29,12 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 /**
  * Entries list table using WP_List_Table.
  */
-class FRE_Entries_List_Table extends WP_List_Table {
+class PForms_Entries_List_Table extends WP_List_Table {
 
     /**
      * Entry query instance.
      *
-     * @var FRE_Entry_Query
+     * @var PForms_Entry_Query
      */
     private $query;
 
@@ -55,7 +55,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
             'ajax'     => false,
         ) );
 
-        $this->query = new FRE_Entry_Query();
+        $this->query = new PForms_Entry_Query();
     }
 
     /**
@@ -122,7 +122,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
     public function column_entry( $item ) {
         // Build view URL, preserving form_id filter if set.
         $view_args = array(
-            'page'     => 'fre-entry',
+            'page'     => 'pforms-entry',
             'entry_id' => $item['id'],
         );
 
@@ -139,7 +139,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
             : array();
 
         // Pass form config so summary can resolve select/radio values to labels.
-        $form_config  = fre()->registry->get( $item['form_id'] );
+        $form_config  = pforms()->registry->get( $item['form_id'] );
         $summary_html = $this->build_entry_summary( $fields, $view_url, $form_config );
 
         // Entry ID (muted).
@@ -213,7 +213,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
             // Resolve to human-readable display value when we know the field's options.
             // For unknown fields (no form_config or orphan keys), fall back to plain stringification.
             if ( isset( $field_map[ $key ] ) ) {
-                $display = FRE_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $key ] );
+                $display = PForms_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $key ] );
                 $label   = ! empty( $field_map[ $key ]['label'] )
                     ? $field_map[ $key ]['label']
                     : ucfirst( str_replace( '_', ' ', $key ) );
@@ -260,7 +260,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
      * @return string
      */
     public function column_form_id( $item ) {
-        $form = fre()->registry->get( $item['form_id'] );
+        $form = pforms()->registry->get( $item['form_id'] );
 
         if ( $form && ! empty( $form['title'] ) ) {
             return esc_html( $form['title'] );
@@ -325,7 +325,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
      * @return string
      */
     public function column_webhook( $item ) {
-        $log = new FRE_Webhook_Log();
+        $log = new PForms_Webhook_Log();
 
         if ( ! $log->table_exists() ) {
             return '<span class="dashicons dashicons-minus" style="color:#999;" title="' . esc_attr__( 'No log table', 'promptless-forms' ) . '"></span>';
@@ -339,16 +339,16 @@ class FRE_Entries_List_Table extends WP_List_Table {
         }
 
         switch ( $status ) {
-            case FRE_Webhook_Log::STATUS_SUCCESS:
+            case PForms_Webhook_Log::STATUS_SUCCESS:
                 return '<span class="dashicons dashicons-yes" style="color:#46b450;" title="' . esc_attr__( 'Delivered', 'promptless-forms' ) . '"></span>';
 
-            case FRE_Webhook_Log::STATUS_RETRYING:
+            case PForms_Webhook_Log::STATUS_RETRYING:
                 return '<span class="dashicons dashicons-update" style="color:#dba617;" title="' . esc_attr__( 'Retrying', 'promptless-forms' ) . '"></span>';
 
-            case FRE_Webhook_Log::STATUS_PENDING:
+            case PForms_Webhook_Log::STATUS_PENDING:
                 return '<span class="dashicons dashicons-clock" style="color:#999;" title="' . esc_attr__( 'Pending', 'promptless-forms' ) . '"></span>';
 
-            case FRE_Webhook_Log::STATUS_FAILED:
+            case PForms_Webhook_Log::STATUS_FAILED:
                 return '<span class="dashicons dashicons-warning" style="color:#d63638;" title="' . esc_attr__( 'Failed', 'promptless-forms' ) . '"></span>';
 
             default:
@@ -390,7 +390,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
      * Process bulk actions (Fix #8: CSRF protection - nonce check first).
      */
     public function process_bulk_action() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             return;
         }
 
@@ -408,7 +408,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
             return;
         }
 
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
 
         foreach ( $entry_ids as $entry_id ) {
             switch ( $action ) {
@@ -438,7 +438,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
             return;
         }
 
-        $query   = new FRE_Entry_Query();
+        $query   = new PForms_Entry_Query();
         $form_ids = $query->get_form_ids();
 
         $current_form   = isset( $_GET['form_id'] ) ? sanitize_key( $_GET['form_id'] ) : '';
@@ -451,7 +451,7 @@ class FRE_Entries_List_Table extends WP_List_Table {
                 <option value=""><?php esc_html_e( 'All Forms', 'promptless-forms' ); ?></option>
                 <?php foreach ( $form_ids as $form_id ) : ?>
                     <?php
-                    $form  = fre()->registry->get( $form_id );
+                    $form  = pforms()->registry->get( $form_id );
                     $title = $form && ! empty( $form['title'] ) ? $form['title'] : $form_id;
                     ?>
                     <option value="<?php echo esc_attr( $form_id ); ?>" <?php selected( $current_form, $form_id ); ?>>

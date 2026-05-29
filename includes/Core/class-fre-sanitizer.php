@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Form sanitization handler.
  */
-class FRE_Sanitizer {
+class PForms_Sanitizer {
 
     /**
      * Field type instances cache.
@@ -67,7 +67,7 @@ class FRE_Sanitizer {
              * @param array  $form_config     Form configuration.
              */
             $sanitized_value = apply_filters(
-                'fre_sanitized_value',
+                'pforms_sanitized_value',
                 $sanitized_value,
                 $value,
                 $field,
@@ -217,14 +217,14 @@ class FRE_Sanitizer {
      * Get field type instance.
      *
      * @param string $type Field type slug.
-     * @return FRE_Field_Type|null
+     * @return PForms_Field_Type|null
      */
     private function get_field_instance( $type ) {
         if ( isset( $this->field_instances[ $type ] ) ) {
             return $this->field_instances[ $type ];
         }
 
-        $class_name = FRE_Autoloader::get_field_class( $type );
+        $class_name = PForms_Autoloader::get_field_class( $type );
 
         if ( ! $class_name || ! class_exists( $class_name ) ) {
             return null;

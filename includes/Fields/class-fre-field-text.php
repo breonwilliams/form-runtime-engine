@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Text input field type.
  */
-class FRE_Field_Text extends FRE_Field_Type_Abstract {
+class PForms_Field_Text extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

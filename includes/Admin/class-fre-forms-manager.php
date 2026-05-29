@@ -21,24 +21,24 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Forms manager class.
  *
  * Admin UI + AJAX handlers for database-stored forms. All storage concerns
- * delegate to FRE_Forms_Repository, which is the single CRUD path shared by
+ * delegate to PForms_Forms_Repository, which is the single CRUD path shared by
  * the admin UI and the Cowork REST connector (Phase 2+). The static methods
  * on this class are preserved as thin delegators so external callers of the
- * old API — specifically the fre_get_db_form(), fre_save_db_form(), etc.
+ * old API — specifically the pforms_get_db_form(), pforms_save_db_form(), etc.
  * wrapper functions in the main plugin file — continue to work unchanged.
  */
-class FRE_Forms_Manager {
+class PForms_Forms_Manager {
 
     /**
      * Option key for storing forms.
      *
      * Kept as a class constant for backward compatibility with any legacy
      * code that referenced it directly. The canonical source is
-     * FRE_Forms_Repository::OPTION_KEY; both point at the same option row.
+     * PForms_Forms_Repository::OPTION_KEY; both point at the same option row.
      *
      * @var string
      */
-    const OPTION_KEY = FRE_Forms_Repository::OPTION_KEY;
+    const OPTION_KEY = PForms_Forms_Repository::OPTION_KEY;
 
     /**
      * Get all saved forms from database.
@@ -46,7 +46,7 @@ class FRE_Forms_Manager {
      * @return array
      */
     public static function get_forms() {
-        return FRE_Forms_Repository::get_all();
+        return PForms_Forms_Repository::get_all();
     }
 
     /**
@@ -56,16 +56,16 @@ class FRE_Forms_Manager {
      * @return array|null
      */
     public static function get_form( $form_id ) {
-        return FRE_Forms_Repository::get( $form_id );
+        return PForms_Forms_Repository::get( $form_id );
     }
 
     /**
      * Save a form to database.
      *
-     * Thin wrapper around FRE_Forms_Repository::save() that preserves the
+     * Thin wrapper around PForms_Forms_Repository::save() that preserves the
      * positional-argument signature the admin AJAX handler and external
      * callers rely on. New callers (including the Cowork REST connector)
-     * should use FRE_Forms_Repository::save() directly with a structured
+     * should use PForms_Forms_Repository::save() directly with a structured
      * input array — particularly when they need to set `managed_by`.
      *
      * @param string $form_id         Form ID.
@@ -83,7 +83,7 @@ class FRE_Forms_Manager {
      */
     public static function save_form( $form_id, $title, $json_config, $custom_css = '', $webhook_enabled = false, $webhook_url = '', $webhook_secret = '', $webhook_preset = 'custom' ) {
         unset( $custom_css ); // Intentionally unused — see @param note.
-        return FRE_Forms_Repository::save(
+        return PForms_Forms_Repository::save(
             $form_id,
             array(
                 'title'           => $title,
@@ -106,23 +106,23 @@ class FRE_Forms_Manager {
      * @return bool
      */
     public static function delete_form( $form_id ) {
-        return FRE_Forms_Repository::delete( $form_id );
+        return PForms_Forms_Repository::delete( $form_id );
     }
 
     /**
      * Register all database forms with the form registry.
      *
-     * Called on fre_init hook.
+     * Called on pforms_init hook.
      */
     public static function register_db_forms() {
-        FRE_Forms_Repository::register_all_with_runtime_registry();
+        PForms_Forms_Repository::register_all_with_runtime_registry();
     }
 
     /**
      * Render the forms management page.
      */
     public static function render_page() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
@@ -137,14 +137,14 @@ class FRE_Forms_Manager {
         $is_list_view = ! $is_add_view && ! $is_edit_view;
 
         // Get entry counts for all forms (used in list and edit views).
-        $entry_counts = FRE_Admin::get_entry_counts_by_form();
+        $entry_counts = PForms_Admin::get_entry_counts_by_form();
         ?>
 
         <div class="wrap fre-forms-manager">
             <?php if ( $is_list_view ) : ?>
                 <!-- List View -->
                 <h1 class="wp-heading-inline"><?php esc_html_e( 'Manage Forms', 'promptless-forms' ); ?></h1>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=add' ) ); ?>" class="page-title-action">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-forms&action=add' ) ); ?>" class="page-title-action">
                     <?php esc_html_e( 'Add New', 'promptless-forms' ); ?>
                 </a>
                 <hr class="wp-header-end">
@@ -153,7 +153,7 @@ class FRE_Forms_Manager {
                     <div class="fre-forms-empty-state">
                         <h2><?php esc_html_e( 'No forms yet', 'promptless-forms' ); ?></h2>
                         <p><?php esc_html_e( 'Get started by adding a new form. Paste JSON configuration generated by AI.', 'promptless-forms' ); ?></p>
-                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=add' ) ); ?>" class="button button-primary">
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-forms&action=add' ) ); ?>" class="button button-primary">
                             <?php esc_html_e( 'Add Your First Form', 'promptless-forms' ); ?>
                         </a>
                     </div>
@@ -171,8 +171,8 @@ class FRE_Forms_Manager {
                             <?php foreach ( $forms as $form_id => $form ) : ?>
                                 <?php
                                 $counts       = isset( $entry_counts[ $form_id ] ) ? $entry_counts[ $form_id ] : array( 'total' => 0, 'unread' => 0 );
-                                $entries_url  = admin_url( 'admin.php?page=fre-entries&form_id=' . $form_id );
-                                $edit_url     = admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $form_id );
+                                $entries_url  = admin_url( 'admin.php?page=pforms-entries&form_id=' . $form_id );
+                                $edit_url     = admin_url( 'admin.php?page=pforms-forms&action=edit&form=' . $form_id );
                                 $display_title = ! empty( $form['title'] ) ? $form['title'] : $form_id;
                                 ?>
                                 <tr data-form-id="<?php echo esc_attr( $form_id ); ?>">
@@ -198,8 +198,8 @@ class FRE_Forms_Manager {
                                         </div>
                                     </td>
                                     <td class="column-shortcode">
-                                        <code class="fre-forms-shortcode">[fre_form id="<?php echo esc_attr( $form_id ); ?>"]</code>
-                                        <button type="button" class="button-link fre-forms-copy-btn" data-shortcode='[fre_form id="<?php echo esc_attr( $form_id ); ?>"]' title="<?php esc_attr_e( 'Copy to clipboard', 'promptless-forms' ); ?>">
+                                        <code class="fre-forms-shortcode">[pforms_form id="<?php echo esc_attr( $form_id ); ?>"]</code>
+                                        <button type="button" class="button-link fre-forms-copy-btn" data-shortcode='[pforms_form id="<?php echo esc_attr( $form_id ); ?>"]' title="<?php esc_attr_e( 'Copy to clipboard', 'promptless-forms' ); ?>">
                                             <span class="dashicons dashicons-clipboard"></span>
                                         </button>
                                     </td>
@@ -237,7 +237,7 @@ class FRE_Forms_Manager {
                     }
                     ?>
                 </h1>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms' ) ); ?>" class="page-title-action">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-forms' ) ); ?>" class="page-title-action">
                     <?php esc_html_e( 'Back to List', 'promptless-forms' ); ?>
                 </a>
                 <hr class="wp-header-end">
@@ -245,10 +245,10 @@ class FRE_Forms_Manager {
                 <?php if ( $is_edit_view ) : ?>
                     <?php
                     $edit_counts  = isset( $entry_counts[ $editing_id ] ) ? $entry_counts[ $editing_id ] : array( 'total' => 0, 'unread' => 0 );
-                    $edit_entries_url = admin_url( 'admin.php?page=fre-entries&form_id=' . $editing_id );
+                    $edit_entries_url = admin_url( 'admin.php?page=pforms-entries&form_id=' . $editing_id );
                     ?>
                     <h2 class="nav-tab-wrapper fre-form-tabs">
-                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $editing_id ) ); ?>" class="nav-tab nav-tab-active">
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-forms&action=edit&form=' . $editing_id ) ); ?>" class="nav-tab nav-tab-active">
                             <?php esc_html_e( 'Settings', 'promptless-forms' ); ?>
                         </a>
                         <a href="<?php echo esc_url( $edit_entries_url ); ?>" class="nav-tab">
@@ -525,11 +525,11 @@ class FRE_Forms_Manager {
                                     printf(
                                         /* translators: %s: shortcode */
                                         esc_html__( 'This form is available via shortcode: %s', 'promptless-forms' ),
-                                        '<code>[fre_form id="' . esc_html( $editing_id ) . '"]</code>'
+                                        '<code>[pforms_form id="' . esc_html( $editing_id ) . '"]</code>'
                                     );
                                 } else {
                                     esc_html_e( 'After saving, your form will be available via shortcode:', 'promptless-forms' );
-                                    echo ' <code>[fre_form id="your-form-id"]</code>';
+                                    echo ' <code>[pforms_form id="your-form-id"]</code>';
                                 }
                                 ?>
                             </p>
@@ -565,15 +565,15 @@ class FRE_Forms_Manager {
      * AJAX: Save form.
      */
     public static function ajax_save_form() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'promptless-forms' ) ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $form_id         = isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : '';
         $title           = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON is validated by FRE_Schema_Validator::validate().
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON is validated by PForms_Schema_Validator::validate().
         $config          = isset( $_POST['config'] ) ? wp_unslash( $_POST['config'] ) : '';
         $webhook_enabled = isset( $_POST['webhook_enabled'] ) && $_POST['webhook_enabled'] === '1';
         $webhook_url     = isset( $_POST['webhook_url'] ) ? esc_url_raw( wp_unslash( $_POST['webhook_url'] ) ) : '';
@@ -581,7 +581,7 @@ class FRE_Forms_Manager {
         $webhook_preset  = isset( $_POST['webhook_preset'] ) ? sanitize_key( wp_unslash( $_POST['webhook_preset'] ) ) : 'custom';
 
         // custom_css is no longer accepted (feature removed in 1.6.5 — see
-        // FRE_Forms_Repository docblock). Positional empty-string keeps the
+        // PForms_Forms_Repository docblock). Positional empty-string keeps the
         // legacy save_form() signature stable for any external callers.
         $result = self::save_form( $form_id, $title, $config, '', $webhook_enabled, $webhook_url, $webhook_secret, $webhook_preset );
 
@@ -599,11 +599,11 @@ class FRE_Forms_Manager {
      * AJAX: Delete form.
      */
     public static function ajax_delete_form() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'promptless-forms' ) ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $form_id = isset( $_POST['form_id'] ) ? sanitize_key( $_POST['form_id'] ) : '';
 
@@ -626,11 +626,11 @@ class FRE_Forms_Manager {
      * Sends a test ping to the webhook URL and returns rich response data.
      */
     public static function ajax_test_webhook() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'promptless-forms' ) ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $webhook_url    = isset( $_POST['webhook_url'] ) ? esc_url_raw( wp_unslash( $_POST['webhook_url'] ) ) : '';
         $webhook_secret = isset( $_POST['webhook_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['webhook_secret'] ) ) : '';
@@ -640,7 +640,7 @@ class FRE_Forms_Manager {
             wp_send_json_error( array( 'message' => __( 'Webhook URL is required.', 'promptless-forms' ) ) );
         }
 
-        $result = FRE_Webhook_Dispatcher::test( $webhook_url, $form_id, $webhook_secret );
+        $result = PForms_Webhook_Dispatcher::test( $webhook_url, $form_id, $webhook_secret );
 
         if ( $result['success'] ) {
             wp_send_json_success( $result );
@@ -655,11 +655,11 @@ class FRE_Forms_Manager {
      * Generates a sample payload using the form's field definitions.
      */
     public static function ajax_preview_payload() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'promptless-forms' ) ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $form_id = isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : '';
 
@@ -667,7 +667,7 @@ class FRE_Forms_Manager {
             wp_send_json_error( array( 'message' => __( 'Form ID is required.', 'promptless-forms' ) ) );
         }
 
-        $payload = FRE_Webhook_Dispatcher::preview_payload( $form_id );
+        $payload = PForms_Webhook_Dispatcher::preview_payload( $form_id );
 
         if ( is_wp_error( $payload ) ) {
             wp_send_json_error( array( 'message' => $payload->get_error_message() ) );
@@ -682,15 +682,15 @@ class FRE_Forms_Manager {
     /**
      * AJAX: Regenerate webhook secret for a form.
      *
-     * Delegates to FRE_Forms_Repository::regenerate_webhook_secret() which
+     * Delegates to PForms_Forms_Repository::regenerate_webhook_secret() which
      * also bumps the form's connector_version and modified timestamp.
      */
     public static function ajax_regenerate_secret() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'promptless-forms' ) ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $form_id = isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : '';
 
@@ -698,7 +698,7 @@ class FRE_Forms_Manager {
             wp_send_json_error( array( 'message' => __( 'Form ID is required.', 'promptless-forms' ) ) );
         }
 
-        $result = FRE_Forms_Repository::regenerate_webhook_secret( $form_id );
+        $result = PForms_Forms_Repository::regenerate_webhook_secret( $form_id );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( array( 'message' => $result->get_error_message() ) );

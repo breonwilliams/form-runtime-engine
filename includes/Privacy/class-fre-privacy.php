@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Privacy compliance handler.
  */
-class FRE_Privacy {
+class PForms_Privacy {
 
     /**
      * Group identifier used in WordPress's personal-data export tool to
@@ -133,7 +133,7 @@ class FRE_Privacy {
         $items = array();
 
         if ( ! empty( $entry_ids ) ) {
-            $entry_repo = new FRE_Entry();
+            $entry_repo = new PForms_Entry();
 
             foreach ( $entry_ids as $entry_id ) {
                 $entry = $entry_repo->get( $entry_id );
@@ -143,7 +143,7 @@ class FRE_Privacy {
 
                 $meta  = $entry_repo->get_all_meta( $entry_id );
                 $files = $entry_repo->get_files( $entry_id );
-                $form  = fre()->registry->get( $entry['form_id'] );
+                $form  = pforms()->registry->get( $entry['form_id'] );
 
                 $items[] = $this->build_export_item( $entry, $meta, $files, $form );
             }
@@ -166,7 +166,7 @@ class FRE_Privacy {
      * any field declared as `type: email`. Paginated like the exporter.
      *
      * Returns counts of items removed/retained per WordPress's expected
-     * eraser response shape. FRE_Entry::delete() handles cascade cleanup
+     * eraser response shape. PForms_Entry::delete() handles cascade cleanup
      * of meta rows and uploaded files.
      *
      * @param string $email_address Email address to search for.
@@ -183,11 +183,11 @@ class FRE_Privacy {
         $messages = array();
 
         if ( ! empty( $entry_ids ) ) {
-            $entry_repo = new FRE_Entry();
+            $entry_repo = new PForms_Entry();
 
             foreach ( $entry_ids as $entry_id ) {
                 $result = $entry_repo->delete( $entry_id );
-                // FRE_Entry::delete() returns true on success. Be defensive
+                // PForms_Entry::delete() returns true on success. Be defensive
                 // about historical signatures that may have returned an int.
                 if ( $result === true || ( is_int( $result ) && $result > 0 ) ) {
                     $removed++;
@@ -216,8 +216,8 @@ class FRE_Privacy {
      * Collect the set of email-typed field keys across all registered forms.
      *
      * Returns a deduplicated list of field keys to use in the entry_meta
-     * query. Forms registered via PHP (fre_register_form) and forms stored
-     * in the database (admin UI) are both surfaced through fre()->registry,
+     * query. Forms registered via PHP (pforms_register_form) and forms stored
+     * in the database (admin UI) are both surfaced through pforms()->registry,
      * so a single pass over the registry covers both sources.
      *
      * Without this, the eraser would either (a) match only a hardcoded
@@ -229,7 +229,7 @@ class FRE_Privacy {
     private function get_email_field_keys() {
         $field_keys = array();
 
-        $forms = fre()->registry->get_all();
+        $forms = pforms()->registry->get_all();
 
         foreach ( $forms as $form ) {
             if ( empty( $form['fields'] ) || ! is_array( $form['fields'] ) ) {
@@ -248,7 +248,7 @@ class FRE_Privacy {
     /**
      * Find entry IDs containing the supplied email in any email-typed field.
      *
-     * Paginated query against fre_entry_meta. Case-insensitive match per
+     * Paginated query against pforms_entry_meta. Case-insensitive match per
      * RFC 5321 (email addresses are case-insensitive in their local part).
      *
      * @param string $email    Email address to match.
@@ -303,7 +303,7 @@ class FRE_Privacy {
      * The site admin sees this in the downloaded export ZIP, one item per
      * form entry with field labels (or raw keys as fallback) and values.
      *
-     * @param array      $entry Entry row from FRE_Entry::get().
+     * @param array      $entry Entry row from PForms_Entry::get().
      * @param array      $meta  Entry meta map (field_key => field_value).
      * @param array      $files Uploaded files for the entry.
      * @param array|null $form  Form configuration (null if form was deleted after entry was created).

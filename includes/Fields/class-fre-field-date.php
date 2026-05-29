@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Date input field type.
  */
-class FRE_Field_Date extends FRE_Field_Type_Abstract {
+class PForms_Field_Date extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

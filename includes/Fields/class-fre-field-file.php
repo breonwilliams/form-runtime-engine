@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * File upload field type.
  */
-class FRE_Field_File extends FRE_Field_Type_Abstract {
+class PForms_Field_File extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.
@@ -109,13 +109,13 @@ class FRE_Field_File extends FRE_Field_Type_Abstract {
      * @return string
      */
     public function get_name( array $field ) {
-        return 'fre_file_' . sanitize_key( $field['key'] );
+        return 'pforms_file_' . sanitize_key( $field['key'] );
     }
 
     /**
      * Validate the file upload.
      *
-     * Note: Actual file validation is handled by FRE_Upload_Handler.
+     * Note: Actual file validation is handled by PForms_Upload_Handler.
      * This method validates based on $_FILES data.
      *
      * @param mixed $value Field value (unused for files).

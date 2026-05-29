@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Entry query builder.
  */
-class FRE_Entry_Query {
+class PForms_Entry_Query {
 
     /**
      * WordPress database instance.
@@ -383,7 +383,7 @@ class FRE_Entry_Query {
         $results = $this->wpdb->get_results( $sql, ARRAY_A );
 
         if ( $include_meta && ! empty( $results ) ) {
-            $entry_repo = new FRE_Entry();
+            $entry_repo = new PForms_Entry();
             foreach ( $results as $index => $entry ) {
                 $results[ $index ]['fields'] = $entry_repo->get_all_meta( $entry['id'] );
                 $results[ $index ]['files']  = $entry_repo->get_files( $entry['id'] );
@@ -466,7 +466,7 @@ class FRE_Entry_Query {
             return 0;
         }
 
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
         $deleted    = 0;
 
         foreach ( $ids as $id ) {

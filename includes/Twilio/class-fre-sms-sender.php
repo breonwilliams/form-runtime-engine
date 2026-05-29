@@ -3,7 +3,7 @@
  * SMS Sender for Promptless Forms Twilio integration.
  *
  * Sends outbound SMS via the Twilio API and logs all messages
- * to the fre_twilio_messages table for conversation tracking.
+ * to the pforms_twilio_messages table for conversation tracking.
  *
  * @package FormRuntimeEngine
  *
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Handles outbound SMS sending and message logging.
  */
-class FRE_SMS_Sender {
+class PForms_SMS_Sender {
 
     /**
      * Default hourly SMS limit per client.
@@ -53,16 +53,16 @@ class FRE_SMS_Sender {
     /**
      * Twilio API client.
      *
-     * @var FRE_Twilio_Client
+     * @var PForms_Twilio_Client
      */
     private $client;
 
     /**
      * Constructor.
      *
-     * @param FRE_Twilio_Client $client Twilio API client instance.
+     * @param PForms_Twilio_Client $client Twilio API client instance.
      */
-    public function __construct( FRE_Twilio_Client $client ) {
+    public function __construct( PForms_Twilio_Client $client ) {
         global $wpdb;
         $this->wpdb           = $wpdb;
         $this->messages_table = $wpdb->prefix . 'fre_twilio_messages';
@@ -103,7 +103,7 @@ class FRE_SMS_Sender {
         $log_id = $this->log_message( $entry_id, 'outbound', $body, $message_sid, $status );
 
         if ( is_wp_error( $response ) ) {
-            FRE_Logger::error(
+            PForms_Logger::error(
                 sprintf(
                     'SMS send failed: To=%s, From=%s, Error=%s',
                     $to,
@@ -123,7 +123,7 @@ class FRE_SMS_Sender {
          * @param int    $entry_id Associated entry ID.
          * @param array  $response Twilio API response.
          */
-        do_action( 'fre_twilio_sms_sent', $to, $from, $body, $entry_id, $response );
+        do_action( 'pforms_twilio_sms_sent', $to, $from, $body, $entry_id, $response );
 
         return $response;
     }
@@ -165,7 +165,7 @@ class FRE_SMS_Sender {
         );
 
         if ( $result === false ) {
-            FRE_Logger::error( 'Failed to log SMS message: ' . $this->wpdb->last_error );
+            PForms_Logger::error( 'Failed to log SMS message: ' . $this->wpdb->last_error );
             return false;
         }
 
@@ -229,12 +229,12 @@ class FRE_SMS_Sender {
      */
     private function check_rate_limit( $from_number ) {
         // Check per-client hourly limit.
-        $hourly_limit = apply_filters( 'fre_twilio_hourly_sms_limit', self::DEFAULT_HOURLY_LIMIT );
-        $hourly_key   = 'fre_twilio_sms_' . md5( $from_number ) . '_' . gmdate( 'YmdH' );
+        $hourly_limit = apply_filters( 'pforms_twilio_hourly_sms_limit', self::DEFAULT_HOURLY_LIMIT );
+        $hourly_key   = 'pforms_twilio_sms_' . md5( $from_number ) . '_' . gmdate( 'YmdH' );
         $hourly_count = (int) get_transient( $hourly_key );
 
         if ( $hourly_count >= $hourly_limit ) {
-            FRE_Logger::error(
+            PForms_Logger::error(
                 sprintf( 'SMS rate limit reached: %d/%d hourly for %s', $hourly_count, $hourly_limit, $from_number )
             );
             return new WP_Error(
@@ -244,12 +244,12 @@ class FRE_SMS_Sender {
         }
 
         // Check global daily limit.
-        $daily_limit = apply_filters( 'fre_twilio_daily_sms_limit', self::DEFAULT_DAILY_LIMIT );
-        $daily_key   = 'fre_twilio_sms_global_' . gmdate( 'Ymd' );
+        $daily_limit = apply_filters( 'pforms_twilio_daily_sms_limit', self::DEFAULT_DAILY_LIMIT );
+        $daily_key   = 'pforms_twilio_sms_global_' . gmdate( 'Ymd' );
         $daily_count = (int) get_transient( $daily_key );
 
         if ( $daily_count >= $daily_limit ) {
-            FRE_Logger::error(
+            PForms_Logger::error(
                 sprintf( 'SMS global daily limit reached: %d/%d', $daily_count, $daily_limit )
             );
             return new WP_Error(

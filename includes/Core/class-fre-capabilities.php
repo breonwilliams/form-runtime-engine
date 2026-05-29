@@ -7,7 +7,7 @@
  * MANAGE_FORMS constant.
  *
  * Capability model:
- *   - `fre_manage_forms`: Controls access to form management (CRUD of forms,
+ *   - `pforms_manage_forms`: Controls access to form management (CRUD of forms,
  *     viewing/managing entries, running the forms admin UI, operating the
  *     Cowork connector in Phase 2+).
  *
@@ -26,22 +26,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Capability helper.
  */
-class FRE_Capabilities {
+class PForms_Capabilities {
 
     /**
      * Primary capability for managing forms, entries, and the Cowork connector.
      *
-     * Use `current_user_can( FRE_Capabilities::MANAGE_FORMS )` anywhere a check
+     * Use `current_user_can( PForms_Capabilities::MANAGE_FORMS )` anywhere a check
      * is needed. Do not hard-code the string elsewhere.
      *
      * @var string
      */
-    const MANAGE_FORMS = 'fre_manage_forms';
+    const MANAGE_FORMS = 'pforms_manage_forms';
 
     /**
      * Roles that receive MANAGE_FORMS by default on install and upgrade.
      *
-     * Extendable via the `fre_default_manage_forms_roles` filter so site owners
+     * Extendable via the `pforms_default_manage_forms_roles` filter so site owners
      * can opt additional roles in at activation time rather than granting the
      * capability manually after the fact.
      *
@@ -57,7 +57,7 @@ class FRE_Capabilities {
          * @param array $roles Default roles (administrator only by default).
          */
         return apply_filters(
-            'fre_default_manage_forms_roles',
+            'pforms_default_manage_forms_roles',
             array( 'administrator' )
         );
     }
@@ -70,8 +70,8 @@ class FRE_Capabilities {
      * on the role.
      *
      * Called from:
-     *   - FRE_Upgrader on fresh install
-     *   - FRE_Upgrader on plugin-version upgrade
+     *   - PForms_Upgrader on fresh install
+     *   - PForms_Upgrader on plugin-version upgrade
      *   - Plugin activation hook (belt-and-braces for update paths that do
      *     re-activate the plugin)
      */

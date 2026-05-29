@@ -9,7 +9,7 @@
  * never see leaked values from fields the prospect couldn't actually see).
  *
  * Designed to be shape-agnostic about the data array: the lookup tries the
- * clean field key first, then the prefixed `fre_field_<key>` form, so the
+ * clean field key first, then the prefixed `pforms_field_<key>` form, so the
  * same evaluator works both pre-sanitize (validator path, where data is
  * raw $_POST with prefixed keys) and post-sanitize (submission handler path,
  * where data is the sanitizer's clean-keyed return map).
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Conditional visibility helper.
  */
-class FRE_Conditions {
+class PForms_Conditions {
 
     /**
      * Determine whether a field is visible given the current submission data.
@@ -60,7 +60,7 @@ class FRE_Conditions {
          * @param array $form_config Full form configuration.
          * @param array $data        Submission data.
          */
-        return (bool) apply_filters( 'fre_field_is_visible', $visible, $field, $form_config, $data );
+        return (bool) apply_filters( 'pforms_field_is_visible', $visible, $field, $form_config, $data );
     }
 
     /**
@@ -94,7 +94,7 @@ class FRE_Conditions {
             // Drop both clean-key and prefixed-key variants so the helper is
             // safe to call on either shape of data array.
             unset( $data[ $field['key'] ] );
-            unset( $data[ 'fre_field_' . $field['key'] ] );
+            unset( $data[ 'pforms_field_' . $field['key'] ] );
         }
 
         return $data;
@@ -139,7 +139,7 @@ class FRE_Conditions {
      * Evaluate a single rule.
      *
      * Mirrors the operator vocabulary previously implemented in
-     * `FRE_Validator::evaluate_rule()`. Equivalences (`==`, `=` for `equals`;
+     * `PForms_Validator::evaluate_rule()`. Equivalences (`==`, `=` for `equals`;
      * `!=`, `<>` for `not_equals`; etc.) are preserved so existing form
      * configurations continue to evaluate identically.
      *
@@ -225,7 +225,7 @@ class FRE_Conditions {
      * Resolve a field's value from the submission data.
      *
      * Tries the clean field key first (the post-sanitize shape), then falls
-     * back to `fre_field_<key>` (the pre-sanitize / raw $_POST shape) so the
+     * back to `pforms_field_<key>` (the pre-sanitize / raw $_POST shape) so the
      * same evaluator works in both the validator path and the submission
      * handler's strip path without two parallel implementations.
      *
@@ -245,7 +245,7 @@ class FRE_Conditions {
             return $data[ $field_key ];
         }
 
-        $prefixed = 'fre_field_' . $field_key;
+        $prefixed = 'pforms_field_' . $field_key;
         if ( array_key_exists( $prefixed, $data ) ) {
             return $data[ $prefixed ];
         }

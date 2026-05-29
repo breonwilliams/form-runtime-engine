@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Twilio API client wrapper.
  */
-class FRE_Twilio_Client {
+class PForms_Twilio_Client {
 
     /**
      * Twilio API base URL.
@@ -72,14 +72,14 @@ class FRE_Twilio_Client {
      * credentials are present but couldn't be decrypted — please
      * re-enter them" message.
      *
-     * @return FRE_Twilio_Client|WP_Error Client instance, or:
+     * @return PForms_Twilio_Client|WP_Error Client instance, or:
      *           - WP_Error('twilio_not_configured') when neither
      *             credential is stored
      *           - WP_Error('twilio_credentials_unreadable') when
      *             credentials are stored but decryption failed
      */
     public static function from_settings() {
-        $settings = get_option( 'fre_twilio_settings', array() );
+        $settings = get_option( 'pforms_twilio_settings', array() );
 
         $stored_sid   = isset( $settings['account_sid'] ) ? $settings['account_sid'] : '';
         $stored_token = isset( $settings['auth_token'] ) ? $settings['auth_token'] : '';
@@ -156,7 +156,7 @@ class FRE_Twilio_Client {
         );
 
         if ( is_wp_error( $response ) ) {
-            FRE_Logger::error( 'Twilio SMS Error: ' . $response->get_error_message() );
+            PForms_Logger::error( 'Twilio SMS Error: ' . $response->get_error_message() );
             return $response;
         }
 
@@ -168,7 +168,7 @@ class FRE_Twilio_Client {
             $error_msg = isset( $data['message'] ) ? $data['message'] : 'Unknown Twilio error';
             $error_code = isset( $data['code'] ) ? $data['code'] : $status_code;
 
-            FRE_Logger::error(
+            PForms_Logger::error(
                 sprintf( 'Twilio SMS Error (%d): %s | To: %s | From: %s', $error_code, $error_msg, $to, $from )
             );
 

@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * JSON schema validator class.
  */
-class FRE_JSON_Schema_Validator {
+class PForms_JSON_Schema_Validator {
 
     /**
      * Valid field types supported by the form engine.
@@ -243,7 +243,7 @@ class FRE_JSON_Schema_Validator {
              *
              * @param array $valid_types Array of valid field type slugs.
              */
-            $valid_types = apply_filters( 'fre_field_types', self::$valid_field_types );
+            $valid_types = apply_filters( 'pforms_field_types', self::$valid_field_types );
 
             if ( ! in_array( $type, $valid_types, true ) ) {
                 $result['valid']    = false;
@@ -462,6 +462,6 @@ class FRE_JSON_Schema_Validator {
      * @return array Valid field type slugs.
      */
     public static function get_valid_field_types() {
-        return apply_filters( 'fre_field_types', self::$valid_field_types );
+        return apply_filters( 'pforms_field_types', self::$valid_field_types );
     }
 }

@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Validates Twilio webhook request signatures.
  */
-class FRE_Twilio_Validator {
+class PForms_Twilio_Validator {
 
     /**
      * Validate a Twilio webhook request.
@@ -71,7 +71,7 @@ class FRE_Twilio_Validator {
             : '';
 
         if ( empty( $signature ) ) {
-            FRE_Logger::error( 'Twilio Validator: Missing X-Twilio-Signature header.' );
+            PForms_Logger::error( 'Twilio Validator: Missing X-Twilio-Signature header.' );
             return new WP_Error(
                 'missing_signature',
                 __( 'Missing Twilio signature.', 'promptless-forms' ),
@@ -90,7 +90,7 @@ class FRE_Twilio_Validator {
         $is_valid = self::validate( $url, $params, $signature, $auth_token );
 
         if ( ! $is_valid ) {
-            FRE_Logger::error( 'Twilio Validator: Invalid signature for URL: ' . $url );
+            PForms_Logger::error( 'Twilio Validator: Invalid signature for URL: ' . $url );
             return new WP_Error(
                 'invalid_signature',
                 __( 'Invalid Twilio signature.', 'promptless-forms' ),

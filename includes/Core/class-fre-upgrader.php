@@ -3,12 +3,12 @@
  * Plugin upgrade handler for Promptless Forms.
  *
  * Runs on every `plugins_loaded` to detect when the plugin's code version
- * (FRE_VERSION) differs from the version stored in the database
- * (`fre_plugin_version` option). When it detects a difference, it runs any
+ * (PForms_VERSION) differs from the version stored in the database
+ * (`pforms_plugin_version` option). When it detects a difference, it runs any
  * required upgrade routines and updates the stored version.
  *
- * This is distinct from FRE_Migrator, which handles *database schema* versioning
- * via the `fre_db_version` option. Those concerns are orthogonal: the schema may
+ * This is distinct from PForms_Migrator, which handles *database schema* versioning
+ * via the `pforms_db_version` option. Those concerns are orthogonal: the schema may
  * change within a plugin version, and the plugin may release updates that don't
  * touch the schema.
  *
@@ -37,14 +37,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Plugin version upgrader.
  */
-class FRE_Upgrader {
+class PForms_Upgrader {
 
     /**
      * Option key that stores the last-seen plugin version.
      *
      * @var string
      */
-    const VERSION_OPTION = 'fre_plugin_version';
+    const VERSION_OPTION = 'pforms_plugin_version';
 
     /**
      * Detect whether the plugin's code version differs from the stored version.
@@ -53,8 +53,20 @@ class FRE_Upgrader {
      * versions already match.
      */
     public static function maybe_upgrade() {
+        // One-time prefix migration (1.8.0): copy any options stored under the
+        // legacy `fre_` prefix to the new `pforms_` prefix. Must run BEFORE the
+        // version check below, because the version marker itself was renamed
+        // (`fre_plugin_version` → `pforms_plugin_version`). Without this, a site
+        // upgrading from <1.8.0 would read an empty new version marker, mistake
+        // itself for a fresh install, and skip the upgrade routine (capability
+        // grant, etc.). Gated by a single get_option so it's a no-op on the hot
+        // path once the legacy marker is gone.
+        if ( null !== get_option( 'fre_plugin_version', null ) ) {
+            self::migrate_legacy_prefix_options();
+        }
+
         $stored  = get_option( self::VERSION_OPTION, '' );
-        $current = defined( 'FRE_VERSION' ) ? FRE_VERSION : '0.0.0';
+        $current = defined( 'PForms_VERSION' ) ? PForms_VERSION : '0.0.0';
 
         // Fresh install: no stored version. Stamp it and run fresh-install routine.
         if ( '' === $stored ) {
@@ -72,8 +84,8 @@ class FRE_Upgrader {
         // fact that the site was once at a higher version, so re-upgrading
         // doesn't re-trigger upgrade routines.
         if ( version_compare( $stored, $current, '>' ) ) {
-            if ( class_exists( 'FRE_Logger' ) ) {
-                FRE_Logger::warning(
+            if ( class_exists( 'PForms_Logger' ) ) {
+                PForms_Logger::warning(
                     sprintf(
                         'Promptless Forms downgrade detected: stored version %s > plugin version %s. No routines run.',
                         $stored,
@@ -90,13 +102,97 @@ class FRE_Upgrader {
     }
 
     /**
+     * Migrate option keys from the legacy `fre_` prefix to `pforms_`.
+     *
+     * Runs once when a site upgrades from a pre-1.8.0 version (detected by the
+     * presence of the legacy `fre_plugin_version` option). The plugin renamed
+     * its entire symbol/option surface from the 3-character `fre` prefix to
+     * `pforms` to satisfy WordPress.org's 4-character prefix requirement; this
+     * routine carries each persisted option across so existing sites keep their
+     * saved forms, settings, API keys, and connector state.
+     *
+     * Idempotent: each key is copied only if the source exists and the target
+     * does not, then the source is deleted. After the run, the legacy
+     * `fre_plugin_version` marker is gone, so the gate in maybe_upgrade() skips
+     * this method on every subsequent load.
+     *
+     * Custom DB tables (wp_fre_entries, wp_fre_twilio_clients, etc.) are NOT
+     * renamed — table names are not subject to the prefix rule and renaming
+     * them would require a destructive ALTER. Transients are not migrated —
+     * they self-heal (the code looks up the new key, misses, regenerates; old
+     * ones expire on their own).
+     */
+    private static function migrate_legacy_prefix_options() {
+        // Sentinel distinguishes "option absent" from a legitimately-stored
+        // false/empty/0 value.
+        $sentinel = '__pforms_option_absent__';
+
+        // Legacy option keys (without the prefix). Each migrates from
+        // 'fre_' . $key to 'pforms_' . $key.
+        $keys = array(
+            'plugin_version',
+            'db_version',
+            'migration_error',
+            'email_failures',
+            'client_forms',
+            'connector_call_log',
+            'honeypot_secret',
+            'failed_email_queue',
+            'quarantine_suffix',
+            'twilio_settings',
+            'twilio_db_version',
+            'twilio_migration_error',
+            'connector_enabled',
+            'connector_entry_read_enabled',
+            'google_places_api_key',
+            'form_config_errors',
+        );
+
+        foreach ( $keys as $key ) {
+            $old_key = 'fre_' . $key;
+            $new_key = 'pforms_' . $key;
+
+            $old_value = get_option( $old_key, $sentinel );
+            if ( $sentinel === $old_value ) {
+                continue; // Legacy option never existed on this site.
+            }
+
+            // Copy to the new key only if it isn't already populated (protects
+            // against clobbering a value written by the new code before this
+            // migration ran).
+            if ( $sentinel === get_option( $new_key, $sentinel ) ) {
+                update_option( $new_key, $old_value );
+            }
+
+            delete_option( $old_key );
+        }
+
+        // Revoke the legacy `fre_manage_forms` capability from all roles. The
+        // new `pforms_manage_forms` capability is granted by
+        // grant_default_capabilities() during the upgrade routine that runs
+        // right after this migration, so admins keep access without
+        // interruption; this just clears the orphaned old grant.
+        if ( class_exists( 'WP_Roles' ) ) {
+            $roles = wp_roles();
+            if ( $roles instanceof WP_Roles ) {
+                foreach ( array_keys( $roles->roles ) as $role_slug ) {
+                    $role = get_role( $role_slug );
+                    if ( $role instanceof WP_Role && $role->has_cap( 'fre_manage_forms' ) ) {
+                        $role->remove_cap( 'fre_manage_forms' );
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Force-run the fresh-install routine and stamp the stored version.
      *
      * Called from the plugin's activation hook to guarantee capabilities are
      * granted even before the first `plugins_loaded` fires on a new install.
      */
     public static function on_activation() {
-        $current = defined( 'FRE_VERSION' ) ? FRE_VERSION : '0.0.0';
+        $current = defined( 'PForms_VERSION' ) ? PForms_VERSION : '0.0.0';
         $stored  = get_option( self::VERSION_OPTION, '' );
 
         if ( '' === $stored ) {
@@ -104,7 +200,7 @@ class FRE_Upgrader {
         } else {
             // Reactivation of an existing install — ensure caps are present.
             // (They might have been removed by a previous uninstall or manual intervention.)
-            FRE_Capabilities::grant_default_capabilities();
+            PForms_Capabilities::grant_default_capabilities();
         }
 
         update_option( self::VERSION_OPTION, $current );
@@ -154,7 +250,7 @@ class FRE_Upgrader {
          * @param string $from Previous plugin version.
          * @param string $to   Current plugin version.
          */
-        do_action( 'fre_plugin_upgraded', $from, $to );
+        do_action( 'pforms_plugin_upgraded', $from, $to );
     }
 
     /**
@@ -165,7 +261,7 @@ class FRE_Upgrader {
     private static function run_common_upgrade_steps() {
         // Grant capabilities to default roles. Idempotent at the
         // WP_Role::add_cap() level.
-        FRE_Capabilities::grant_default_capabilities();
+        PForms_Capabilities::grant_default_capabilities();
     }
 
     /**

@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Entry detail view handler.
  */
-class FRE_Entry_Detail {
+class PForms_Entry_Detail {
 
     /**
      * Entry ID.
@@ -55,11 +55,11 @@ class FRE_Entry_Detail {
      * Load entry data.
      */
     private function load_entry() {
-        $entry_repo  = new FRE_Entry();
+        $entry_repo  = new PForms_Entry();
         $this->entry = $entry_repo->get( $this->entry_id );
 
         if ( $this->entry ) {
-            $this->form = fre()->registry->get( $this->entry['form_id'] );
+            $this->form = pforms()->registry->get( $this->entry['form_id'] );
 
             // Mark as read.
             if ( $this->entry['status'] === 'unread' ) {
@@ -78,7 +78,7 @@ class FRE_Entry_Detail {
         }
 
         // Build back URL - preserve form_id filter if coming from filtered view.
-        $back_url = admin_url( 'admin.php?page=fre-entries' );
+        $back_url = admin_url( 'admin.php?page=pforms-entries' );
 
         // Check the referer for form_id filter.
         $referer = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
@@ -89,7 +89,7 @@ class FRE_Entry_Detail {
 
         // Also check if form_id was passed directly in the URL.
         if ( isset( $_GET['form_id'] ) ) {
-            $back_url = add_query_arg( 'form_id', sanitize_key( $_GET['form_id'] ), admin_url( 'admin.php?page=fre-entries' ) );
+            $back_url = add_query_arg( 'form_id', sanitize_key( $_GET['form_id'] ), admin_url( 'admin.php?page=pforms-entries' ) );
         }
 
         ?>
@@ -204,7 +204,7 @@ class FRE_Entry_Detail {
         $type = $config ? ( $config['type'] ?? 'text' ) : 'text';
 
         // Get field instance for formatting.
-        $field_class = FRE_Autoloader::get_field_class( $type );
+        $field_class = PForms_Autoloader::get_field_class( $type );
         if ( $field_class && class_exists( $field_class ) ) {
             $field_instance = new $field_class();
             // Fix #7: Apply wp_kses_post to sanitize output from field formatters.
@@ -379,12 +379,12 @@ class FRE_Entry_Detail {
      * Render the SMS conversation thread for Twilio text-back entries.
      *
      * Checks whether this entry has associated SMS messages in the
-     * fre_twilio_messages table and renders them as a conversation
+     * pforms_twilio_messages table and renders them as a conversation
      * thread. Only displays for entries that have SMS activity.
      */
     private function maybe_render_sms_thread() {
         // Only attempt if the SMS sender class exists (Twilio module active).
-        if ( ! class_exists( 'FRE_SMS_Sender' ) && ! class_exists( 'FRE_Twilio_Client' ) ) {
+        if ( ! class_exists( 'PForms_SMS_Sender' ) && ! class_exists( 'PForms_Twilio_Client' ) ) {
             return;
         }
 

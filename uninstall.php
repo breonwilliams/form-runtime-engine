@@ -24,17 +24,17 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 // Define plugin directory if not already defined.
-if ( ! defined( 'FRE_PLUGIN_DIR' ) ) {
-    define( 'FRE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+if ( ! defined( 'PForms_PLUGIN_DIR' ) ) {
+    define( 'PForms_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 }
 
 // Load required files.
-require_once FRE_PLUGIN_DIR . 'includes/class-fre-autoloader.php';
+require_once PForms_PLUGIN_DIR . 'includes/class-fre-autoloader.php';
 
 /**
  * Clean up all plugin data.
  */
-function fre_uninstall_cleanup() {
+function pforms_uninstall_cleanup() {
     global $wpdb;
 
     // Delete database tables.
@@ -53,51 +53,51 @@ function fre_uninstall_cleanup() {
     }
 
     // Delete options.
-    delete_option( 'fre_db_version' );
-    delete_option( 'fre_plugin_version' );
-    delete_option( 'fre_migration_error' );
-    delete_option( 'fre_email_failures' );
+    delete_option( 'pforms_db_version' );
+    delete_option( 'pforms_plugin_version' );
+    delete_option( 'pforms_migration_error' );
+    delete_option( 'pforms_email_failures' );
 
     // Delete database-stored forms.
     // Previously leaked on uninstall — explicitly cleaned since the forms
     // repository extraction.
-    delete_option( 'fre_client_forms' );
+    delete_option( 'pforms_client_forms' );
 
     // Delete transients.
     $wpdb->query(
         "DELETE FROM {$wpdb->options}
-        WHERE option_name LIKE '_transient_fre_%'
-        OR option_name LIKE '_transient_timeout_fre_%'"
+        WHERE option_name LIKE '_transient_pforms_%'
+        OR option_name LIKE '_transient_timeout_pforms_%'"
     );
 
     // Revoke the plugin's custom capability from every role.
     // Loaded lazily so uninstall still succeeds if the class is missing for
     // any reason (e.g., partial file deletion before cleanup runs).
-    if ( class_exists( 'FRE_Capabilities' ) ) {
-        FRE_Capabilities::revoke_all_capabilities();
+    if ( class_exists( 'PForms_Capabilities' ) ) {
+        PForms_Capabilities::revoke_all_capabilities();
     }
 
     // Remove connector settings (toggles + per-user configuration markers).
-    if ( class_exists( 'FRE_Connector_Settings' ) ) {
-        FRE_Connector_Settings::delete_all();
+    if ( class_exists( 'PForms_Connector_Settings' ) ) {
+        PForms_Connector_Settings::delete_all();
     }
 
     // Remove the connector call log.
-    if ( class_exists( 'FRE_Connector_Log' ) ) {
-        FRE_Connector_Log::clear();
+    if ( class_exists( 'PForms_Connector_Log' ) ) {
+        PForms_Connector_Log::clear();
     } else {
-        delete_option( 'fre_connector_call_log' );
+        delete_option( 'pforms_connector_call_log' );
     }
 
     // Clean up any connector rate-limit transients.
     $wpdb->query(
         "DELETE FROM {$wpdb->options}
-        WHERE option_name LIKE '_transient_fre_connector_rate_%'
-        OR option_name LIKE '_transient_timeout_fre_connector_rate_%'"
+        WHERE option_name LIKE '_transient_pforms_connector_rate_%'
+        OR option_name LIKE '_transient_timeout_pforms_connector_rate_%'"
     );
 
     // Delete uploaded files.
-    fre_delete_upload_directory();
+    pforms_delete_upload_directory();
 
     // Clear any cached data.
     wp_cache_flush();
@@ -106,12 +106,12 @@ function fre_uninstall_cleanup() {
 /**
  * Delete the upload directory and all contents.
  */
-function fre_delete_upload_directory() {
+function pforms_delete_upload_directory() {
     $upload_dir = wp_upload_dir();
-    $fre_dir    = trailingslashit( $upload_dir['basedir'] ) . 'fre-uploads';
+    $pforms_dir    = trailingslashit( $upload_dir['basedir'] ) . 'fre-uploads';
 
-    if ( is_dir( $fre_dir ) ) {
-        fre_recursive_delete( $fre_dir );
+    if ( is_dir( $pforms_dir ) ) {
+        pforms_recursive_delete( $pforms_dir );
     }
 }
 
@@ -121,7 +121,7 @@ function fre_delete_upload_directory() {
  * @param string $dir Directory path.
  * @return bool True on success.
  */
-function fre_recursive_delete( $dir ) {
+function pforms_recursive_delete( $dir ) {
     if ( ! is_dir( $dir ) ) {
         return false;
     }
@@ -132,7 +132,7 @@ function fre_recursive_delete( $dir ) {
         $path = trailingslashit( $dir ) . $file;
 
         if ( is_dir( $path ) ) {
-            fre_recursive_delete( $path );
+            pforms_recursive_delete( $path );
         } else {
             unlink( $path );
         }
@@ -142,4 +142,4 @@ function fre_recursive_delete( $dir ) {
 }
 
 // Run cleanup.
-fre_uninstall_cleanup();
+pforms_uninstall_cleanup();

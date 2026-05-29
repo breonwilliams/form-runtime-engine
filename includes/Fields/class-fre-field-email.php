@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Email input field type.
  */
-class FRE_Field_Email extends FRE_Field_Type_Abstract {
+class PForms_Field_Email extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

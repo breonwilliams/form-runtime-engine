@@ -94,7 +94,7 @@ const TOOLS = [
       "KEY VISUAL SETTINGS to decide up front: (a) `settings.theme_variant` — set to \"dark\" when the form will be embedded in a dark-background section (a Promptless hero with theme_variant:\"dark\", for example), \"light\" otherwise. Defaults to light; skipping this produces light-theme inputs on dark backgrounds, which fails accessibility contrast. (b) `settings.appearance.surface` — set to \"card\" to wrap the form in a token-aware card (background, border, radius, padding) that inherits design tokens from the parent AISB section. Default \"none\" leaves the form flat on the section background. " +
       "If you're building forms for a site that ALSO uses Promptless WP (AI Section Builder Modern), see docs/WORKFLOW_PROMPTLESS_INTEGRATION.md for the end-to-end deployment flow — the FRE shortcode goes into a Promptless hero's `shortcode_content` field with `media_type: \"shortcode\"` so the form renders as the hero's primary visual element. " +
       "Forms created through this tool are automatically tagged managed_by='connector:cowork' and start at connector_version=1. " +
-      "Returns the created record, including the shortcode to embed the form (e.g. [fre_form id=\"contact\"]). " +
+      "Returns the created record, including the shortcode to embed the form (e.g. [pforms_form id=\"contact\"]). " +
       "Conflicts on an existing ID return form_exists (409); use formengine_update_form instead.",
     inputSchema: {
       type: "object",
@@ -102,7 +102,7 @@ const TOOLS = [
         id: {
           type: "string",
           description:
-            "Unique form identifier. Must match ^[a-z0-9\\-_]+$. This becomes the shortcode attribute (e.g. [fre_form id=\"<id>\"]).",
+            "Unique form identifier. Must match ^[a-z0-9\\-_]+$. This becomes the shortcode attribute (e.g. [pforms_form id=\"<id>\"]).",
         },
         title: {
           type: "string",
@@ -221,7 +221,7 @@ const TOOLS = [
   {
     name: "formengine_test_submit",
     description:
-      "Submit a form programmatically for testing. Primary use: validate end-to-end that a form works — validation rules, webhook dispatch, notifications — before handing off to a client. The 'data' argument is a map of FIELD KEY (clean, no fre_field_ prefix) → value. Use options.dry_run=true to run validation only and return what would have been stored, without writing to the database or firing any side effects. Use options.skip_notifications=true to write a real entry (for downstream webhook testing) but suppress the email notification.",
+      "Submit a form programmatically for testing. Primary use: validate end-to-end that a form works — validation rules, webhook dispatch, notifications — before handing off to a client. The 'data' argument is a map of FIELD KEY (clean, no pforms_field_ prefix) → value. Use options.dry_run=true to run validation only and return what would have been stored, without writing to the database or firing any side effects. Use options.skip_notifications=true to write a real entry (for downstream webhook testing) but suppress the email notification.",
     inputSchema: {
       type: "object",
       properties: {
@@ -229,7 +229,7 @@ const TOOLS = [
         data: {
           type: "object",
           description:
-            "Field key → value map. Use clean field keys (e.g. 'email', not 'fre_field_email').",
+            "Field key → value map. Use clean field keys (e.g. 'email', not 'pforms_field_email').",
         },
         options: {
           type: "object",

@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Select dropdown field type.
  */
-class FRE_Field_Select extends FRE_Field_Type_Abstract {
+class PForms_Field_Select extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

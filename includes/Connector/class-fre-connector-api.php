@@ -5,9 +5,9 @@
  * Registers all routes under /wp-json/fre/v1/connector/*. Delegates to the
  * existing plugin subsystems:
  *
- *   - FRE_Forms_Repository for form CRUD
- *   - FRE_Entry, FRE_Entry_Query for entry reads
- *   - FRE_Submission_Handler::process_submission() for test submissions
+ *   - PForms_Forms_Repository for form CRUD
+ *   - PForms_Entry, PForms_Entry_Query for entry reads
+ *   - PForms_Submission_Handler::process_submission() for test submissions
  *
  * This class owns:
  *   - Route registration (see self::register_routes)
@@ -15,9 +15,9 @@
  *   - Argument validation via register_rest_route's $args sanitize_callback
  *
  * Does NOT own:
- *   - Permission decisions — those live in FRE_Connector_Auth
- *   - Storage — that lives in FRE_Forms_Repository
- *   - Validation of form config JSON — that lives in FRE_JSON_Schema_Validator
+ *   - Permission decisions — those live in PForms_Connector_Auth
+ *   - Storage — that lives in PForms_Forms_Repository
+ *   - Validation of form config JSON — that lives in PForms_JSON_Schema_Validator
  *
  * Contract and error codes documented in docs/CONNECTOR_SPEC.md.
  *
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Connector REST controller.
  */
-class FRE_Connector_API {
+class PForms_Connector_API {
 
     /**
      * REST namespace. The URL becomes /wp-json/fre/v1/...
@@ -127,7 +127,7 @@ class FRE_Connector_API {
             $status = isset( $data['status'] ) ? (int) $data['status'] : 500;
         }
 
-        FRE_Connector_Log::record( array(
+        PForms_Connector_Log::record( array(
             'ts'       => time(),
             'method'   => $request->get_method(),
             'route'    => $route,
@@ -142,7 +142,7 @@ class FRE_Connector_API {
     /**
      * Register all connector routes.
      *
-     * Every route passes through FRE_Connector_Auth::build_callback() for the
+     * Every route passes through PForms_Connector_Auth::build_callback() for the
      * three-check stack + rate limit. The `args` key leverages WordPress's
      * built-in argument validation where possible.
      */
@@ -157,7 +157,7 @@ class FRE_Connector_API {
             array(
                 'methods'             => WP_REST_Server::READABLE,
                 'callback'            => array( $this, 'handle_preflight' ),
-                'permission_callback' => FRE_Connector_Auth::build_callback( 'preflight' ),
+                'permission_callback' => PForms_Connector_Auth::build_callback( 'preflight' ),
             )
         );
 
@@ -185,7 +185,7 @@ class FRE_Connector_API {
                 array(
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => array( $this, 'handle_list_forms' ),
-                    'permission_callback' => FRE_Connector_Auth::build_callback( 'list_forms' ),
+                    'permission_callback' => PForms_Connector_Auth::build_callback( 'list_forms' ),
                     'args'                => array(
                         'page'       => array(
                             'type'              => 'integer',
@@ -210,7 +210,7 @@ class FRE_Connector_API {
                 array(
                     'methods'             => WP_REST_Server::CREATABLE,
                     'callback'            => array( $this, 'handle_create_form' ),
-                    'permission_callback' => FRE_Connector_Auth::build_callback( 'create_form' ),
+                    'permission_callback' => PForms_Connector_Auth::build_callback( 'create_form' ),
                     'args'                => array(
                         'id'              => array( 'type' => 'string', 'required' => true ),
                         'title'           => array( 'type' => 'string' ),
@@ -234,17 +234,17 @@ class FRE_Connector_API {
                 array(
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => array( $this, 'handle_get_form' ),
-                    'permission_callback' => FRE_Connector_Auth::build_callback( 'get_form' ),
+                    'permission_callback' => PForms_Connector_Auth::build_callback( 'get_form' ),
                 ),
                 array(
                     'methods'             => WP_REST_Server::EDITABLE, // PATCH, PUT, POST
                     'callback'            => array( $this, 'handle_update_form' ),
-                    'permission_callback' => FRE_Connector_Auth::build_callback( 'update_form' ),
+                    'permission_callback' => PForms_Connector_Auth::build_callback( 'update_form' ),
                 ),
                 array(
                     'methods'             => WP_REST_Server::DELETABLE,
                     'callback'            => array( $this, 'handle_delete_form' ),
-                    'permission_callback' => FRE_Connector_Auth::build_callback( 'delete_form' ),
+                    'permission_callback' => PForms_Connector_Auth::build_callback( 'delete_form' ),
                 ),
             )
         );
@@ -261,7 +261,7 @@ class FRE_Connector_API {
                 // up front, and we use the stricter of the two buckets to gate
                 // initial access. Actual bucket-specific limiting happens inside
                 // the handler before any side-effecting work.
-                'permission_callback' => FRE_Connector_Auth::build_callback( 'submit_dry_run' ),
+                'permission_callback' => PForms_Connector_Auth::build_callback( 'submit_dry_run' ),
             )
         );
 
@@ -272,7 +272,7 @@ class FRE_Connector_API {
             array(
                 'methods'             => WP_REST_Server::READABLE,
                 'callback'            => array( $this, 'handle_list_entries' ),
-                'permission_callback' => FRE_Connector_Auth::build_callback( 'list_entries', true ),
+                'permission_callback' => PForms_Connector_Auth::build_callback( 'list_entries', true ),
                 'args'                => array(
                     'form_id'   => array( 'type' => 'string', 'sanitize_callback' => 'sanitize_key' ),
                     'status'    => array(
@@ -295,7 +295,7 @@ class FRE_Connector_API {
             array(
                 'methods'             => WP_REST_Server::READABLE,
                 'callback'            => array( $this, 'handle_get_entry' ),
-                'permission_callback' => FRE_Connector_Auth::build_callback( 'get_entry', true ),
+                'permission_callback' => PForms_Connector_Auth::build_callback( 'get_entry', true ),
             )
         );
 
@@ -306,7 +306,7 @@ class FRE_Connector_API {
             array(
                 'methods'             => WP_REST_Server::DELETABLE,
                 'callback'            => array( $this, 'handle_delete_entry' ),
-                'permission_callback' => FRE_Connector_Auth::build_callback( 'delete_entry', true ),
+                'permission_callback' => PForms_Connector_Auth::build_callback( 'delete_entry', true ),
             )
         );
     }
@@ -329,12 +329,12 @@ class FRE_Connector_API {
         // or admin UI; if a connector is misbehaving the operator can ask
         // Cowork to "run a preflight check" and see most state at once.
         $diagnostics = array(
-            'stored_plugin_version' => class_exists( 'FRE_Upgrader' )
-                ? FRE_Upgrader::get_stored_version()
+            'stored_plugin_version' => class_exists( 'PForms_Upgrader' )
+                ? PForms_Upgrader::get_stored_version()
                 : null,
             'database_health'       => $this->collect_database_health(),
-            'recent_calls'          => class_exists( 'FRE_Connector_Log' )
-                ? FRE_Connector_Log::get_recent( 5 )
+            'recent_calls'          => class_exists( 'PForms_Connector_Log' )
+                ? PForms_Connector_Log::get_recent( 5 )
                 : array(),
         );
 
@@ -342,13 +342,13 @@ class FRE_Connector_API {
         $rulebook             = self::get_connector_rulebook( $schema_reference_url );
 
         return $this->success( array(
-            'plugin_version'            => defined( 'FRE_VERSION' ) ? FRE_VERSION : null,
+            'plugin_version'            => defined( 'PForms_VERSION' ) ? PForms_VERSION : null,
             'connector_api_version'     => 'v1',
-            'connector_enabled'         => FRE_Connector_Settings::is_enabled(),
-            'entry_read_enabled'        => FRE_Connector_Settings::is_entry_read_enabled(),
+            'connector_enabled'         => PForms_Connector_Settings::is_enabled(),
+            'entry_read_enabled'        => PForms_Connector_Settings::is_entry_read_enabled(),
             'authenticated_as'          => $user ? $user->user_login : null,
             'user_capabilities'         => array(
-                FRE_Capabilities::MANAGE_FORMS => current_user_can( FRE_Capabilities::MANAGE_FORMS ),
+                PForms_Capabilities::MANAGE_FORMS => current_user_can( PForms_Capabilities::MANAGE_FORMS ),
             ),
 
             // JSON Schema — the authoritative machine contract used by the
@@ -380,7 +380,7 @@ class FRE_Connector_API {
      * cause 90% of silent-failure bugs, while the exhaustive rulebook lives
      * at the markdown endpoint referenced by schema_reference_url.
      *
-     * KEEP THIS IN SYNC with docs/FRE_KNOWLEDGE_MAP.md. The markdown file is
+     * KEEP THIS IN SYNC with docs/PForms_KNOWLEDGE_MAP.md. The markdown file is
      * the canonical expandable source — this inline digest is a summary.
      *
      * @param string $schema_reference_url URL of the markdown rulebook endpoint.
@@ -407,7 +407,7 @@ class FRE_Connector_API {
                 'entry_read_gate' => 'formengine_list_entries and formengine_get_entry require the site administrator to have explicitly enabled entry-read access on the Form Entries → Claude Connection admin page. Without it, these endpoints return 403 entry_access_disabled. Preflight reports the current state in `entry_read_enabled`.',
                 'test_submit_dry_run' => 'formengine_test_submit writes a real entry and may dispatch webhooks / send notifications by default. Pass options.dry_run = true to validate-only without any side effects. Pass options.skip_notifications = true to write a real entry (e.g. for webhook testing) but suppress the email.',
                 'form_surface_options' => 'A form can render as a flat element on its parent section background (default) OR as a card with its own surface, border, and padding. Two routes: (1) FORM-LEVEL — set settings.appearance.surface = "card" to wrap the whole form in a token-aware card; preferred for simple single-surface forms. (2) FIELD-LEVEL — use one or more fields of type "section" to wrap grouped fields in cards; use when a form needs multiple grouped regions (e.g. a "Contact info" card above a "Message" card in the same form). When settings.appearance.surface = "card" is set, inner section cards are flattened automatically to avoid nested-card artifacts. Both routes inherit colors from the parent AISB section\'s theme variant. Vocabulary: "card", "surface", "wrapper", "container around the form" all refer to this feature.',
-                'honeypot_field_name_dynamic' => 'The spam-protection honeypot field name is NOT static. When a form is rendered, FRE generates a per-form honeypot name of the form `_fre_website_url_<hmac-suffix>`. Never hard-code that field into a test submission — the server rejects any submission that fills it. formengine_test_submit handles this correctly when called via the connector; the warning is for any direct REST consumers that might imitate form posts.',
+                'honeypot_field_name_dynamic' => 'The spam-protection honeypot field name is NOT static. When a form is rendered, FRE generates a per-form honeypot name of the form `_pforms_website_url_<hmac-suffix>`. Never hard-code that field into a test submission — the server rejects any submission that fills it. formengine_test_submit handles this correctly when called via the connector; the warning is for any direct REST consumers that might imitate form posts.',
                 'min_submission_time_enforcement' => 'settings.spam_protection.min_submission_time defaults to 3 seconds. Submissions posted within that window are silently rejected as likely-bot. Relevant when using formengine_test_submit without options.dry_run immediately after creating a form — add a small delay in automated test flows or pass dry_run=true.',
                 'aisb_token_inheritance' => 'When AI Section Builder Modern (Promptless WP) is active, FRE forms automatically inherit brand design tokens — primary / text / background / border colors, heading and body fonts, button and card border-radius, neo-brutalist mode if enabled — via CSS custom properties (--aisb-*). Forms inside an .aisb-section--dark ancestor automatically flip to dark mode without needing settings.theme_variant = "dark" (though setting it is still recommended for clarity). See schema_reference_url and docs/AISB_TOKEN_CONTRACT.md for the full token list.',
             ),
@@ -491,7 +491,7 @@ class FRE_Connector_API {
             'settings_hints' => array(
                 'theme_variant'     => 'Form styling mode: "light" (default) | "dark" | "auto" (inherits from parent AISB section). Set "dark" when embedding in a dark section. Forms inside an .aisb-section--dark ancestor auto-inherit dark mode even without this flag, but setting it explicitly is recommended.',
                 'appearance'        => 'settings.appearance.surface: "none" (default — fields sit on the parent section background) | "card" (form renders as a token-aware card with surface background, border, radius, and padding). Works for every form type. Synonyms users reach for: "card", "surface", "wrapper", "container". See critical_rules.form_surface_options for the full explanation of this versus using the section field type.',
-                'webhook'           => 'settings.webhook_enabled + settings.webhook_url enable external dispatch. Use HTTPS endpoints. The signing secret is admin-only and NOT exposed via this API. settings.webhook_preset = "google_sheets" | "zapier" | "make" | "custom" — drives the smart default for option-label resolution: google_sheets resolves select/radio/checkbox option values to their human-readable labels in the payload, while zapier/make/custom emit raw values (typically machine-readable integrations prefer stable identifiers). settings.webhook_resolve_option_labels (boolean, optional) explicitly overrides the preset default — true forces labels regardless, false forces raw values regardless. Webhook payload includes a files array; each file row has field_key, file_name, file_size, mime_type, and file_url for downstream automations to fetch (Zapier → Drive, Make → S3, etc.). Webhook fires on the fre_submission_complete action — AFTER files are attached — so file_url is always populated.',
+                'webhook'           => 'settings.webhook_enabled + settings.webhook_url enable external dispatch. Use HTTPS endpoints. The signing secret is admin-only and NOT exposed via this API. settings.webhook_preset = "google_sheets" | "zapier" | "make" | "custom" — drives the smart default for option-label resolution: google_sheets resolves select/radio/checkbox option values to their human-readable labels in the payload, while zapier/make/custom emit raw values (typically machine-readable integrations prefer stable identifiers). settings.webhook_resolve_option_labels (boolean, optional) explicitly overrides the preset default — true forces labels regardless, false forces raw values regardless. Webhook payload includes a files array; each file row has field_key, file_name, file_size, mime_type, and file_url for downstream automations to fetch (Zapier → Drive, Make → S3, etc.). Webhook fires on the pforms_submission_complete action — AFTER files are attached — so file_url is always populated.',
                 'notifications'     => 'settings.notification is an object {enabled, to, subject, from_name, from_email, reply_to}. Defaults: enabled=true, to={admin_email}, subject="New Form Submission", from_name={site_name}, from_email={admin_email}. Template variables available anywhere in these strings: {admin_email}, {site_name}, {site_url}, {form_title}, {field:key} (substitutes the submitted value of the field whose key is "key" — option values are resolved to their labels). reply_to defaults to {field:email} when an email field exists. settings.hide_empty_fields (boolean, default true) controls whether empty optional fields are skipped in the email body — set false to render every field with an em-dash placeholder for empty values, useful when emails feed downstream tooling that expects a fixed table shape. Conditionally-hidden fields (those with a conditions block that evaluates false) are ALWAYS skipped regardless of this flag.',
                 'spam_protection'   => 'settings.spam_protection.honeypot and .timing_check default to true. settings.spam_protection.min_submission_time defaults to 3 seconds — submissions faster than that are silently rejected. Rate limit default: 5 submissions per 3600 seconds (1 hour) per IP. The honeypot field name is dynamically generated per form (see critical_rules.honeypot_field_name_dynamic).',
                 'multistep'         => 'settings.multistep.progress_style: "steps" (default) | "bar" | "dots". settings.multistep.show_progress (default true) and .show_step_titles (default false) and .validate_on_next (default true) are also available. Only meaningful when a `steps` array is defined.',
@@ -520,11 +520,11 @@ class FRE_Connector_API {
         // strict-shape use cases but doesn't cover the drift patterns or
         // design-intent rules that consumers need to avoid silent failures.
         $candidates = array();
-        if ( defined( 'FRE_PLUGIN_DIR' ) ) {
-            $candidates[] = FRE_PLUGIN_DIR . 'docs/FRE_KNOWLEDGE_MAP.md';
+        if ( defined( 'PForms_PLUGIN_DIR' ) ) {
+            $candidates[] = PForms_PLUGIN_DIR . 'docs/PForms_KNOWLEDGE_MAP.md';
         }
-        // Relative fallback for unusual installs where FRE_PLUGIN_DIR isn't set.
-        $candidates[] = dirname( __DIR__, 2 ) . '/docs/FRE_KNOWLEDGE_MAP.md';
+        // Relative fallback for unusual installs where PForms_PLUGIN_DIR isn't set.
+        $candidates[] = dirname( __DIR__, 2 ) . '/docs/PForms_KNOWLEDGE_MAP.md';
 
         foreach ( $candidates as $path ) {
             if ( file_exists( $path ) && is_readable( $path ) ) {
@@ -550,7 +550,7 @@ class FRE_Connector_API {
     /**
      * Collect database health into a small structured payload.
      *
-     * Wraps FRE_Migrator's check_database_health into a shape suitable for
+     * Wraps PForms_Migrator's check_database_health into a shape suitable for
      * REST output. Returns either ['ok' => true] when all required tables
      * exist, or ['ok' => false, 'missing_tables' => [...]] when one or more
      * are absent — which usually indicates an incomplete activation.
@@ -558,11 +558,11 @@ class FRE_Connector_API {
      * @return array
      */
     private function collect_database_health() {
-        if ( ! class_exists( 'FRE_Migrator' ) ) {
+        if ( ! class_exists( 'PForms_Migrator' ) ) {
             return array( 'ok' => null, 'reason' => 'migrator_class_missing' );
         }
 
-        $migrator = new FRE_Migrator();
+        $migrator = new PForms_Migrator();
         $health   = $migrator->check_database_health();
 
         if ( true === $health ) {
@@ -586,7 +586,7 @@ class FRE_Connector_API {
         $per_page   = (int) $request->get_param( 'per_page' );
         $managed_by = $request->get_param( 'managed_by' );
 
-        $all = FRE_Forms_Repository::get_all();
+        $all = PForms_Forms_Repository::get_all();
 
         // Optional managed_by filter.
         if ( $managed_by ) {
@@ -619,7 +619,7 @@ class FRE_Connector_API {
      */
     public function handle_get_form( $request ) {
         $form_id = $request->get_param( 'form_id' );
-        $record  = FRE_Forms_Repository::get( $form_id );
+        $record  = PForms_Forms_Repository::get( $form_id );
 
         if ( null === $record ) {
             return $this->not_found_form( $form_id );
@@ -637,7 +637,7 @@ class FRE_Connector_API {
     public function handle_create_form( $request ) {
         $form_id = sanitize_key( (string) $request->get_param( 'id' ) );
 
-        if ( FRE_Forms_Repository::exists( $form_id ) ) {
+        if ( PForms_Forms_Repository::exists( $form_id ) ) {
             return new WP_Error(
                 'form_exists',
                 sprintf(
@@ -654,7 +654,7 @@ class FRE_Connector_API {
         // created through this endpoint are always owned by the connector.
         $input['managed_by'] = 'connector:cowork';
 
-        $result = FRE_Forms_Repository::save( $form_id, $input );
+        $result = PForms_Forms_Repository::save( $form_id, $input );
         if ( is_wp_error( $result ) ) {
             return $this->enrich_save_error( $result );
         }
@@ -675,7 +675,7 @@ class FRE_Connector_API {
      */
     public function handle_update_form( $request ) {
         $form_id  = (string) $request->get_param( 'form_id' );
-        $existing = FRE_Forms_Repository::get( $form_id );
+        $existing = PForms_Forms_Repository::get( $form_id );
 
         if ( null === $existing ) {
             return $this->not_found_form( $form_id );
@@ -695,7 +695,7 @@ class FRE_Connector_API {
         // Caller cannot change managed_by via PATCH — origin is immutable.
         // The repository preserves the existing value when we omit it.
 
-        $result = FRE_Forms_Repository::save( $form_id, $input );
+        $result = PForms_Forms_Repository::save( $form_id, $input );
         if ( is_wp_error( $result ) ) {
             return $this->enrich_save_error( $result );
         }
@@ -712,14 +712,14 @@ class FRE_Connector_API {
     public function handle_delete_form( $request ) {
         $form_id = (string) $request->get_param( 'form_id' );
 
-        if ( ! FRE_Forms_Repository::exists( $form_id ) ) {
+        if ( ! PForms_Forms_Repository::exists( $form_id ) ) {
             return $this->not_found_form( $form_id );
         }
 
         // Count before delete so we can report preserved entries accurately.
-        $preserved_count = FRE_Forms_Repository::count_entries( $form_id );
+        $preserved_count = PForms_Forms_Repository::count_entries( $form_id );
 
-        $deleted = FRE_Forms_Repository::delete( $form_id );
+        $deleted = PForms_Forms_Repository::delete( $form_id );
         if ( ! $deleted ) {
             return new WP_Error(
                 'delete_failed',
@@ -768,13 +768,13 @@ class FRE_Connector_API {
         // explicitly. Dry-runs were already gated by the submit_dry_run
         // bucket, which is less strict.
         if ( ! $options['dry_run'] ) {
-            $rate_check = FRE_Connector_Auth::enforce_rate_limit( 'submit_live', get_current_user_id() );
+            $rate_check = PForms_Connector_Auth::enforce_rate_limit( 'submit_live', get_current_user_id() );
             if ( is_wp_error( $rate_check ) ) {
                 return $rate_check;
             }
         }
 
-        $handler = new FRE_Submission_Handler();
+        $handler = new PForms_Submission_Handler();
         $result  = $handler->process_submission( $form_id, $data, $options );
 
         if ( is_wp_error( $result ) ) {
@@ -802,7 +802,7 @@ class FRE_Connector_API {
      * @return WP_REST_Response
      */
     public function handle_list_entries( $request ) {
-        $query = new FRE_Entry_Query();
+        $query = new PForms_Entry_Query();
 
         if ( $form_id = $request->get_param( 'form_id' ) ) {
             $query->form( $form_id );
@@ -846,7 +846,7 @@ class FRE_Connector_API {
      */
     public function handle_get_entry( $request ) {
         $entry_id = (int) $request->get_param( 'entry_id' );
-        $repo     = new FRE_Entry();
+        $repo     = new PForms_Entry();
         $record   = $repo->get( $entry_id );
 
         if ( null === $record ) {
@@ -877,7 +877,7 @@ class FRE_Connector_API {
      */
     public function handle_delete_entry( $request ) {
         $entry_id = (int) $request->get_param( 'entry_id' );
-        $repo     = new FRE_Entry();
+        $repo     = new PForms_Entry();
         $record   = $repo->get( $entry_id );
 
         if ( null === $record ) {
@@ -956,26 +956,26 @@ class FRE_Connector_API {
             'connector_version' => (int) ( $record['connector_version'] ?? 0 ),
             'created'           => (int) ( $record['created'] ?? 0 ),
             'modified'          => (int) ( $record['modified'] ?? 0 ),
-            'shortcode'         => sprintf( '[fre_form id="%s"]', $record['id'] ?? '' ),
+            'shortcode'         => sprintf( '[pforms_form id="%s"]', $record['id'] ?? '' ),
         );
     }
 
     /**
      * Shape an entry record for API output.
      *
-     * Hoists the internal `_fre_form_version` meta into a top-level
+     * Hoists the internal `_pforms_form_version` meta into a top-level
      * `form_version` field so consumers can correlate entries with form
      * versions for A/B analysis.
      *
-     * @param array $record Entry record from FRE_Entry::get or FRE_Entry_Query.
+     * @param array $record Entry record from PForms_Entry::get or PForms_Entry_Query.
      * @return array
      */
     private function build_entry_response( array $record ) {
         $fields       = isset( $record['fields'] ) && is_array( $record['fields'] ) ? $record['fields'] : array();
-        $form_version = isset( $fields['_fre_form_version'] ) ? (int) $fields['_fre_form_version'] : 0;
+        $form_version = isset( $fields['_pforms_form_version'] ) ? (int) $fields['_pforms_form_version'] : 0;
 
         // Strip the internal meta key from the public fields payload.
-        unset( $fields['_fre_form_version'] );
+        unset( $fields['_pforms_form_version'] );
 
         $response = array(
             'id'           => isset( $record['id'] ) ? (int) $record['id'] : 0,
@@ -1050,7 +1050,7 @@ class FRE_Connector_API {
     /**
      * Extract the repository-save input from a REST request.
      *
-     * Translates request params into the array shape FRE_Forms_Repository::save
+     * Translates request params into the array shape PForms_Forms_Repository::save
      * expects. Only copies keys the caller actually supplied; everything else
      * is left out so the repository's own defaulting kicks in.
      *

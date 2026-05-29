@@ -27,17 +27,17 @@ if ( ! defined( 'ABSPATH' ) ) {
     <?php echo $has_file_field ? 'enctype="multipart/form-data"' : ''; ?>
     <?php echo $args['ajax'] ? 'data-ajax="true"' : ''; ?>
 >
-    <?php wp_nonce_field( 'fre_submit_' . $form_id, '_wpnonce' ); ?>
+    <?php wp_nonce_field( 'pforms_submit_' . $form_id, '_wpnonce' ); ?>
 
-    <input type="hidden" name="fre_form_id" value="<?php echo esc_attr( $form_id ); ?>" />
+    <input type="hidden" name="pforms_form_id" value="<?php echo esc_attr( $form_id ); ?>" />
 
     <?php if ( ! empty( $settings['spam_protection']['timing_check'] ) ) : ?>
-        <input type="hidden" name="_fre_timestamp" value="<?php echo esc_attr( time() ); ?>" />
+        <input type="hidden" name="_pforms_timestamp" value="<?php echo esc_attr( time() ); ?>" />
     <?php endif; ?>
 
     <?php if ( ! empty( $settings['spam_protection']['honeypot'] ) ) : ?>
         <?php
-        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $honeypot_html is pre-escaped by FRE_Honeypot.
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $honeypot_html is pre-escaped by PForms_Honeypot.
         echo $honeypot_html;
         ?>
     <?php endif; ?>

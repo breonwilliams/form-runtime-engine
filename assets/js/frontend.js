@@ -39,7 +39,7 @@
             this.form = form;
             this.formId = form.dataset.formId;
             this.isAjax = form.dataset.ajax === 'true';
-            this.storageKey = `fre_form_${this.formId}`;
+            this.storageKey = `pforms_form_${this.formId}`;
             this.renderTime = Date.now();
             this.isSubmitting = false;
 
@@ -507,7 +507,7 @@
          * @returns {*} Field value.
          */
         getFieldValue(fieldKey) {
-            const name = `fre_field_${fieldKey}`;
+            const name = `pforms_field_${fieldKey}`;
 
             // Check for radio buttons.
             const radios = this.form.querySelectorAll(`input[name="${name}"][type="radio"]`);
@@ -622,7 +622,7 @@
 
                 data.forEach((value, key) => {
                     // Skip internal fields and files.
-                    if (key.startsWith('_') || key.startsWith('fre_file_')) {
+                    if (key.startsWith('_') || key.startsWith('pforms_file_')) {
                         return;
                     }
 
@@ -750,17 +750,17 @@
 
             // Prepare form data.
             const formData = new FormData(this.form);
-            formData.append('action', 'fre_submit_form');
-            formData.append('_fre_submission_id', this.currentSubmissionId);
+            formData.append('action', 'pforms_submit_form');
+            formData.append('_pforms_submission_id', this.currentSubmissionId);
 
             // Add list of hidden conditional fields for server-side validation.
             const hiddenFields = this.getHiddenConditionalFieldKeys();
             if (hiddenFields.length > 0) {
-                formData.append('_fre_hidden_fields', JSON.stringify(hiddenFields));
+                formData.append('_pforms_hidden_fields', JSON.stringify(hiddenFields));
             }
 
             try {
-                const response = await fetch(freAjax.url, {
+                const response = await fetch(pformsAjax.url, {
                     method: 'POST',
                     body: formData,
                     credentials: 'same-origin',
@@ -858,13 +858,13 @@
          * @returns {Promise<string>} Fresh nonce.
          */
         async refreshNonce() {
-            const response = await fetch(freAjax.url, {
+            const response = await fetch(pformsAjax.url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: new URLSearchParams({
-                    action: 'fre_refresh_nonce',
+                    action: 'pforms_refresh_nonce',
                     form_id: this.formId,
                 }),
                 credentials: 'same-origin',
@@ -1088,7 +1088,7 @@
      * @param {Object} place - Google Place object.
      */
     function populateAddressComponents(input, place) {
-        const fieldKey = input.name.replace('fre_field_', '');
+        const fieldKey = input.name.replace('pforms_field_', '');
         const form = input.closest('.fre-form');
 
         if (!form) return;
@@ -1117,7 +1117,7 @@
 
         // Populate hidden fields.
         Object.entries(componentMap).forEach(([fieldName, config]) => {
-            const hiddenField = form.querySelector(`[name="fre_field_${fieldKey}_${fieldName}"]`);
+            const hiddenField = form.querySelector(`[name="pforms_field_${fieldKey}_${fieldName}"]`);
             if (hiddenField) {
                 let value = '';
                 for (const type of config.types) {
@@ -1131,15 +1131,15 @@
         });
 
         // Populate formatted address.
-        const formattedField = form.querySelector(`[name="fre_field_${fieldKey}_formatted_address"]`);
+        const formattedField = form.querySelector(`[name="pforms_field_${fieldKey}_formatted_address"]`);
         if (formattedField) {
             formattedField.value = place.formatted_address || '';
         }
 
         // Populate lat/lng if geometry is available.
         if (place.geometry && place.geometry.location) {
-            const latField = form.querySelector(`[name="fre_field_${fieldKey}_lat"]`);
-            const lngField = form.querySelector(`[name="fre_field_${fieldKey}_lng"]`);
+            const latField = form.querySelector(`[name="pforms_field_${fieldKey}_lat"]`);
+            const lngField = form.querySelector(`[name="pforms_field_${fieldKey}_lng"]`);
 
             if (latField) {
                 latField.value = place.geometry.location.lat();
@@ -1151,7 +1151,7 @@
     }
 
     // Expose address initialization for Google Maps callback.
-    window.freInitAddressFields = initAddressFields;
+    window.pformsInitAddressFields = initAddressFields;
 
     // Also try to initialize if Google Maps is already loaded.
     if (typeof google !== 'undefined' && typeof google.maps !== 'undefined') {

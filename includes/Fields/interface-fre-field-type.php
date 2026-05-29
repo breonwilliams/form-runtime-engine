@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Interface for all field types.
  */
-interface FRE_Field_Type {
+interface PForms_Field_Type {
 
     /**
      * Get the field type slug.

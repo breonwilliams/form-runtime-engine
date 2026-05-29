@@ -10,7 +10,7 @@
  *     (stored per-user as user meta).
  *
  * Deliberately a pure data-access class: no UI, no REST, no auth decisions.
- * FRE_Connector_Auth reads the toggles, FRE_Connector_Admin writes them.
+ * PForms_Connector_Auth reads the toggles, PForms_Connector_Admin writes them.
  *
  * @package FormRuntimeEngine
  */
@@ -23,21 +23,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Connector settings accessor.
  */
-class FRE_Connector_Settings {
+class PForms_Connector_Settings {
 
     /**
      * Option key storing the outer toggle ("Enable Claude Cowork Connection").
      *
      * @var string
      */
-    const OPTION_ENABLED = 'fre_connector_enabled';
+    const OPTION_ENABLED = 'pforms_connector_enabled';
 
     /**
      * Option key storing the inner toggle ("Allow entry read").
      *
      * @var string
      */
-    const OPTION_ENTRY_READ_ENABLED = 'fre_connector_entry_read_enabled';
+    const OPTION_ENTRY_READ_ENABLED = 'pforms_connector_entry_read_enabled';
 
     /**
      * User meta key marking that the current user has generated a connector
@@ -47,7 +47,7 @@ class FRE_Connector_Settings {
      *
      * @var string
      */
-    const USER_META_CONFIGURED = '_fre_connector_configured_at';
+    const USER_META_CONFIGURED = '_pforms_connector_configured_at';
 
     /**
      * App Password "name" used when creating the connector credential via

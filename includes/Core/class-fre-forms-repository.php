@@ -4,23 +4,23 @@
  *
  * Pure data-access layer for database-stored form configurations. Every form
  * CRUD operation in the plugin goes through this class — the admin UI
- * (FRE_Forms_Manager), the public wrapper functions (fre_save_db_form() et al.),
+ * (PForms_Forms_Manager), the public wrapper functions (pforms_save_db_form() et al.),
  * and the Cowork REST connector (Phase 2+) all call the same methods.
  *
- * Extracted from FRE_Forms_Manager in the Phase 1 Cowork connector work so the
+ * Extracted from PForms_Forms_Manager in the Phase 1 Cowork connector work so the
  * connector's REST handlers and the admin UI's AJAX handlers share one storage
- * path. FRE_Forms_Manager retains thin static delegators that call into this
+ * path. PForms_Forms_Manager retains thin static delegators that call into this
  * class so external callers of the old API continue to work unchanged.
  *
- * Storage: single `wp_options` row keyed by `fre_client_forms`. Each form is an
+ * Storage: single `wp_options` row keyed by `pforms_client_forms`. Each form is an
  * array keyed by form ID. Schema per form:
  *
  *   [
  *     'id'                 => string,   // form_id (lowercase alphanumeric + dash/underscore)
  *     'title'              => string,   // human-readable title
- *     'config'             => string,   // JSON form config (validated by FRE_JSON_Schema_Validator)
+ *     'config'             => string,   // JSON form config (validated by PForms_JSON_Schema_Validator)
  *     'webhook_enabled'    => bool,
- *     'webhook_url'        => string,   // validated by FRE_Webhook_Validator
+ *     'webhook_url'        => string,   // validated by PForms_Webhook_Validator
  *     'webhook_secret'     => string,   // 32-char HMAC key
  *     'webhook_preset'     => string,   // google_sheets|zapier|make|custom
  *     'managed_by'         => string,   // 'admin' | 'connector:cowork' | future connector IDs
@@ -52,17 +52,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Forms repository.
  */
-class FRE_Forms_Repository {
+class PForms_Forms_Repository {
 
     /**
      * Option key that stores all forms.
      *
-     * Kept identical to the former FRE_Forms_Manager::OPTION_KEY so existing
+     * Kept identical to the former PForms_Forms_Manager::OPTION_KEY so existing
      * installs read their forms without migration.
      *
      * @var string
      */
-    const OPTION_KEY = 'fre_client_forms';
+    const OPTION_KEY = 'pforms_client_forms';
 
     /**
      * Valid values for the `managed_by` field.
@@ -189,7 +189,7 @@ class FRE_Forms_Repository {
         }
 
         // Schema validation.
-        $schema_result = FRE_JSON_Schema_Validator::validate( $config );
+        $schema_result = PForms_JSON_Schema_Validator::validate( $config );
         if ( ! $schema_result['valid'] ) {
             return new WP_Error( 'schema_error', implode( ' ', $schema_result['errors'] ) );
         }
@@ -197,7 +197,7 @@ class FRE_Forms_Repository {
         // Log non-fatal warnings.
         if ( ! empty( $schema_result['warnings'] ) ) {
             foreach ( $schema_result['warnings'] as $warning ) {
-                FRE_Logger::warning( 'Form Schema Warning [' . $form_id . ']: ' . $warning );
+                PForms_Logger::warning( 'Form Schema Warning [' . $form_id . ']: ' . $warning );
             }
         }
 
@@ -210,7 +210,7 @@ class FRE_Forms_Repository {
         $webhook_enabled = ! empty( $input['webhook_enabled'] );
         $webhook_url     = isset( $input['webhook_url'] ) ? (string) $input['webhook_url'] : '';
         if ( $webhook_enabled && '' !== $webhook_url ) {
-            $webhook_result = FRE_Webhook_Validator::validate_and_sanitize( $webhook_url );
+            $webhook_result = PForms_Webhook_Validator::validate_and_sanitize( $webhook_url );
             if ( is_wp_error( $webhook_result ) ) {
                 return $webhook_result;
             }
@@ -287,7 +287,7 @@ class FRE_Forms_Repository {
          * @param array  $record    The saved record.
          * @param bool   $is_new    True if this was a create, false if update.
          */
-        do_action( 'fre_form_saved', $form_id, $record, $is_new );
+        do_action( 'pforms_form_saved', $form_id, $record, $is_new );
 
         return $record;
     }
@@ -321,7 +321,7 @@ class FRE_Forms_Repository {
          * @param string $form_id        Form identifier.
          * @param array  $deleted_record The record that was removed.
          */
-        do_action( 'fre_form_deleted', $form_id, $deleted_record );
+        do_action( 'pforms_form_deleted', $form_id, $deleted_record );
 
         return true;
     }
@@ -364,14 +364,14 @@ class FRE_Forms_Repository {
      *             from previously-deleted forms with the same ID).
      */
     public static function count_entries( $form_id ) {
-        $entry = new FRE_Entry();
+        $entry = new PForms_Entry();
         return $entry->count( $form_id );
     }
 
     /**
      * Register every DB-stored form with the runtime registry.
      *
-     * Called on `fre_init` to make DB-stored forms available to the renderer
+     * Called on `pforms_init` to make DB-stored forms available to the renderer
      * and submission handler alongside PHP-registered forms.
      */
     public static function register_all_with_runtime_registry() {
@@ -389,7 +389,7 @@ class FRE_Forms_Repository {
                 $config['title'] = $form_data['title'];
             }
 
-            fre_register_form( $form_id, $config );
+            pforms_register_form( $form_id, $config );
         }
     }
 

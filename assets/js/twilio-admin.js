@@ -1,7 +1,7 @@
 /**
  * Twilio admin page — Settings (test-connection) and Clients (CRUD modal).
  *
- * Reads dynamic data from window.freTwilioAdmin (injected via
+ * Reads dynamic data from window.pformsTwilioAdmin (injected via
  * wp_localize_script in PHP). No PHP interpolation here — Plugin Check
  * happy, file is browser-cacheable across page loads.
  *
@@ -14,7 +14,7 @@
     'use strict';
 
     $( function() {
-        var data = window.freTwilioAdmin || {};
+        var data = window.pformsTwilioAdmin || {};
         if ( ! data.nonce ) {
             return;
         }
@@ -29,7 +29,7 @@
             $result.text( i18n.testing || 'Testing...' );
 
             $.post( window.ajaxurl, {
-                action: 'fre_twilio_test_connection',
+                action: 'pforms_twilio_test_connection',
                 _wpnonce: nonce
             }, function( response ) {
                 $btn.prop( 'disabled', false );
@@ -90,7 +90,7 @@
             $result.text( i18n.saving || 'Saving...' );
 
             $.post( window.ajaxurl, {
-                action: 'fre_twilio_save_client',
+                action: 'pforms_twilio_save_client',
                 _wpnonce: nonce,
                 id: $( '#fre-twilio-client-id' ).val(),
                 client_name: $( '#fre-twilio-client-name' ).val(),
@@ -114,7 +114,7 @@
         $( '.fre-twilio-toggle-client' ).on( 'click', function() {
             var $btn = $( this );
             $.post( window.ajaxurl, {
-                action: 'fre_twilio_toggle_client',
+                action: 'pforms_twilio_toggle_client',
                 _wpnonce: nonce,
                 id: $btn.data( 'id' )
             }, function( response ) {
@@ -133,7 +133,7 @@
             }
 
             $.post( window.ajaxurl, {
-                action: 'fre_twilio_delete_client',
+                action: 'pforms_twilio_delete_client',
                 _wpnonce: nonce,
                 id: $( this ).data( 'id' )
             }, function( response ) {

@@ -7,7 +7,7 @@
  * permission) tucked into the Status card.
  *
  * Loaded only on the connector admin page — see
- * FRE_Connector_Admin::enqueue_assets() for the page-hook gate.
+ * PForms_Connector_Admin::enqueue_assets() for the page-hook gate.
  */
 
 .fre-connector-settings { max-width: 800px; }

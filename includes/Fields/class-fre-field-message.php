@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Message field type (display only, no input).
  */
-class FRE_Field_Message extends FRE_Field_Type_Abstract {
+class PForms_Field_Message extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

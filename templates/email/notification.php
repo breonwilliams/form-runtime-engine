@@ -43,7 +43,7 @@ $hide_empty_fields = isset( $form_config['settings']['hide_empty_fields'] )
  * @param bool  $hide_empty_fields Whether to skip empty optional fields. Default true.
  * @param array $form_config       Full form configuration.
  */
-$hide_empty_fields = (bool) apply_filters( 'fre_email_hide_empty_fields', $hide_empty_fields, $form_config );
+$hide_empty_fields = (bool) apply_filters( 'pforms_email_hide_empty_fields', $hide_empty_fields, $form_config );
 ?>
 <!DOCTYPE html>
 <html>
@@ -88,7 +88,7 @@ $hide_empty_fields = (bool) apply_filters( 'fre_email_hide_empty_fields', $hide_
                     // actually saw on-screen produces a cleaner notification:
                     // a "Professional services" submitter never sees a
                     // "Which home service do you provide?" row.
-                    if ( ! FRE_Conditions::field_is_visible( $field, $form_config, $entry_data ) ) {
+                    if ( ! PForms_Conditions::field_is_visible( $field, $form_config, $entry_data ) ) {
                         continue;
                     }
 
@@ -108,7 +108,7 @@ $hide_empty_fields = (bool) apply_filters( 'fre_email_hide_empty_fields', $hide_
                     // Resolve raw value to human-readable display text.
                     // resolve_display_value handles select/radio/checkbox-with-options
                     // (value → label) and single checkbox ("1" → "Yes" / "" → "No").
-                    $display_value = FRE_Field_Type_Abstract::resolve_display_value( $raw_value, $field );
+                    $display_value = PForms_Field_Type_Abstract::resolve_display_value( $raw_value, $field );
                     $label         = ! empty( $field['label'] ) ? $field['label'] : ucfirst( str_replace( '_', ' ', $field['key'] ) );
                     ?>
                     <tr>
@@ -182,7 +182,7 @@ $hide_empty_fields = (bool) apply_filters( 'fre_email_hide_empty_fields', $hide_
                 ?>
             </p>
             <p style="margin: 8px 0 0; color: #999999; font-size: 12px;">
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-entries' ) ); ?>" style="color: #0073aa; text-decoration: none;">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-entries' ) ); ?>" style="color: #0073aa; text-decoration: none;">
                     <?php esc_html_e( 'View all entries', 'promptless-forms' ); ?>
                 </a>
             </p>

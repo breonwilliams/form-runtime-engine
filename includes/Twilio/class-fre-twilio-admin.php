@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Twilio admin interface.
  */
-class FRE_Twilio_Admin {
+class PForms_Twilio_Admin {
 
     /**
      * WordPress database instance.
@@ -58,10 +58,10 @@ class FRE_Twilio_Admin {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 
         // AJAX handlers.
-        add_action( 'wp_ajax_fre_twilio_save_client', array( $this, 'ajax_save_client' ) );
-        add_action( 'wp_ajax_fre_twilio_delete_client', array( $this, 'ajax_delete_client' ) );
-        add_action( 'wp_ajax_fre_twilio_toggle_client', array( $this, 'ajax_toggle_client' ) );
-        add_action( 'wp_ajax_fre_twilio_test_connection', array( $this, 'ajax_test_connection' ) );
+        add_action( 'wp_ajax_pforms_twilio_save_client', array( $this, 'ajax_save_client' ) );
+        add_action( 'wp_ajax_pforms_twilio_delete_client', array( $this, 'ajax_delete_client' ) );
+        add_action( 'wp_ajax_pforms_twilio_toggle_client', array( $this, 'ajax_toggle_client' ) );
+        add_action( 'wp_ajax_pforms_twilio_test_connection', array( $this, 'ajax_test_connection' ) );
     }
 
     /**
@@ -70,11 +70,11 @@ class FRE_Twilio_Admin {
     public function add_menu_pages() {
         // Twilio settings as a submenu under Form Entries.
         $this->page_hook = add_submenu_page(
-            'fre-entries',
+            'pforms-entries',
             __( 'Twilio Text-Back', 'promptless-forms' ),
             __( 'Twilio Text-Back', 'promptless-forms' ),
             'manage_options',
-            'fre-twilio',
+            'pforms-twilio',
             array( $this, 'render_main_page' )
         );
     }
@@ -92,25 +92,25 @@ class FRE_Twilio_Admin {
         $plugin_url = plugins_url( '', dirname( __DIR__, 2 ) . '/form-runtime-engine.php' );
 
         wp_enqueue_style(
-            'fre-twilio-admin',
+            'pforms-twilio-admin',
             $plugin_url . '/assets/css/twilio-admin.css',
             array(),
-            FRE_VERSION
+            PForms_VERSION
         );
 
         wp_enqueue_script(
-            'fre-twilio-admin',
+            'pforms-twilio-admin',
             $plugin_url . '/assets/js/twilio-admin.js',
             array( 'jquery' ),
-            FRE_VERSION,
+            PForms_VERSION,
             true
         );
 
         wp_localize_script(
-            'fre-twilio-admin',
-            'freTwilioAdmin',
+            'pforms-twilio-admin',
+            'pformsTwilioAdmin',
             array(
-                'nonce' => wp_create_nonce( 'fre_twilio_admin' ),
+                'nonce' => wp_create_nonce( 'pforms_twilio_admin' ),
                 'i18n'  => array(
                     'testing'          => __( 'Testing...', 'promptless-forms' ),
                     'connectedOk'      => __( 'Connected successfully', 'promptless-forms' ),
@@ -131,8 +131,8 @@ class FRE_Twilio_Admin {
      */
     public function register_settings() {
         register_setting(
-            'fre_twilio_settings',
-            'fre_twilio_settings',
+            'pforms_twilio_settings',
+            'pforms_twilio_settings',
             array(
                 'type'              => 'array',
                 'sanitize_callback' => array( $this, 'sanitize_settings' ),
@@ -158,7 +158,7 @@ class FRE_Twilio_Admin {
      */
     public function sanitize_settings( $input ) {
         $sanitized = array();
-        $existing  = (array) get_option( 'fre_twilio_settings', array() );
+        $existing  = (array) get_option( 'pforms_twilio_settings', array() );
 
         // Map of input field → admin-message verb, kept in one place so
         // the per-field handlers below stay parallel.
@@ -183,7 +183,7 @@ class FRE_Twilio_Admin {
                 continue;
             }
 
-            $encrypted = FRE_Twilio_Client::encrypt_value( $raw );
+            $encrypted = PForms_Twilio_Client::encrypt_value( $raw );
 
             if ( is_wp_error( $encrypted ) ) {
                 // Surface the error to the admin and PRESERVE any
@@ -191,7 +191,7 @@ class FRE_Twilio_Admin {
                 // garbage. settings_errors() will render this on the
                 // next admin page load.
                 add_settings_error(
-                    'fre_twilio_settings',
+                    'pforms_twilio_settings',
                     $encrypted->get_error_code(),
                     sprintf(
                         /* translators: 1: field label, 2: error message */
@@ -224,7 +224,7 @@ class FRE_Twilio_Admin {
         }
 
         $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'clients';
-        $settings   = get_option( 'fre_twilio_settings', array() );
+        $settings   = get_option( 'pforms_twilio_settings', array() );
         $has_creds  = ! empty( $settings['account_sid'] ) && ! empty( $settings['auth_token'] );
 
         ?>
@@ -232,11 +232,11 @@ class FRE_Twilio_Admin {
             <h1><?php esc_html_e( 'Twilio Text-Back', 'promptless-forms' ); ?></h1>
 
             <nav class="nav-tab-wrapper">
-                <a href="?page=fre-twilio&tab=clients"
+                <a href="?page=pforms-twilio&tab=clients"
                    class="nav-tab <?php echo $active_tab === 'clients' ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'Clients', 'promptless-forms' ); ?>
                 </a>
-                <a href="?page=fre-twilio&tab=settings"
+                <a href="?page=pforms-twilio&tab=settings"
                    class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e( 'Settings', 'promptless-forms' ); ?>
                 </a>
@@ -264,19 +264,19 @@ class FRE_Twilio_Admin {
     private function render_settings_tab( $settings, $has_creds ) {
         ?>
         <form method="post" action="options.php">
-            <?php settings_fields( 'fre_twilio_settings' ); ?>
+            <?php settings_fields( 'pforms_twilio_settings' ); ?>
 
             <table class="form-table">
                 <tr>
                     <th scope="row">
-                        <label for="fre_twilio_account_sid">
+                        <label for="pforms_twilio_account_sid">
                             <?php esc_html_e( 'Account SID', 'promptless-forms' ); ?>
                         </label>
                     </th>
                     <td>
                         <input type="text"
-                               id="fre_twilio_account_sid"
-                               name="fre_twilio_settings[account_sid]"
+                               id="pforms_twilio_account_sid"
+                               name="pforms_twilio_settings[account_sid]"
                                value="<?php echo $has_creds ? '••••••••••••••••' : ''; ?>"
                                class="regular-text"
                                placeholder="<?php esc_attr_e( 'AC...', 'promptless-forms' ); ?>"
@@ -288,14 +288,14 @@ class FRE_Twilio_Admin {
                 </tr>
                 <tr>
                     <th scope="row">
-                        <label for="fre_twilio_auth_token">
+                        <label for="pforms_twilio_auth_token">
                             <?php esc_html_e( 'Auth Token', 'promptless-forms' ); ?>
                         </label>
                     </th>
                     <td>
                         <input type="password"
-                               id="fre_twilio_auth_token"
-                               name="fre_twilio_settings[auth_token]"
+                               id="pforms_twilio_auth_token"
+                               name="pforms_twilio_settings[auth_token]"
                                value="<?php echo $has_creds ? '••••••••••••••••' : ''; ?>"
                                class="regular-text"
                                autocomplete="off" />
@@ -481,7 +481,7 @@ class FRE_Twilio_Admin {
         <?php
         // The clients-tab modal CRUD handlers (add, edit, save, toggle,
         // delete) live in assets/js/twilio-admin.js — enqueued on this
-        // page only via FRE_Twilio_Admin::enqueue_assets(). No inline
+        // page only via PForms_Twilio_Admin::enqueue_assets(). No inline
         // <script> here per WordPress.org Plugin Check guidelines.
     }
 
@@ -493,7 +493,7 @@ class FRE_Twilio_Admin {
      * AJAX: Save a client configuration.
      */
     public function ajax_save_client() {
-        check_ajax_referer( 'fre_twilio_admin' );
+        check_ajax_referer( 'pforms_twilio_admin' );
 
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( 'Unauthorized.' );
@@ -576,7 +576,7 @@ class FRE_Twilio_Admin {
      * AJAX: Delete a client configuration.
      */
     public function ajax_delete_client() {
-        check_ajax_referer( 'fre_twilio_admin' );
+        check_ajax_referer( 'pforms_twilio_admin' );
 
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( 'Unauthorized.' );
@@ -601,7 +601,7 @@ class FRE_Twilio_Admin {
      * AJAX: Toggle client active/inactive status.
      */
     public function ajax_toggle_client() {
-        check_ajax_referer( 'fre_twilio_admin' );
+        check_ajax_referer( 'pforms_twilio_admin' );
 
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( 'Unauthorized.' );
@@ -634,13 +634,13 @@ class FRE_Twilio_Admin {
      * AJAX: Test Twilio connection.
      */
     public function ajax_test_connection() {
-        check_ajax_referer( 'fre_twilio_admin' );
+        check_ajax_referer( 'pforms_twilio_admin' );
 
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( 'Unauthorized.' );
         }
 
-        $client = FRE_Twilio_Client::from_settings();
+        $client = PForms_Twilio_Client::from_settings();
 
         if ( is_wp_error( $client ) ) {
             wp_send_json_error( $client->get_error_message() );
@@ -688,8 +688,8 @@ class FRE_Twilio_Admin {
      * @param string $webhook_secret HMAC secret for webhook signing.
      */
     private function register_virtual_form( $form_id, $client_name, $webhook_url, $webhook_secret ) {
-        // Store the form in the database-stored forms (same as FRE_Forms_Manager).
-        $forms = get_option( 'fre_client_forms', array() );
+        // Store the form in the database-stored forms (same as PForms_Forms_Manager).
+        $forms = get_option( 'pforms_client_forms', array() );
 
         $forms[ $form_id ] = array(
             'id'              => $form_id,
@@ -718,7 +718,7 @@ class FRE_Twilio_Admin {
             'webhook_preset'  => 'custom',
         );
 
-        update_option( 'fre_client_forms', $forms );
+        update_option( 'pforms_client_forms', $forms );
     }
 
     /**
@@ -755,7 +755,7 @@ class FRE_Twilio_Admin {
             return;
         }
 
-        $forms = get_option( 'fre_client_forms', array() );
+        $forms = get_option( 'pforms_client_forms', array() );
         $updated = false;
 
         foreach ( $clients as $client ) {

@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Design system integration class.
  */
-class FRE_Design_System {
+class PForms_Design_System {
 
     /**
      * Constructor.
@@ -125,10 +125,10 @@ class FRE_Design_System {
         }
 
         wp_enqueue_style(
-            'fre-neo-brutalist',
-            FRE_PLUGIN_URL . 'assets/css/neo-brutalist.css',
-            array( 'fre-frontend' ),
-            FRE_VERSION
+            'pforms-neo-brutalist',
+            PForms_PLUGIN_URL . 'assets/css/neo-brutalist.css',
+            array( 'pforms-frontend' ),
+            PForms_VERSION
         );
     }
 }

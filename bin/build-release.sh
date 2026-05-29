@@ -82,8 +82,10 @@ else
     ZIP_NAME="${PLUGIN_SLUG}.zip"
 fi
 
-# Get the version from the main plugin file.
-VERSION=$(grep -m1 "define( 'FRE_VERSION'" form-runtime-engine.php | sed "s/.*'\\(.*\\)'.*/\\1/")
+# Get the version from the main plugin file. (Constant was renamed from
+# FRE_VERSION to PForms_VERSION in 1.8.0 as part of the WordPress.org
+# prefix-compliance rename.)
+VERSION=$(grep -m1 "define( 'PForms_VERSION'" form-runtime-engine.php | sed "s/.*'\\(.*\\)'.*/\\1/")
 
 if [ -z "$VERSION" ]; then
     echo "Error: Could not detect plugin version."

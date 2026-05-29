@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Telephone input field type.
  */
-class FRE_Field_Tel extends FRE_Field_Type_Abstract {
+class PForms_Field_Tel extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.

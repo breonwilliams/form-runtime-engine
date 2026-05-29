@@ -13,7 +13,7 @@
  * (per-request bodies, query parameter capture, indexed search) would warrant
  * a dedicated DB table — out of scope for v1.
  *
- * The log is opt-out via the `fre_connector_log_enabled` filter. Sites
+ * The log is opt-out via the `pforms_connector_log_enabled` filter. Sites
  * concerned about even the small wp_options write per request can disable it
  * entirely without affecting connector functionality.
  *
@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Connector call log accessor and writer.
  */
-class FRE_Connector_Log {
+class PForms_Connector_Log {
 
     /**
      * Option key storing the ring buffer.
@@ -39,7 +39,7 @@ class FRE_Connector_Log {
      *
      * @var string
      */
-    const OPTION_KEY = 'fre_connector_call_log';
+    const OPTION_KEY = 'pforms_connector_call_log';
 
     /**
      * Maximum entries retained. Older entries are evicted FIFO.
@@ -69,7 +69,7 @@ class FRE_Connector_Log {
          *
          * @param bool $enabled Whether to log this call.
          */
-        if ( ! apply_filters( 'fre_connector_log_enabled', true ) ) {
+        if ( ! apply_filters( 'pforms_connector_log_enabled', true ) ) {
             return;
         }
 

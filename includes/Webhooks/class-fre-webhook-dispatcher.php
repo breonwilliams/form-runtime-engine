@@ -5,7 +5,7 @@
  * Sends form submission data to configured webhook endpoints.
  * Includes delivery logging, retry mechanism, and status tracking.
  *
- * Retry pattern mirrors FRE_Email_Notification for consistency.
+ * Retry pattern mirrors PForms_Email_Notification for consistency.
  *
  * @package FormRuntimeEngine
  */
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Webhook dispatcher class.
  */
-class FRE_Webhook_Dispatcher {
+class PForms_Webhook_Dispatcher {
 
     /**
      * HTTP request timeout in seconds for initial delivery.
@@ -52,38 +52,38 @@ class FRE_Webhook_Dispatcher {
     /**
      * Initialize the webhook dispatcher hooks.
      *
-     * Subscribes to `fre_submission_complete` (fired by the submission handler
+     * Subscribes to `pforms_submission_complete` (fired by the submission handler
      * AFTER step 9 — file upload processing — has finished attaching files to
-     * the entry) rather than the older `fre_entry_created` (which fires inside
+     * the entry) rather than the older `pforms_entry_created` (which fires inside
      * `entry_repo->create()` BEFORE files are attached). The difference matters
-     * for any form with a file field: dispatching on `fre_entry_created` left
+     * for any form with a file field: dispatching on `pforms_entry_created` left
      * the payload's `files` array empty because the entry_files rows didn't
-     * exist yet. `fre_submission_complete` waits for files, so the payload
+     * exist yet. `pforms_submission_complete` waits for files, so the payload
      * — including the file_url field added in 1.5.0 — is complete and
      * downstream automations (Zapier → Drive, Make → S3, etc.) can fetch
      * uploaded artwork on the same submission they were triggered by.
      *
-     * The original `fre_entry_created` action still fires from `FRE_Entry::create()`
+     * The original `pforms_entry_created` action still fires from `PForms_Entry::create()`
      * for any external code that hooked it for non-file-aware purposes;
      * removing it would break backward compatibility.
      */
     public static function init() {
-        add_action( 'fre_submission_complete', array( __CLASS__, 'dispatch' ), 10, 3 );
+        add_action( 'pforms_submission_complete', array( __CLASS__, 'dispatch' ), 10, 3 );
 
-        // Retry processing hooks (mirrors FRE_Email_Notification pattern).
-        add_action( 'fre_retry_webhook', array( __CLASS__, 'process_retry' ), 10, 1 );
-        add_action( 'fre_process_webhook_queue', array( __CLASS__, 'process_queue' ) );
+        // Retry processing hooks (mirrors PForms_Email_Notification pattern).
+        add_action( 'pforms_retry_webhook', array( __CLASS__, 'process_retry' ), 10, 1 );
+        add_action( 'pforms_process_webhook_queue', array( __CLASS__, 'process_queue' ) );
 
         // Schedule hourly queue processing if not already scheduled.
-        if ( ! wp_next_scheduled( 'fre_process_webhook_queue' ) ) {
-            wp_schedule_event( time(), 'hourly', 'fre_process_webhook_queue' );
+        if ( ! wp_next_scheduled( 'pforms_process_webhook_queue' ) ) {
+            wp_schedule_event( time(), 'hourly', 'pforms_process_webhook_queue' );
         }
 
         // Schedule daily log pruning.
-        if ( ! wp_next_scheduled( 'fre_prune_webhook_log' ) ) {
-            wp_schedule_event( time(), 'daily', 'fre_prune_webhook_log' );
+        if ( ! wp_next_scheduled( 'pforms_prune_webhook_log' ) ) {
+            wp_schedule_event( time(), 'daily', 'pforms_prune_webhook_log' );
         }
-        add_action( 'fre_prune_webhook_log', array( __CLASS__, 'prune_log' ) );
+        add_action( 'pforms_prune_webhook_log', array( __CLASS__, 'prune_log' ) );
     }
 
     /**
@@ -95,7 +95,7 @@ class FRE_Webhook_Dispatcher {
      */
     public static function dispatch( $entry_id, $form_id, $data ) {
         // Get form data from database.
-        $form_data = FRE_Forms_Manager::get_form( $form_id );
+        $form_data = PForms_Forms_Manager::get_form( $form_id );
 
         // Check if webhook is enabled for this form.
         if ( ! self::is_webhook_enabled( $form_data ) ) {
@@ -111,9 +111,9 @@ class FRE_Webhook_Dispatcher {
 
         // Re-validate URL at dispatch time (defense against DNS rebinding attacks).
         // URL was validated at save time, but DNS could have changed since then.
-        $validation = FRE_Webhook_Validator::validate( $webhook_url );
+        $validation = PForms_Webhook_Validator::validate( $webhook_url );
         if ( is_wp_error( $validation ) ) {
-            FRE_Logger::warning( sprintf(
+            PForms_Logger::warning( sprintf(
                 'Webhook blocked [form: %s, entry: %d]: %s',
                 $form_id,
                 $entry_id,
@@ -126,7 +126,7 @@ class FRE_Webhook_Dispatcher {
         $payload = self::build_payload( $entry_id, $form_id, $data, $form_data );
 
         // Create log entry.
-        $log = new FRE_Webhook_Log();
+        $log = new PForms_Webhook_Log();
         $log_id = false;
 
         if ( $log->table_exists() ) {
@@ -188,7 +188,7 @@ class FRE_Webhook_Dispatcher {
         }
 
         // Get entry files.
-        $entry_handler = new FRE_Entry();
+        $entry_handler = new PForms_Entry();
         $files         = $entry_handler->get_files( $entry_id );
 
         // Format files for payload, including a publicly-fetchable file_url
@@ -245,7 +245,7 @@ class FRE_Webhook_Dispatcher {
          * @param string $form_id  Form ID.
          * @param array  $data     Original entry data.
          */
-        return apply_filters( 'fre_webhook_payload', $payload, $entry_id, $form_id, $data );
+        return apply_filters( 'pforms_webhook_payload', $payload, $entry_id, $form_id, $data );
     }
 
     /**
@@ -264,7 +264,7 @@ class FRE_Webhook_Dispatcher {
      *      file_name + entry_id lookup via the FRE REST API" if they need to
      *      retrieve the bytes.
      *
-     * Filterable via `fre_webhook_file_url` so sites that need signed /
+     * Filterable via `pforms_webhook_file_url` so sites that need signed /
      * expiring / proxied URLs (e.g., for sensitive customer artwork) can
      * generate their own without forking the dispatcher.
      *
@@ -301,7 +301,7 @@ class FRE_Webhook_Dispatcher {
          * @param string $url  Resolved URL (may be empty).
          * @param array  $file Entry-files row.
          */
-        return (string) apply_filters( 'fre_webhook_file_url', $url, $file );
+        return (string) apply_filters( 'pforms_webhook_file_url', $url, $file );
     }
 
     /**
@@ -322,7 +322,7 @@ class FRE_Webhook_Dispatcher {
      *      "custom" default to raw values (those typically feed
      *      machine-readable integrations that prefer stable identifiers
      *      that don't break when option labels are renamed).
-     *   3. The `fre_webhook_resolve_option_labels` filter lets sites override
+     *   3. The `pforms_webhook_resolve_option_labels` filter lets sites override
      *      the resolved decision programmatically (e.g. to apply different
      *      logic per form).
      *
@@ -361,7 +361,7 @@ class FRE_Webhook_Dispatcher {
          * @param array  $data           Raw entry data being processed.
          */
         $resolve_labels = (bool) apply_filters(
-            'fre_webhook_resolve_option_labels',
+            'pforms_webhook_resolve_option_labels',
             $resolve_labels,
             $form_config,
             $webhook_preset,
@@ -381,12 +381,12 @@ class FRE_Webhook_Dispatcher {
         // Step 3: process each field.
         foreach ( $data as $key => $value ) {
             // Skip internal fields.
-            if ( strpos( $key, '_fre_' ) === 0 ) {
+            if ( strpos( $key, '_pforms_' ) === 0 ) {
                 continue;
             }
 
             // Skip honeypot fields.
-            if ( $key === 'fre_hp_field' || $key === 'fre_timestamp' ) {
+            if ( $key === 'pforms_hp_field' || $key === 'pforms_timestamp' ) {
                 continue;
             }
 
@@ -396,7 +396,7 @@ class FRE_Webhook_Dispatcher {
             // single checkbox (Yes/No), and falls through to plain
             // stringification for other field types.
             if ( $resolve_labels && isset( $field_map[ $key ] ) ) {
-                $sanitized[ $key ] = FRE_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $key ] );
+                $sanitized[ $key ] = PForms_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $key ] );
                 continue;
             }
 
@@ -452,7 +452,7 @@ class FRE_Webhook_Dispatcher {
             'blocking'    => true, // Blocking to capture response for logging.
             'headers'     => array(
                 'Content-Type'    => 'application/json; charset=utf-8',
-                'User-Agent'      => 'FormRuntimeEngine/' . FRE_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . ')',
+                'User-Agent'      => 'FormRuntimeEngine/' . PForms_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . ')',
                 'X-FRE-Event'     => 'form_submission',
                 'X-FRE-Timestamp' => (string) time(),
             ),
@@ -474,7 +474,7 @@ class FRE_Webhook_Dispatcher {
          * @param int    $entry_id Entry ID.
          * @param string $form_id  Form ID.
          */
-        $args = apply_filters( 'fre_webhook_request_args', $args, $url, $payload, $entry_id, $form_id );
+        $args = apply_filters( 'pforms_webhook_request_args', $args, $url, $payload, $entry_id, $form_id );
 
         // Send the request.
         $response = wp_remote_post( $url, $args );
@@ -483,7 +483,7 @@ class FRE_Webhook_Dispatcher {
         if ( is_wp_error( $response ) ) {
             $error_message = $response->get_error_message();
 
-            FRE_Logger::error( sprintf(
+            PForms_Logger::error( sprintf(
                 'Webhook Error [form: %s, entry: %d]: %s',
                 $form_id,
                 $entry_id,
@@ -492,8 +492,8 @@ class FRE_Webhook_Dispatcher {
 
             // Log the failure.
             if ( $log_id ) {
-                $log = new FRE_Webhook_Log();
-                $log->record_attempt( $log_id, FRE_Webhook_Log::STATUS_FAILED, 0, '', $error_message );
+                $log = new PForms_Webhook_Log();
+                $log->record_attempt( $log_id, PForms_Webhook_Log::STATUS_FAILED, 0, '', $error_message );
                 self::maybe_schedule_retry( $log_id );
             }
 
@@ -506,7 +506,7 @@ class FRE_Webhook_Dispatcher {
              * @param int      $entry_id  Entry ID.
              * @param string   $form_id   Form ID.
              */
-            do_action( 'fre_webhook_failed', $response, $url, $payload, $entry_id, $form_id );
+            do_action( 'pforms_webhook_failed', $response, $url, $payload, $entry_id, $form_id );
         } else {
             $response_code = wp_remote_retrieve_response_code( $response );
             $response_body = wp_remote_retrieve_body( $response );
@@ -514,8 +514,8 @@ class FRE_Webhook_Dispatcher {
             if ( $response_code >= 200 && $response_code < 400 ) {
                 // Success.
                 if ( $log_id ) {
-                    $log = new FRE_Webhook_Log();
-                    $log->record_attempt( $log_id, FRE_Webhook_Log::STATUS_SUCCESS, $response_code, $response_body );
+                    $log = new PForms_Webhook_Log();
+                    $log->record_attempt( $log_id, PForms_Webhook_Log::STATUS_SUCCESS, $response_code, $response_body );
                 }
 
                 /**
@@ -526,12 +526,12 @@ class FRE_Webhook_Dispatcher {
                  * @param int    $entry_id  Entry ID.
                  * @param string $form_id   Form ID.
                  */
-                do_action( 'fre_webhook_sent', $url, $payload, $entry_id, $form_id );
+                do_action( 'pforms_webhook_sent', $url, $payload, $entry_id, $form_id );
             } else {
                 // HTTP error response.
                 $error_message = sprintf( 'HTTP %d response', $response_code );
 
-                FRE_Logger::error( sprintf(
+                PForms_Logger::error( sprintf(
                     'Webhook HTTP Error [form: %s, entry: %d]: %s',
                     $form_id,
                     $entry_id,
@@ -539,12 +539,12 @@ class FRE_Webhook_Dispatcher {
                 ) );
 
                 if ( $log_id ) {
-                    $log = new FRE_Webhook_Log();
-                    $log->record_attempt( $log_id, FRE_Webhook_Log::STATUS_FAILED, $response_code, $response_body, $error_message );
+                    $log = new PForms_Webhook_Log();
+                    $log->record_attempt( $log_id, PForms_Webhook_Log::STATUS_FAILED, $response_code, $response_body, $error_message );
                     self::maybe_schedule_retry( $log_id );
                 }
 
-                do_action( 'fre_webhook_failed', $response, $url, $payload, $entry_id, $form_id );
+                do_action( 'pforms_webhook_failed', $response, $url, $payload, $entry_id, $form_id );
             }
         }
     }
@@ -555,7 +555,7 @@ class FRE_Webhook_Dispatcher {
      * @param int $log_id Webhook log entry ID.
      */
     private static function maybe_schedule_retry( $log_id ) {
-        $log      = new FRE_Webhook_Log();
+        $log      = new PForms_Webhook_Log();
         $log_entry = $log->get( $log_id );
 
         if ( ! $log_entry ) {
@@ -568,7 +568,7 @@ class FRE_Webhook_Dispatcher {
             // Max retries reached — mark as permanently failed.
             $log->record_attempt(
                 $log_id,
-                FRE_Webhook_Log::STATUS_FAILED,
+                PForms_Webhook_Log::STATUS_FAILED,
                 (int) $log_entry['response_code'],
                 '',
                 'Max retries exceeded'
@@ -581,9 +581,9 @@ class FRE_Webhook_Dispatcher {
              * @param int    $entry_id Form entry ID.
              * @param string $form_id  Form ID.
              */
-            do_action( 'fre_webhook_permanently_failed', $log_id, (int) $log_entry['entry_id'], $log_entry['form_id'] );
+            do_action( 'pforms_webhook_permanently_failed', $log_id, (int) $log_entry['entry_id'], $log_entry['form_id'] );
 
-            FRE_Logger::error( sprintf(
+            PForms_Logger::error( sprintf(
                 'Webhook permanently failed [form: %s, entry: %d, log: %d] after %d attempts',
                 $log_entry['form_id'],
                 $log_entry['entry_id'],
@@ -605,11 +605,11 @@ class FRE_Webhook_Dispatcher {
         // Schedule the cron event.
         wp_schedule_single_event(
             time() + $delay,
-            'fre_retry_webhook',
+            'pforms_retry_webhook',
             array( $log_id )
         );
 
-        FRE_Logger::info( sprintf(
+        PForms_Logger::info( sprintf(
             'Scheduled webhook retry for log %d (entry %d), attempt %d, delay %d seconds',
             $log_id,
             $log_entry['entry_id'],
@@ -621,41 +621,41 @@ class FRE_Webhook_Dispatcher {
     /**
      * Process a scheduled webhook retry.
      *
-     * Called by WP-Cron via the fre_retry_webhook hook.
+     * Called by WP-Cron via the pforms_retry_webhook hook.
      *
      * @param int $log_id Webhook log entry ID.
      */
     public static function process_retry( $log_id ) {
-        $log       = new FRE_Webhook_Log();
+        $log       = new PForms_Webhook_Log();
         $log_entry = $log->get( $log_id );
 
         if ( ! $log_entry ) {
-            FRE_Logger::error( "Webhook retry failed - log entry {$log_id} not found" );
+            PForms_Logger::error( "Webhook retry failed - log entry {$log_id} not found" );
             return;
         }
 
         // Already succeeded (possibly via manual retry or race condition).
-        if ( $log_entry['status'] === FRE_Webhook_Log::STATUS_SUCCESS ) {
+        if ( $log_entry['status'] === PForms_Webhook_Log::STATUS_SUCCESS ) {
             return;
         }
 
         // Re-validate URL at retry time.
-        $validation = FRE_Webhook_Validator::validate( $log_entry['webhook_url'] );
+        $validation = PForms_Webhook_Validator::validate( $log_entry['webhook_url'] );
         if ( is_wp_error( $validation ) ) {
-            $log->record_attempt( $log_id, FRE_Webhook_Log::STATUS_FAILED, 0, '', 'URL validation failed on retry: ' . $validation->get_error_message() );
+            $log->record_attempt( $log_id, PForms_Webhook_Log::STATUS_FAILED, 0, '', 'URL validation failed on retry: ' . $validation->get_error_message() );
             return;
         }
 
         // Reconstruct the payload from the stored entry.
-        $entry_handler = new FRE_Entry();
+        $entry_handler = new PForms_Entry();
         $entry         = $entry_handler->get( (int) $log_entry['entry_id'] );
 
         if ( ! $entry ) {
-            $log->record_attempt( $log_id, FRE_Webhook_Log::STATUS_FAILED, 0, '', 'Entry not found for retry' );
+            $log->record_attempt( $log_id, PForms_Webhook_Log::STATUS_FAILED, 0, '', 'Entry not found for retry' );
             return;
         }
 
-        $form_data = FRE_Forms_Manager::get_form( $log_entry['form_id'] );
+        $form_data = PForms_Forms_Manager::get_form( $log_entry['form_id'] );
         $payload   = self::build_payload(
             (int) $log_entry['entry_id'],
             $log_entry['form_id'],
@@ -685,7 +685,7 @@ class FRE_Webhook_Dispatcher {
      * (e.g., if a single event didn't fire). Mirrors the email queue pattern.
      */
     public static function process_queue() {
-        $log     = new FRE_Webhook_Log();
+        $log     = new PForms_Webhook_Log();
 
         if ( ! $log->table_exists() ) {
             return;
@@ -695,7 +695,7 @@ class FRE_Webhook_Dispatcher {
 
         foreach ( $due_retries as $log_entry ) {
             // Check if a single event is already scheduled for this log entry.
-            if ( wp_next_scheduled( 'fre_retry_webhook', array( (int) $log_entry['id'] ) ) ) {
+            if ( wp_next_scheduled( 'pforms_retry_webhook', array( (int) $log_entry['id'] ) ) ) {
                 continue;
             }
 
@@ -711,7 +711,7 @@ class FRE_Webhook_Dispatcher {
      * Keeps entries for 30 days.
      */
     public static function prune_log() {
-        $log = new FRE_Webhook_Log();
+        $log = new PForms_Webhook_Log();
 
         if ( ! $log->table_exists() ) {
             return;
@@ -722,12 +722,12 @@ class FRE_Webhook_Dispatcher {
          *
          * @param int $days Number of days. Default 30.
          */
-        $days = apply_filters( 'fre_webhook_log_retention_days', 30 );
+        $days = apply_filters( 'pforms_webhook_log_retention_days', 30 );
 
         $deleted = $log->prune( $days );
 
         if ( $deleted > 0 ) {
-            FRE_Logger::info( sprintf( 'Pruned %d webhook log entries older than %d days', $deleted, $days ) );
+            PForms_Logger::info( sprintf( 'Pruned %d webhook log entries older than %d days', $deleted, $days ) );
         }
     }
 
@@ -757,7 +757,7 @@ class FRE_Webhook_Dispatcher {
         );
 
         // Validate URL first.
-        $validation = FRE_Webhook_Validator::validate( $url );
+        $validation = PForms_Webhook_Validator::validate( $url );
         if ( is_wp_error( $validation ) ) {
             $result['error'] = $validation->get_error_message();
             return $result;
@@ -788,7 +788,7 @@ class FRE_Webhook_Dispatcher {
             'blocking'    => true,
             'headers'     => array(
                 'Content-Type'    => 'application/json; charset=utf-8',
-                'User-Agent'      => 'FormRuntimeEngine/' . FRE_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . ')',
+                'User-Agent'      => 'FormRuntimeEngine/' . PForms_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . ')',
                 'X-FRE-Event'     => 'webhook_test',
                 'X-FRE-Timestamp' => (string) time(),
             ),
@@ -838,7 +838,7 @@ class FRE_Webhook_Dispatcher {
      * @return array|WP_Error Preview payload array, or WP_Error if form not found.
      */
     public static function preview_payload( $form_id ) {
-        $form_data = FRE_Forms_Manager::get_form( $form_id );
+        $form_data = PForms_Forms_Manager::get_form( $form_id );
 
         if ( empty( $form_data ) ) {
             return new WP_Error( 'form_not_found', __( 'Form not found.', 'promptless-forms' ) );

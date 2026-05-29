@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Form renderer class.
  */
-class FRE_Renderer {
+class PForms_Renderer {
 
     /**
      * Field type instances cache.
@@ -32,7 +32,7 @@ class FRE_Renderer {
      * @return string Form HTML.
      */
     public function render( $form_id, array $args = array() ) {
-        $form = fre()->registry->get( $form_id );
+        $form = pforms()->registry->get( $form_id );
 
         if ( ! $form ) {
             return $this->render_error(
@@ -103,7 +103,7 @@ class FRE_Renderer {
         // leaves the form flat against its parent section background. Works
         // uniformly across single-step and multi-step forms because the class
         // sits on the <form> root, outside the progress indicator and step
-        // nav. See FRE_KNOWLEDGE_MAP.md §Form surface / visual treatment.
+        // nav. See PForms_KNOWLEDGE_MAP.md §Form surface / visual treatment.
         $appearance = isset( $settings['appearance'] ) && is_array( $settings['appearance'] ) ? $settings['appearance'] : array();
         $surface    = isset( $appearance['surface'] ) ? (string) $appearance['surface'] : 'none';
         if ( 'card' === $surface ) {
@@ -136,19 +136,19 @@ class FRE_Renderer {
         );
 
         // Nonce field.
-        $html .= wp_nonce_field( 'fre_submit_' . $form_id, '_wpnonce', true, false );
+        $html .= wp_nonce_field( 'pforms_submit_' . $form_id, '_wpnonce', true, false );
 
         // Form ID hidden field.
         $html .= sprintf(
-            '<input type="hidden" name="fre_form_id" value="%s" />',
+            '<input type="hidden" name="pforms_form_id" value="%s" />',
             esc_attr( $form_id )
         );
 
         // Signed timing token for timing check (Fix #16: Prevents bypass).
         if ( ! empty( $settings['spam_protection']['timing_check'] ) ) {
-            $timing_token = FRE_Timing_Check::generate_timing_token( $form_id );
+            $timing_token = PForms_Timing_Check::generate_timing_token( $form_id );
             $html .= sprintf(
-                '<input type="hidden" name="_fre_timing_token" value="%s" />',
+                '<input type="hidden" name="_pforms_timing_token" value="%s" />',
                 esc_attr( $timing_token )
             );
         }
@@ -202,7 +202,7 @@ class FRE_Renderer {
          * @param array  $form    Form configuration.
          * @param array  $args    Render arguments.
          */
-        return apply_filters( 'fre_rendered_form', $html, $form_id, $form, $args );
+        return apply_filters( 'pforms_rendered_form', $html, $form_id, $form, $args );
     }
 
     /**
@@ -786,7 +786,7 @@ class FRE_Renderer {
          * @param array  $form    Form configuration.
          * @param string $form_id Form ID.
          */
-        $value = apply_filters( 'fre_render_field_value', $value, $field, $form, $form['id'] );
+        $value = apply_filters( 'pforms_render_field_value', $value, $field, $form, $form['id'] );
 
         return $instance->render( $field, $value, $form );
     }
@@ -795,14 +795,14 @@ class FRE_Renderer {
      * Get field type instance.
      *
      * @param string $type Field type slug.
-     * @return FRE_Field_Type|null
+     * @return PForms_Field_Type|null
      */
     private function get_field_instance( $type ) {
         if ( isset( $this->field_instances[ $type ] ) ) {
             return $this->field_instances[ $type ];
         }
 
-        $class_name = FRE_Autoloader::get_field_class( $type );
+        $class_name = PForms_Autoloader::get_field_class( $type );
 
         if ( ! $class_name || ! class_exists( $class_name ) ) {
             return null;
@@ -821,7 +821,7 @@ class FRE_Renderer {
      */
     private function render_honeypot( $form_id ) {
         // Fix #26: Use the honeypot class to generate unpredictable field names.
-        $honeypot   = new FRE_Honeypot();
+        $honeypot   = new PForms_Honeypot();
         $field_name = $honeypot->get_field_name( $form_id );
 
         // Hidden via CSS, not hidden input type (bots might skip hidden inputs).
@@ -904,8 +904,8 @@ class FRE_Renderer {
      * Enqueue form assets.
      */
     private function enqueue_assets() {
-        wp_enqueue_style( 'fre-frontend' );
-        wp_enqueue_script( 'fre-frontend' );
+        wp_enqueue_style( 'pforms-frontend' );
+        wp_enqueue_script( 'pforms-frontend' );
     }
 
     /**
@@ -916,7 +916,7 @@ class FRE_Renderer {
     private function enqueue_field_type_scripts( array $form ) {
         // Check for address fields and enqueue Google Places API.
         if ( $this->has_address_field( $form ) ) {
-            FRE_Field_Address::enqueue_scripts();
+            PForms_Field_Address::enqueue_scripts();
         }
     }
 
@@ -941,7 +941,7 @@ class FRE_Renderer {
      * @return array
      */
     public function get_all_field_instances() {
-        $types = FRE_Autoloader::get_field_types();
+        $types = PForms_Autoloader::get_field_types();
 
         foreach ( $types as $type ) {
             $this->get_field_instance( $type );

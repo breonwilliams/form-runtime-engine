@@ -21,33 +21,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Form submission handler.
  */
-class FRE_Submission_Handler {
+class PForms_Submission_Handler {
 
     /**
      * Validator instance.
      *
-     * @var FRE_Validator
+     * @var PForms_Validator
      */
     private $validator;
 
     /**
      * Sanitizer instance.
      *
-     * @var FRE_Sanitizer
+     * @var PForms_Sanitizer
      */
     private $sanitizer;
 
     /**
      * Upload handler instance.
      *
-     * @var FRE_Upload_Handler
+     * @var PForms_Upload_Handler
      */
     private $upload_handler;
 
     /**
      * Entry repository instance.
      *
-     * @var FRE_Entry
+     * @var PForms_Entry
      */
     private $entry_repo;
 
@@ -55,10 +55,10 @@ class FRE_Submission_Handler {
      * Constructor.
      */
     public function __construct() {
-        $this->validator      = new FRE_Validator();
-        $this->sanitizer      = new FRE_Sanitizer();
-        $this->upload_handler = new FRE_Upload_Handler();
-        $this->entry_repo     = new FRE_Entry();
+        $this->validator      = new PForms_Validator();
+        $this->sanitizer      = new PForms_Sanitizer();
+        $this->upload_handler = new PForms_Upload_Handler();
+        $this->entry_repo     = new PForms_Entry();
     }
 
     /**
@@ -71,14 +71,14 @@ class FRE_Submission_Handler {
      */
     public function handle_submission() {
         // Define processing constant for error handling.
-        if ( ! defined( 'FRE_PROCESSING' ) ) {
-            define( 'FRE_PROCESSING', true );
+        if ( ! defined( 'PForms_PROCESSING' ) ) {
+            define( 'PForms_PROCESSING', true );
         }
 
         try {
             // Get form ID.
-            $form_id = isset( $_POST['fre_form_id'] )
-                ? sanitize_key( $_POST['fre_form_id'] )
+            $form_id = isset( $_POST['pforms_form_id'] )
+                ? sanitize_key( $_POST['pforms_form_id'] )
                 : '';
 
             if ( empty( $form_id ) ) {
@@ -96,7 +96,7 @@ class FRE_Submission_Handler {
             }
 
             // Get form configuration (only after nonce verification).
-            $form_config = fre()->registry->get( $form_id );
+            $form_config = pforms()->registry->get( $form_id );
 
             // Fix #16: Improved error logging when form config not found.
             if ( ! $form_config ) {
@@ -110,7 +110,7 @@ class FRE_Submission_Handler {
              * @param string $form_id     Form ID.
              * @param array  $form_config Form configuration.
              */
-            do_action( 'fre_before_submission_process', $form_id, $form_config );
+            do_action( 'pforms_before_submission_process', $form_id, $form_config );
 
             // Step 2: Spam protection checks.
             $this->check_spam_protection( $form_id, $form_config );
@@ -141,7 +141,7 @@ class FRE_Submission_Handler {
             // visibility flips false; the server is authoritative, so we
             // remove those values here before storage so every downstream
             // consumer (email, webhook, sheet, CSV, admin) sees a clean payload.
-            $sanitized_data = FRE_Conditions::strip_hidden_field_values( $form_config, $sanitized_data );
+            $sanitized_data = PForms_Conditions::strip_hidden_field_values( $form_config, $sanitized_data );
 
             // Step 8: Store entry (if enabled).
             $entry_id = null;
@@ -181,13 +181,13 @@ class FRE_Submission_Handler {
             /**
              * Fires after a form submission has been fully processed —
              * sanitized, stored, files attached, but BEFORE the notification
-             * email is sent. Distinct from `fre_entry_created` which fires
+             * email is sent. Distinct from `pforms_entry_created` which fires
              * inside the entry insert transaction before files exist.
              *
              * Webhook dispatch listens here so the payload can include
              * file_url for any uploaded files. Other listeners that need the
              * complete entry (e.g., CRM sync that also wants attachments)
-             * should subscribe to this action instead of fre_entry_created.
+             * should subscribe to this action instead of pforms_entry_created.
              *
              * @since 1.5.0
              *
@@ -196,13 +196,13 @@ class FRE_Submission_Handler {
              * @param array  $sanitized_data Sanitized field values.
              */
             if ( $entry_id ) {
-                do_action( 'fre_submission_complete', $entry_id, $form_id, $sanitized_data );
+                do_action( 'pforms_submission_complete', $entry_id, $form_id, $sanitized_data );
             }
 
             // Step 10: Send email notification.
             $notification_sent = false;
             if ( ! empty( $form_config['settings']['notification']['enabled'] ) ) {
-                $email_handler     = new FRE_Email_Notification();
+                $email_handler     = new PForms_Email_Notification();
                 $notification_sent = $email_handler->send(
                     $entry_id,
                     $form_config,
@@ -229,7 +229,7 @@ class FRE_Submission_Handler {
              * @param array  $sanitized_data Submitted data.
              * @param array  $form_config    Form configuration.
              */
-            $response = apply_filters( 'fre_submission_response', $response, $entry_id, $sanitized_data, $form_config );
+            $response = apply_filters( 'pforms_submission_response', $response, $entry_id, $sanitized_data, $form_config );
 
             // Fix #4: Store response for idempotency before sending.
             $this->store_idempotency_response( $response );
@@ -237,7 +237,7 @@ class FRE_Submission_Handler {
             wp_send_json_success( $response );
 
         } catch ( Exception $e ) {
-            FRE_Logger::error( 'Submission Error: ' . $e->getMessage() );
+            PForms_Logger::error( 'Submission Error: ' . $e->getMessage() );
             $this->send_error( 'processing_error', __( 'An error occurred processing your submission. Please try again.', 'promptless-forms' ) );
         }
     }
@@ -266,9 +266,9 @@ class FRE_Submission_Handler {
      * Options:
      *   - `dry_run` (bool): When true, runs validation and sanitization and
      *     returns what would be stored, but does NOT create an entry, fire
-     *     `fre_entry_created`, send email, or dispatch webhooks. Default false.
+     *     `pforms_entry_created`, send email, or dispatch webhooks. Default false.
      *   - `skip_notifications` (bool): When true, creates the entry and fires
-     *     `fre_entry_created` (so external listeners like the webhook
+     *     `pforms_entry_created` (so external listeners like the webhook
      *     dispatcher still run — Cowork often wants that), but skips the
      *     built-in email notification send. Default false.
      *   - `source` (string): Origin tag. Currently informational only;
@@ -303,9 +303,9 @@ class FRE_Submission_Handler {
         }
 
         // Look up the form config from the runtime registry. DB-stored forms
-        // are already registered by FRE_Forms_Repository::register_all_with_runtime_registry()
-        // on fre_init, so both PHP-registered and DB-stored forms work here.
-        $form_config = fre()->registry->get( $form_id );
+        // are already registered by PForms_Forms_Repository::register_all_with_runtime_registry()
+        // on pforms_init, so both PHP-registered and DB-stored forms work here.
+        $form_config = pforms()->registry->get( $form_id );
         if ( ! is_array( $form_config ) ) {
             return new WP_Error(
                 'form_not_found',
@@ -317,16 +317,16 @@ class FRE_Submission_Handler {
         /**
          * Fires before programmatic submission processing begins.
          *
-         * Mirrors `fre_before_submission_process` from the AJAX path so external
+         * Mirrors `pforms_before_submission_process` from the AJAX path so external
          * listeners can react uniformly regardless of submission origin.
          *
          * @param string $form_id     Form ID.
          * @param array  $form_config Form configuration.
          * @param array  $options     Processing options.
          */
-        do_action( 'fre_before_submission_process', $form_id, $form_config, $options );
+        do_action( 'pforms_before_submission_process', $form_id, $form_config, $options );
 
-        // Translate clean field keys into the "fre_field_{key}" form the
+        // Translate clean field keys into the "pforms_field_{key}" form the
         // validator and sanitizer expect. Callers of process_submission use
         // clean keys per the connector contract (docs/CONNECTOR_SPEC.md §9.9)
         // because that is the natural shape for JSON APIs; the internal
@@ -349,7 +349,7 @@ class FRE_Submission_Handler {
         // public AJAX path; ensures the connector test-submit endpoint and
         // any future programmatic submission entry point produce identical
         // clean data for storage and downstream notifications/webhooks.
-        $sanitized_data = FRE_Conditions::strip_hidden_field_values( $form_config, $sanitized_data );
+        $sanitized_data = PForms_Conditions::strip_hidden_field_values( $form_config, $sanitized_data );
 
         // Dry run short-circuits here — return what would have been stored.
         if ( ! empty( $options['dry_run'] ) ) {
@@ -374,22 +374,22 @@ class FRE_Submission_Handler {
                 return $entry_id;
             }
 
-            // FRE_Entry::create() fires `fre_entry_created` internally after
+            // PForms_Entry::create() fires `pforms_entry_created` internally after
             // the transaction commits — kept for backward-compat listeners.
             //
-            // Fire `fre_submission_complete` to mirror the AJAX path (where
+            // Fire `pforms_submission_complete` to mirror the AJAX path (where
             // it fires AFTER files are attached). The connector's programmatic
             // path doesn't process files in Phase 1, so there's nothing to
             // wait for and we can fire it immediately. This keeps webhook
             // dispatch consistent across both submission entry points.
-            do_action( 'fre_submission_complete', $entry_id, $form_id, $sanitized_data );
+            do_action( 'pforms_submission_complete', $entry_id, $form_id, $sanitized_data );
         }
 
         // Email notification: skip if explicitly disabled or if the caller asked to.
         $email_sent            = false;
         $notifications_enabled = ! empty( $form_config['settings']['notification']['enabled'] );
         if ( $notifications_enabled && empty( $options['skip_notifications'] ) && $entry_id ) {
-            $email_handler = new FRE_Email_Notification();
+            $email_handler = new PForms_Email_Notification();
             $email_sent    = (bool) $email_handler->send(
                 $entry_id,
                 $form_config,
@@ -408,12 +408,12 @@ class FRE_Submission_Handler {
     }
 
     /**
-     * Translate clean field keys into the internal `fre_field_{key}` form.
+     * Translate clean field keys into the internal `pforms_field_{key}` form.
      *
      * The connector API accepts clean keys (as documented in
      * docs/CONNECTOR_SPEC.md §9.9) because that is the natural shape for a
      * JSON payload. Internally the validator and sanitizer expect the
-     * `fre_field_*` prefix because the AJAX path receives data via $_POST
+     * `pforms_field_*` prefix because the AJAX path receives data via $_POST
      * and the prefix avoids collisions with WordPress-reserved POST params.
      *
      * This helper maps each field defined in the form config from its clean
@@ -441,10 +441,10 @@ class FRE_Submission_Handler {
                 continue;
             }
 
-            $field_class = FRE_Autoloader::get_field_class( $field['type'] );
+            $field_class = PForms_Autoloader::get_field_class( $field['type'] );
             if ( ! $field_class || ! class_exists( $field_class ) ) {
                 // Fall back to the abstract's default naming convention.
-                $prefixed[ 'fre_field_' . sanitize_key( $clean_key ) ] = $data[ $clean_key ];
+                $prefixed[ 'pforms_field_' . sanitize_key( $clean_key ) ] = $data[ $clean_key ];
                 continue;
             }
 
@@ -464,11 +464,11 @@ class FRE_Submission_Handler {
     private function verify_nonce( $form_id ) {
         $nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
 
-        if ( ! wp_verify_nonce( $nonce, 'fre_submit_' . $form_id ) ) {
+        if ( ! wp_verify_nonce( $nonce, 'pforms_submit_' . $form_id ) ) {
             wp_send_json_error( array(
                 'code'           => 'nonce_expired',
                 'message'        => __( 'Your session expired. The form has been refreshed.', 'promptless-forms' ),
-                'new_nonce'      => wp_create_nonce( 'fre_submit_' . $form_id ),
+                'new_nonce'      => wp_create_nonce( 'pforms_submit_' . $form_id ),
                 'submitted_data' => $this->get_safe_repopulation_data( $_POST ),
             ) );
         }
@@ -487,7 +487,7 @@ class FRE_Submission_Handler {
 
         // Honeypot check.
         if ( ! empty( $settings['honeypot'] ) ) {
-            $honeypot = new FRE_Honeypot();
+            $honeypot = new PForms_Honeypot();
             $result   = $honeypot->validate( $form_id );
 
             if ( is_wp_error( $result ) ) {
@@ -506,7 +506,7 @@ class FRE_Submission_Handler {
 
         // Timing check.
         if ( ! empty( $settings['timing_check'] ) ) {
-            $timing = new FRE_Timing_Check();
+            $timing = new PForms_Timing_Check();
             $result = $timing->validate( $form_id, $settings );
 
             if ( is_wp_error( $result ) ) {
@@ -516,7 +516,7 @@ class FRE_Submission_Handler {
 
         // Rate limiting.
         if ( ! empty( $settings['rate_limit'] ) ) {
-            $rate_limiter = new FRE_Rate_Limiter();
+            $rate_limiter = new PForms_Rate_Limiter();
 
             // Check per-IP rate limit.
             $result = $rate_limiter->validate( $form_id, $settings['rate_limit'] );
@@ -547,10 +547,10 @@ class FRE_Submission_Handler {
     private function check_duplicate_submission( $form_id, array $form_config ) {
         // Create hash from submitted data (excluding nonce and timestamp).
         $data_to_hash = $_POST;
-        unset( $data_to_hash['_wpnonce'], $data_to_hash['_fre_timestamp'] );
+        unset( $data_to_hash['_wpnonce'], $data_to_hash['_pforms_timestamp'] );
 
         // Remove honeypot field.
-        $honeypot = new FRE_Honeypot();
+        $honeypot = new PForms_Honeypot();
         unset( $data_to_hash[ $honeypot->get_field_name( $form_id ) ] );
 
         if ( $this->entry_repo->is_duplicate( $form_id, $data_to_hash ) ) {
@@ -573,10 +573,10 @@ class FRE_Submission_Handler {
         // and silently rejects every retry within the next 60 seconds —
         // even after the user fixes the underlying problem. Track the key
         // here so the failure-exit path (clear_duplicate_token_on_exit()) can
-        // remove it. Hash computation must mirror FRE_Entry::is_duplicate()
+        // remove it. Hash computation must mirror PForms_Entry::is_duplicate()
         // exactly so we delete the same row.
         $hash                          = hash( 'sha256', $form_id . wp_json_encode( $data_to_hash ) );
-        $this->current_duplicate_key   = 'fre_submission_' . $hash;
+        $this->current_duplicate_key   = 'pforms_submission_' . $hash;
     }
 
     /**
@@ -590,7 +590,7 @@ class FRE_Submission_Handler {
                 continue;
             }
 
-            $file_field = new FRE_Field_File();
+            $file_field = new PForms_Field_File();
             $file_key   = $file_field->get_name( $field );
 
             if ( ! isset( $_FILES[ $file_key ] ) || empty( $_FILES[ $file_key ]['name'] ) ) {
@@ -638,7 +638,7 @@ class FRE_Submission_Handler {
     private function has_file_uploads( array $form_config ) {
         foreach ( $form_config['fields'] as $field ) {
             if ( $field['type'] === 'file' ) {
-                $file_field = new FRE_Field_File();
+                $file_field = new PForms_Field_File();
                 $file_key   = $file_field->get_name( $field );
 
                 if ( isset( $_FILES[ $file_key ] ) && ! empty( $_FILES[ $file_key ]['name'] ) ) {
@@ -661,12 +661,12 @@ class FRE_Submission_Handler {
 
         foreach ( $data as $key => $value ) {
             // Skip internal fields.
-            if ( strpos( $key, '_' ) === 0 || $key === 'fre_form_id' ) {
+            if ( strpos( $key, '_' ) === 0 || $key === 'pforms_form_id' ) {
                 continue;
             }
 
             // Skip file fields.
-            if ( strpos( $key, 'fre_file_' ) === 0 ) {
+            if ( strpos( $key, 'pforms_file_' ) === 0 ) {
                 continue;
             }
 
@@ -763,7 +763,7 @@ class FRE_Submission_Handler {
     /**
      * Clear the in-progress duplicate-detection transient on a non-success exit.
      *
-     * Companion to FRE_Entry::is_duplicate(), which inserts a 60-second
+     * Companion to PForms_Entry::is_duplicate(), which inserts a 60-second
      * transient keyed on the submission data hash to silently reject
      * accidental double-submits. The original Fix #11 implementation
      * created the transient but only "completed" it implicitly through
@@ -802,8 +802,8 @@ class FRE_Submission_Handler {
      * @return array|false Cached response if duplicate, false if new submission.
      */
     private function check_idempotency_token( $form_id ) {
-        $submission_id = isset( $_POST['_fre_submission_id'] )
-            ? sanitize_text_field( wp_unslash( $_POST['_fre_submission_id'] ) )
+        $submission_id = isset( $_POST['_pforms_submission_id'] )
+            ? sanitize_text_field( wp_unslash( $_POST['_pforms_submission_id'] ) )
             : '';
 
         if ( empty( $submission_id ) ) {
@@ -816,7 +816,7 @@ class FRE_Submission_Handler {
             return false;
         }
 
-        $transient_key = 'fre_idempotent_' . hash( 'sha256', $form_id . '_' . $submission_id );
+        $transient_key = 'pforms_idempotent_' . hash( 'sha256', $form_id . '_' . $submission_id );
 
         // Check if this submission ID was already processed.
         $cached = get_transient( $transient_key );
@@ -890,7 +890,7 @@ class FRE_Submission_Handler {
      */
     private function log_form_config_error( $form_id ) {
         // Get list of registered forms for debugging.
-        $registered_forms = array_keys( fre()->registry->get_all() );
+        $registered_forms = array_keys( pforms()->registry->get_all() );
 
         $error_details = array(
             'requested_form_id' => $form_id,
@@ -904,7 +904,7 @@ class FRE_Submission_Handler {
             'timestamp'         => current_time( 'mysql' ),
         );
 
-        FRE_Logger::error( sprintf(
+        PForms_Logger::error( sprintf(
             'Form Config Error: Form "%s" not found. Registered forms: [%s]. Referer: %s',
             $form_id,
             implode( ', ', $registered_forms ),
@@ -912,7 +912,7 @@ class FRE_Submission_Handler {
         ) );
 
         // Store error for admin review.
-        $config_errors = get_option( 'fre_form_config_errors', array() );
+        $config_errors = get_option( 'pforms_form_config_errors', array() );
         $config_errors[] = $error_details;
 
         // Keep only last 50 errors.
@@ -922,7 +922,7 @@ class FRE_Submission_Handler {
 
         // Use autoload=false to prevent loading on every request.
         // This option can grow large and is only needed in admin context.
-        update_option( 'fre_form_config_errors', $config_errors, false );
+        update_option( 'pforms_form_config_errors', $config_errors, false );
 
         /**
          * Fires when a form configuration error occurs.
@@ -930,7 +930,7 @@ class FRE_Submission_Handler {
          * @param string $form_id       The form ID that was not found.
          * @param array  $error_details Error details array.
          */
-        do_action( 'fre_form_config_error', $form_id, $error_details );
+        do_action( 'pforms_form_config_error', $form_id, $error_details );
     }
 
     /**
@@ -942,7 +942,7 @@ class FRE_Submission_Handler {
     public function ajax_refresh_nonce() {
         // Rate limit: 10 requests per 5 minutes per IP.
         $ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-        $key = 'fre_nonce_refresh_' . md5( $ip );
+        $key = 'pforms_nonce_refresh_' . md5( $ip );
 
         $count = get_transient( $key );
         if ( $count !== false && (int) $count >= 10 ) {
@@ -959,7 +959,7 @@ class FRE_Submission_Handler {
         }
 
         // Validate form exists.
-        if ( ! fre()->registry->get( $form_id ) ) {
+        if ( ! pforms()->registry->get( $form_id ) ) {
             wp_send_json_error( array( 'message' => __( 'Invalid form ID.', 'promptless-forms' ) ) );
         }
 
@@ -969,7 +969,7 @@ class FRE_Submission_Handler {
 
         if ( ! empty( $old_nonce ) ) {
             // Check if nonce is valid or recently expired (within 2 nonce ticks = ~24 hours).
-            $nonce_action = 'fre_submit_' . $form_id;
+            $nonce_action = 'pforms_submit_' . $form_id;
             $valid = wp_verify_nonce( $old_nonce, $nonce_action );
 
             // wp_verify_nonce returns: 1 = valid (0-12 hrs), 2 = valid (12-24 hrs), false = invalid
@@ -989,7 +989,7 @@ class FRE_Submission_Handler {
         // but the rate limiting provides protection against abuse.
 
         wp_send_json_success( array(
-            'nonce' => wp_create_nonce( 'fre_submit_' . $form_id ),
+            'nonce' => wp_create_nonce( 'pforms_submit_' . $form_id ),
         ) );
     }
 }

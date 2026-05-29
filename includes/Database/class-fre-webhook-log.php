@@ -3,7 +3,7 @@
  * Webhook Delivery Log for Promptless Forms.
  *
  * Tracks webhook delivery attempts, statuses, and retry scheduling.
- * Mirrors the email retry pattern from FRE_Email_Notification.
+ * Mirrors the email retry pattern from PForms_Email_Notification.
  *
  * @package FormRuntimeEngine
  *
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Webhook delivery log model.
  */
-class FRE_Webhook_Log {
+class PForms_Webhook_Log {
 
     /**
      * WordPress database instance.

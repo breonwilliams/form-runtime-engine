@@ -26,12 +26,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Fix #12: Improved memory efficiency by using batched database queries
  * and streaming pagination instead of loading all entries at once.
  */
-class FRE_CSV_Exporter {
+class PForms_CSV_Exporter {
 
     /**
      * Entry query instance.
      *
-     * @var FRE_Entry_Query
+     * @var PForms_Entry_Query
      */
     private $query;
 
@@ -55,7 +55,7 @@ class FRE_CSV_Exporter {
     public function __construct() {
         global $wpdb;
         $this->wpdb  = $wpdb;
-        $this->query = new FRE_Entry_Query();
+        $this->query = new PForms_Entry_Query();
     }
 
     /**
@@ -189,7 +189,7 @@ class FRE_CSV_Exporter {
 
         // If specific form, add form field headers.
         if ( ! empty( $form_id ) ) {
-            $form = fre()->registry->get( $form_id );
+            $form = pforms()->registry->get( $form_id );
             if ( $form ) {
                 foreach ( $form['fields'] as $field ) {
                     // Skip non-storing fields.
@@ -237,7 +237,7 @@ class FRE_CSV_Exporter {
 
         // If specific form, add field values in order.
         if ( ! empty( $form_id ) ) {
-            $form = fre()->registry->get( $form_id );
+            $form = pforms()->registry->get( $form_id );
             if ( $form ) {
                 foreach ( $form['fields'] as $field ) {
                     if ( $field['type'] === 'message' ) {
@@ -287,7 +287,7 @@ class FRE_CSV_Exporter {
         $type = $field['type'] ?? 'text';
 
         // Get field instance.
-        $field_class = FRE_Autoloader::get_field_class( $type );
+        $field_class = PForms_Autoloader::get_field_class( $type );
         if ( $field_class && class_exists( $field_class ) ) {
             if ( ! isset( $this->field_instances[ $type ] ) ) {
                 $this->field_instances[ $type ] = new $field_class();

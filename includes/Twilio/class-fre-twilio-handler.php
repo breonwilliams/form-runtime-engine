@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Handles all Twilio webhook interactions.
  */
-class FRE_Twilio_Handler {
+class PForms_Twilio_Handler {
 
     /**
      * REST API namespace.
@@ -190,17 +190,17 @@ class FRE_Twilio_Handler {
         $client = $this->get_client_by_number( $to_number );
 
         if ( ! $client ) {
-            FRE_Logger::error( 'Twilio: Incoming call to unregistered number: ' . $to_number );
+            PForms_Logger::error( 'Twilio: Incoming call to unregistered number: ' . $to_number );
             return $this->twiml_response( '<Response><Say>Sorry, this number is not configured.</Say><Hangup/></Response>' );
         }
 
         if ( ! $client['is_active'] ) {
-            FRE_Logger::error( 'Twilio: Incoming call to inactive client: ' . $client['client_name'] );
+            PForms_Logger::error( 'Twilio: Incoming call to inactive client: ' . $client['client_name'] );
             return $this->twiml_response( '<Response><Hangup/></Response>' );
         }
 
         $owner_phone  = $client['owner_phone'];
-        $dial_timeout = apply_filters( 'fre_twilio_dial_timeout', self::DEFAULT_DIAL_TIMEOUT, $client );
+        $dial_timeout = apply_filters( 'pforms_twilio_dial_timeout', self::DEFAULT_DIAL_TIMEOUT, $client );
 
         // Build the call-status action URL.
         // No query params needed — Twilio sends From, To, CallSid, and
@@ -220,7 +220,7 @@ class FRE_Twilio_Handler {
             esc_html( $owner_phone )
         );
 
-        FRE_Logger::info(
+        PForms_Logger::info(
             sprintf( 'Twilio: Incoming call from %s to %s (%s), forwarding to %s', $from_number, $to_number, $client['client_name'], $owner_phone )
         );
 
@@ -261,7 +261,7 @@ class FRE_Twilio_Handler {
         // Check if this is a missed call.
         if ( ! in_array( $dial_status, self::MISSED_CALL_STATUSES, true ) ) {
             // Call was answered — log if needed but no text-back.
-            FRE_Logger::info(
+            PForms_Logger::info(
                 sprintf( 'Twilio: Call answered for %s (status: %s)', $client['client_name'], $dial_status )
             );
             return $this->twiml_response( '<Response><Hangup/></Response>' );
@@ -269,7 +269,7 @@ class FRE_Twilio_Handler {
 
         // === MISSED CALL — Trigger text-back sequence ===
 
-        FRE_Logger::info(
+        PForms_Logger::info(
             sprintf( 'Twilio: Missed call from %s for %s (status: %s) — triggering text-back', $caller_number, $client['client_name'], $dial_status )
         );
 
@@ -277,13 +277,13 @@ class FRE_Twilio_Handler {
         $entry_id = $this->create_lead_entry( $client, $caller_number, $call_sid, $dial_status );
 
         // 2. Get the Twilio client for sending SMS.
-        $twilio_client = FRE_Twilio_Client::from_settings();
+        $twilio_client = PForms_Twilio_Client::from_settings();
         if ( is_wp_error( $twilio_client ) ) {
-            FRE_Logger::error( 'Twilio: Cannot send text-back — ' . $twilio_client->get_error_message() );
+            PForms_Logger::error( 'Twilio: Cannot send text-back — ' . $twilio_client->get_error_message() );
             return $this->twiml_response( '<Response><Hangup/></Response>' );
         }
 
-        $sms_sender = new FRE_SMS_Sender( $twilio_client );
+        $sms_sender = new PForms_SMS_Sender( $twilio_client );
 
         // 3. Send auto-reply SMS to the caller.
         $auto_reply = $this->build_auto_reply( $client );
@@ -330,11 +330,11 @@ class FRE_Twilio_Handler {
         $client = $this->get_client_by_number( $to_number );
 
         if ( ! $client ) {
-            FRE_Logger::error( 'Twilio: Incoming SMS to unregistered number: ' . $to_number );
+            PForms_Logger::error( 'Twilio: Incoming SMS to unregistered number: ' . $to_number );
             return $this->twiml_response( '<Response/>' );
         }
 
-        FRE_Logger::info(
+        PForms_Logger::info(
             sprintf( 'Twilio: Incoming SMS from %s to %s (%s): %s', $from_number, $to_number, $client['client_name'], substr( $body, 0, 50 ) )
         );
 
@@ -342,9 +342,9 @@ class FRE_Twilio_Handler {
         $entry_id = $this->find_or_create_entry( $client, $from_number );
 
         // Log the inbound message.
-        $twilio_client = FRE_Twilio_Client::from_settings();
+        $twilio_client = PForms_Twilio_Client::from_settings();
         if ( ! is_wp_error( $twilio_client ) ) {
-            $sms_sender = new FRE_SMS_Sender( $twilio_client );
+            $sms_sender = new PForms_SMS_Sender( $twilio_client );
             $sms_sender->log_inbound( $entry_id, $body, $message_sid );
 
             // Forward the message to the business owner.
@@ -382,9 +382,9 @@ class FRE_Twilio_Handler {
         $message_status = isset( $_POST['MessageStatus'] ) ? sanitize_text_field( wp_unslash( $_POST['MessageStatus'] ) ) : '';
 
         if ( ! empty( $message_sid ) && ! empty( $message_status ) ) {
-            $twilio_client = FRE_Twilio_Client::from_settings();
+            $twilio_client = PForms_Twilio_Client::from_settings();
             if ( ! is_wp_error( $twilio_client ) ) {
-                $sms_sender = new FRE_SMS_Sender( $twilio_client );
+                $sms_sender = new PForms_SMS_Sender( $twilio_client );
                 $sms_sender->update_status( $message_sid, $message_status );
             }
         }
@@ -402,13 +402,13 @@ class FRE_Twilio_Handler {
      * @return bool|WP_Error True if valid, WP_Error on failure.
      */
     private function validate_request() {
-        $twilio_client = FRE_Twilio_Client::from_settings();
+        $twilio_client = PForms_Twilio_Client::from_settings();
 
         if ( is_wp_error( $twilio_client ) ) {
             return $twilio_client;
         }
 
-        return FRE_Twilio_Validator::validate_current_request( $twilio_client->get_auth_token() );
+        return PForms_Twilio_Validator::validate_current_request( $twilio_client->get_auth_token() );
     }
 
     /**
@@ -440,9 +440,9 @@ class FRE_Twilio_Handler {
     /**
      * Create an FRE lead entry for a missed call.
      *
-     * Creates the entry in the standard fre_entries table with source
+     * Creates the entry in the standard pforms_entries table with source
      * metadata, so it appears in the same lead list as form submissions.
-     * The fre_entry_created action fires automatically, triggering
+     * The pforms_entry_created action fires automatically, triggering
      * webhook dispatch to Google Sheets.
      *
      * @param array  $client       Client configuration record.
@@ -452,7 +452,7 @@ class FRE_Twilio_Handler {
      * @return int|false Entry ID on success, false on failure.
      */
     private function create_lead_entry( $client, $caller_phone, $call_sid, $call_status ) {
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
 
         $data = array(
             'phone'        => sanitize_text_field( $caller_phone ),
@@ -466,18 +466,18 @@ class FRE_Twilio_Handler {
             $entry_id = $entry_repo->create( $client['form_id'], $data );
 
             if ( is_wp_error( $entry_id ) ) {
-                FRE_Logger::error( 'Failed to create lead entry: ' . $entry_id->get_error_message() );
+                PForms_Logger::error( 'Failed to create lead entry: ' . $entry_id->get_error_message() );
                 return false;
             }
 
-            FRE_Logger::info(
+            PForms_Logger::info(
                 sprintf( 'Twilio: Created lead entry #%d for %s (caller: %s)', $entry_id, $client['client_name'], $caller_phone )
             );
 
             return $entry_id;
 
         } catch ( Exception $e ) {
-            FRE_Logger::error( 'Failed to create lead entry: ' . $e->getMessage() );
+            PForms_Logger::error( 'Failed to create lead entry: ' . $e->getMessage() );
             return false;
         }
     }
@@ -524,7 +524,7 @@ class FRE_Twilio_Handler {
         }
 
         // No recent entry found — create a new one from the SMS.
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
 
         try {
             $new_entry_id = $entry_repo->create(
@@ -543,7 +543,7 @@ class FRE_Twilio_Handler {
             return $new_entry_id;
 
         } catch ( Exception $e ) {
-            FRE_Logger::error( 'Failed to create SMS lead entry: ' . $e->getMessage() );
+            PForms_Logger::error( 'Failed to create SMS lead entry: ' . $e->getMessage() );
             return 0;
         }
     }
@@ -571,7 +571,7 @@ class FRE_Twilio_Handler {
          * @param array $replacements Template variable replacements.
          * @param array $client       Client configuration.
          */
-        $replacements = apply_filters( 'fre_twilio_auto_reply_vars', $replacements, $client );
+        $replacements = apply_filters( 'pforms_twilio_auto_reply_vars', $replacements, $client );
 
         return str_replace( array_keys( $replacements ), array_values( $replacements ), $template );
     }
@@ -586,7 +586,7 @@ class FRE_Twilio_Handler {
      * @param int    $entry_id     FRE entry ID.
      */
     private function send_email_notification( $client, $caller_phone, $entry_id ) {
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
 
         if ( empty( $client['owner_email'] ) ) {
             // No owner email configured — mark entry accordingly.
@@ -661,7 +661,7 @@ class FRE_Twilio_Handler {
      * @return WP_REST_Response TwiML error response.
      */
     private function error_response( WP_Error $error ) {
-        FRE_Logger::error( 'Twilio webhook error: ' . $error->get_error_message() );
+        PForms_Logger::error( 'Twilio webhook error: ' . $error->get_error_message() );
 
         return $this->twiml_response(
             '<?xml version="1.0" encoding="UTF-8"?>' .

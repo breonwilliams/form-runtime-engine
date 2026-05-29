@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Rate limiting spam protection.
  */
-class FRE_Rate_Limiter {
+class PForms_Rate_Limiter {
 
     /**
      * Default maximum submissions.
@@ -57,7 +57,7 @@ class FRE_Rate_Limiter {
      *
      * @var string
      */
-    private const CACHE_GROUP = 'fre_rate_limit';
+    private const CACHE_GROUP = 'pforms_rate_limit';
 
     /**
      * Constructor.
@@ -68,7 +68,7 @@ class FRE_Rate_Limiter {
          *
          * @param array $proxies Array of trusted proxy IPs.
          */
-        $this->trusted_proxies = apply_filters( 'fre_trusted_proxies', array() );
+        $this->trusted_proxies = apply_filters( 'pforms_trusted_proxies', array() );
 
         // Check if external object cache is available (Redis, Memcached, etc.).
         $this->use_object_cache = $this->has_external_object_cache();
@@ -137,12 +137,12 @@ class FRE_Rate_Limiter {
                 // Exponential backoff: 50ms, 100ms.
                 $delay = 50000 * pow( 2, $attempts - 1 );
                 usleep( $delay );
-                FRE_Logger::warning( "Rate Limiter: Deadlock detected, retry attempt {$attempts}" );
+                PForms_Logger::warning( "Rate Limiter: Deadlock detected, retry attempt {$attempts}" );
             }
         }
 
         // Max retries exhausted - fail closed to enforce rate limits under load.
-        FRE_Logger::error( 'Rate Limiter: Max deadlock retries exceeded, failing closed' );
+        PForms_Logger::error( 'Rate Limiter: Max deadlock retries exceeded, failing closed' );
         return true;
     }
 
@@ -285,7 +285,7 @@ class FRE_Rate_Limiter {
 
         } catch ( Exception $e ) {
             $wpdb->query( 'ROLLBACK' );
-            FRE_Logger::error( 'Rate Limiter Error: ' . $e->getMessage() );
+            PForms_Logger::error( 'Rate Limiter Error: ' . $e->getMessage() );
             return false; // Fail open on error.
         }
     }
@@ -339,7 +339,7 @@ class FRE_Rate_Limiter {
          * @param int    $limit   Maximum submissions per minute.
          * @param string $form_id Form ID.
          */
-        $max = apply_filters( 'fre_global_rate_limit', 30, $form_id );
+        $max = apply_filters( 'pforms_global_rate_limit', 30, $form_id );
 
         // Use object cache with atomic increment if available.
         if ( $this->use_object_cache ) {
@@ -372,7 +372,7 @@ class FRE_Rate_Limiter {
         }
 
         if ( (int) $current >= $max ) {
-            FRE_Logger::warning( sprintf(
+            PForms_Logger::warning( sprintf(
                 'Global rate limit hit: form=%s, count=%d, max=%d',
                 $form_id,
                 $current,
@@ -397,8 +397,8 @@ class FRE_Rate_Limiter {
     private function is_global_exceeded_db( $form_id, $max ) {
         global $wpdb;
 
-        $option_name  = '_transient_fre_global_rate_' . sanitize_key( $form_id );
-        $timeout_name = '_transient_timeout_fre_global_rate_' . sanitize_key( $form_id );
+        $option_name  = '_transient_pforms_global_rate_' . sanitize_key( $form_id );
+        $timeout_name = '_transient_timeout_pforms_global_rate_' . sanitize_key( $form_id );
 
         // Atomic increment using INSERT ... ON DUPLICATE KEY UPDATE.
         $result = $wpdb->query( $wpdb->prepare(
@@ -434,7 +434,7 @@ class FRE_Rate_Limiter {
         ) );
 
         if ( (int) $current > $max ) {
-            FRE_Logger::warning( sprintf(
+            PForms_Logger::warning( sprintf(
                 'Global rate limit hit: form=%s, count=%d, max=%d',
                 $form_id,
                 $current,
@@ -457,7 +457,7 @@ class FRE_Rate_Limiter {
      */
     public function is_global_ip_exceeded( $max = 20, $window = 3600 ) {
         $ip  = $this->get_client_ip();
-        $key = 'fre_global_ip_' . md5( $ip );
+        $key = 'pforms_global_ip_' . md5( $ip );
 
         $current = get_transient( $key );
 
@@ -467,7 +467,7 @@ class FRE_Rate_Limiter {
         }
 
         if ( (int) $current >= $max ) {
-            FRE_Logger::warning( sprintf(
+            PForms_Logger::warning( sprintf(
                 'Global IP rate limit exceeded: ip=%s, count=%d, max=%d',
                 $ip,
                 $current,
@@ -481,7 +481,7 @@ class FRE_Rate_Limiter {
              * @param int    $current Current submission count.
              * @param int    $max     Maximum allowed.
              */
-            do_action( 'fre_global_ip_rate_exceeded', $ip, $current, $max );
+            do_action( 'pforms_global_ip_rate_exceeded', $ip, $current, $max );
 
             return true;
         }
@@ -540,7 +540,7 @@ class FRE_Rate_Limiter {
      * @return string
      */
     private function get_cache_key( $form_id, $ip ) {
-        return 'fre_rate_' . md5( $form_id . '_' . $ip );
+        return 'pforms_rate_' . md5( $form_id . '_' . $ip );
     }
 
     /**
@@ -582,7 +582,7 @@ class FRE_Rate_Limiter {
      * @param int    $max     Maximum allowed.
      */
     private function log_rate_limit_hit( $form_id, $ip, $current, $max ) {
-        FRE_Logger::warning( sprintf(
+        PForms_Logger::warning( sprintf(
             'Rate limit exceeded: form=%s, ip=%s, count=%d, max=%d',
             $form_id,
             $ip,
@@ -598,7 +598,7 @@ class FRE_Rate_Limiter {
          * @param int    $current Current submission count.
          * @param int    $max     Maximum allowed.
          */
-        do_action( 'fre_rate_limit_exceeded', $form_id, $ip, $current, $max );
+        do_action( 'pforms_rate_limit_exceeded', $form_id, $ip, $current, $max );
     }
 
     /**

@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Address autocomplete field type.
  */
-class FRE_Field_Address extends FRE_Field_Type_Abstract {
+class PForms_Field_Address extends PForms_Field_Type_Abstract {
 
     /**
      * Field type slug.
@@ -55,7 +55,7 @@ class FRE_Field_Address extends FRE_Field_Type_Abstract {
         }
 
         // Check for API key.
-        $api_key = get_option( 'fre_google_places_api_key', '' );
+        $api_key = get_option( 'pforms_google_places_api_key', '' );
 
         $input = sprintf( '<input%s />', $this->build_attributes( $attributes ) );
 
@@ -67,7 +67,7 @@ class FRE_Field_Address extends FRE_Field_Type_Abstract {
             $input .= sprintf(
                 '<p class="fre-field__warning">%s <a href="%s">%s</a></p>',
                 esc_html__( 'Address autocomplete requires a Google Places API key.', 'promptless-forms' ),
-                esc_url( admin_url( 'admin.php?page=fre-settings' ) ),
+                esc_url( admin_url( 'admin.php?page=pforms-settings' ) ),
                 esc_html__( 'Configure API key', 'promptless-forms' )
             );
         }
@@ -101,7 +101,7 @@ class FRE_Field_Address extends FRE_Field_Type_Abstract {
         $html = '';
         foreach ( $components as $component ) {
             $html .= sprintf(
-                '<input type="hidden" name="fre_field_%s_%s" id="fre-%s-%s-%s" data-address-component="%s" />',
+                '<input type="hidden" name="pforms_field_%s_%s" id="fre-%s-%s-%s" data-address-component="%s" />',
                 esc_attr( $key ),
                 esc_attr( $component ),
                 esc_attr( $form_id ),
@@ -160,7 +160,7 @@ class FRE_Field_Address extends FRE_Field_Type_Abstract {
      * Called by the renderer when an address field is present.
      */
     public static function enqueue_scripts() {
-        $api_key = get_option( 'fre_google_places_api_key', '' );
+        $api_key = get_option( 'pforms_google_places_api_key', '' );
 
         if ( empty( $api_key ) ) {
             return;
@@ -173,12 +173,12 @@ class FRE_Field_Address extends FRE_Field_Type_Abstract {
                 array(
                     'key'       => $api_key,
                     'libraries' => 'places',
-                    'callback'  => 'freInitAddressFields',
+                    'callback'  => 'pformsInitAddressFields',
                 ),
                 'https://maps.googleapis.com/maps/api/js'
             ),
-            array( 'fre-frontend' ),
-            FRE_VERSION,
+            array( 'pforms-frontend' ),
+            PForms_VERSION,
             true
         );
 

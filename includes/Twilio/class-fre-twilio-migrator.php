@@ -2,8 +2,8 @@
 /**
  * Database migrator for Twilio text-back integration.
  *
- * Creates and manages the fre_twilio_clients and fre_twilio_messages tables.
- * Follows the same migration pattern as FRE_Migrator.
+ * Creates and manages the pforms_twilio_clients and pforms_twilio_messages tables.
+ * Follows the same migration pattern as PForms_Migrator.
  *
  * @package FormRuntimeEngine
  *
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Twilio database migration handler.
  */
-class FRE_Twilio_Migrator {
+class PForms_Twilio_Migrator {
 
     /**
      * Current Twilio schema version.
@@ -35,7 +35,7 @@ class FRE_Twilio_Migrator {
      *
      * @var string
      */
-    const VERSION_OPTION = 'fre_twilio_db_version';
+    const VERSION_OPTION = 'pforms_twilio_db_version';
 
     /**
      * WordPress database instance.
@@ -100,13 +100,13 @@ class FRE_Twilio_Migrator {
             }
 
             update_option( self::VERSION_OPTION, self::VERSION );
-            delete_option( 'fre_twilio_migration_error' );
+            delete_option( 'pforms_twilio_migration_error' );
 
             return true;
 
         } catch ( Exception $e ) {
-            update_option( 'fre_twilio_migration_error', $e->getMessage() );
-            FRE_Logger::error( 'Twilio Migration Error: ' . $e->getMessage() );
+            update_option( 'pforms_twilio_migration_error', $e->getMessage() );
+            PForms_Logger::error( 'Twilio Migration Error: ' . $e->getMessage() );
 
             return false;
         }
@@ -157,8 +157,8 @@ class FRE_Twilio_Migrator {
      * Migration 1.0.0 - Initial Twilio tables.
      *
      * Creates:
-     * - fre_twilio_clients: Maps Twilio numbers to client configurations.
-     * - fre_twilio_messages: Stores SMS conversation threads per lead.
+     * - pforms_twilio_clients: Maps Twilio numbers to client configurations.
+     * - pforms_twilio_messages: Stores SMS conversation threads per lead.
      *
      * @return bool True on success, false on failure.
      */
@@ -269,7 +269,7 @@ class FRE_Twilio_Migrator {
         }
 
         delete_option( self::VERSION_OPTION );
-        delete_option( 'fre_twilio_migration_error' );
+        delete_option( 'pforms_twilio_migration_error' );
 
         return true;
     }

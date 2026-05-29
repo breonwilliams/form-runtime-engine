@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Database migration handler.
  */
-class FRE_Migrator {
+class PForms_Migrator {
 
     /**
      * WordPress database instance.
@@ -61,8 +61,8 @@ class FRE_Migrator {
      * @return bool True on success, false on failure.
      */
     public function run_migrations() {
-        $current_version = get_option( 'fre_db_version', '0.0.0' );
-        $target_version  = FRE_DB_VERSION;
+        $current_version = get_option( 'pforms_db_version', '0.0.0' );
+        $target_version  = PForms_DB_VERSION;
 
         // Already up to date.
         if ( version_compare( $current_version, $target_version, '>=' ) ) {
@@ -73,7 +73,7 @@ class FRE_Migrator {
         $migrations = $this->get_pending_migrations( $current_version );
 
         if ( empty( $migrations ) ) {
-            update_option( 'fre_db_version', $target_version );
+            update_option( 'pforms_db_version', $target_version );
             return true;
         }
 
@@ -95,19 +95,19 @@ class FRE_Migrator {
             }
 
             // Update version on success.
-            update_option( 'fre_db_version', $target_version );
+            update_option( 'pforms_db_version', $target_version );
 
             // Clear any previous migration errors.
-            delete_option( 'fre_migration_error' );
+            delete_option( 'pforms_migration_error' );
 
             return true;
 
         } catch ( Exception $e ) {
             // Store error for admin notice.
-            update_option( 'fre_migration_error', $e->getMessage() );
+            update_option( 'pforms_migration_error', $e->getMessage() );
 
             // Log error.
-            FRE_Logger::error( 'Migration Error: ' . $e->getMessage() );
+            PForms_Logger::error( 'Migration Error: ' . $e->getMessage() );
 
             return false;
         }
@@ -369,8 +369,8 @@ class FRE_Migrator {
             }
         }
 
-        delete_option( 'fre_db_version' );
-        delete_option( 'fre_migration_error' );
+        delete_option( 'pforms_db_version' );
+        delete_option( 'pforms_migration_error' );
 
         return true;
     }
@@ -381,7 +381,7 @@ class FRE_Migrator {
      * @return string Current database version.
      */
     public function get_current_version() {
-        return get_option( 'fre_db_version', '0.0.0' );
+        return get_option( 'pforms_db_version', '0.0.0' );
     }
 
     /**
@@ -435,7 +435,7 @@ class FRE_Migrator {
                 );
 
                 if ( $result === false ) {
-                    FRE_Logger::error( "Failed to create index {$index['name']} on {$index['table']}: " . $this->wpdb->last_error );
+                    PForms_Logger::error( "Failed to create index {$index['name']} on {$index['table']}: " . $this->wpdb->last_error );
                     // Continue with other indexes even if one fails.
                 }
             }

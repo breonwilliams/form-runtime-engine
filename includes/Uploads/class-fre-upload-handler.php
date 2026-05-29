@@ -38,7 +38,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * File upload handler.
  */
-class FRE_Upload_Handler {
+class PForms_Upload_Handler {
 
     /**
      * Blocked extensions (case-insensitive).
@@ -105,7 +105,7 @@ class FRE_Upload_Handler {
      *
      * Sites on configurations where 0600 works correctly (e.g., suEXEC
      * with PHP and Apache running as the same user) and that want the
-     * tighter posture can override via the `fre_uploaded_file_permissions`
+     * tighter posture can override via the `pforms_uploaded_file_permissions`
      * filter.
      */
     private const FILE_PERMISSIONS = 0644;
@@ -131,9 +131,9 @@ class FRE_Upload_Handler {
      *   dst — Tajima embroidery files have a 512-byte fixed header alone
      *         before any stitch data. 500 bytes is the conservative minimum.
      *
-     * Override per site via the `fre_min_file_sizes` filter — useful for
+     * Override per site via the `pforms_min_file_sizes` filter — useful for
      * format variants the plugin doesn't ship with (e.g., .pes embroidery,
-     * .cdr CorelDRAW) that are registered via the `fre_mime_map` filter.
+     * .cdr CorelDRAW) that are registered via the `pforms_mime_map` filter.
      *
      * @since 1.5.0
      */
@@ -160,7 +160,7 @@ class FRE_Upload_Handler {
     /**
      * MIME validator instance.
      *
-     * @var FRE_Mime_Validator
+     * @var PForms_Mime_Validator
      */
     private $mime_validator;
 
@@ -168,7 +168,7 @@ class FRE_Upload_Handler {
      * Constructor.
      */
     public function __construct() {
-        $this->mime_validator = new FRE_Mime_Validator();
+        $this->mime_validator = new PForms_Mime_Validator();
     }
 
     /**
@@ -193,7 +193,7 @@ class FRE_Upload_Handler {
                 continue;
             }
 
-            $file_field = new FRE_Field_File();
+            $file_field = new PForms_Field_File();
             $file_key   = $file_field->get_name( $field );
 
             if ( ! isset( $_FILES[ $file_key ] ) || empty( $_FILES[ $file_key ]['name'] ) ) {
@@ -290,7 +290,7 @@ class FRE_Upload_Handler {
             }
         }
 
-        FRE_Logger::info( 'Rolled back ' . count( $uploads ) . ' uploaded file(s) due to upload failure.' );
+        PForms_Logger::info( 'Rolled back ' . count( $uploads ) . ' uploaded file(s) due to upload failure.' );
     }
 
     /**
@@ -366,7 +366,7 @@ class FRE_Upload_Handler {
         // An attacker could create a symlink at the target path between validation and rename.
         if ( file_exists( $final_path ) || is_link( $final_path ) ) {
             @unlink( $quarantine_file );
-            FRE_Logger::warning( 'Upload blocked: Target path already exists - ' . $secure_filename );
+            PForms_Logger::warning( 'Upload blocked: Target path already exists - ' . $secure_filename );
             return new WP_Error( 'file_exists', __( 'Upload failed. Please try again.', 'promptless-forms' ) );
         }
 
@@ -391,10 +391,10 @@ class FRE_Upload_Handler {
          * @param int    $permissions Octal file mode (default 0644).
          * @param string $final_path  Absolute path of the uploaded file.
          */
-        $permissions = (int) apply_filters( 'fre_uploaded_file_permissions', self::FILE_PERMISSIONS, $final_path );
+        $permissions = (int) apply_filters( 'pforms_uploaded_file_permissions', self::FILE_PERMISSIONS, $final_path );
 
         if ( ! chmod( $final_path, $permissions ) ) {
-            FRE_Logger::warning( sprintf(
+            PForms_Logger::warning( sprintf(
                 'Failed to set file permissions (%o) for %s',
                 $permissions,
                 $final_path
@@ -508,10 +508,10 @@ class FRE_Upload_Handler {
 
         // Fix #9: Use randomized quarantine directory name stored in options.
         // This makes the path unpredictable even if an attacker knows the structure.
-        $quarantine_suffix = get_option( 'fre_quarantine_suffix' );
+        $quarantine_suffix = get_option( 'pforms_quarantine_suffix' );
         if ( empty( $quarantine_suffix ) ) {
             $quarantine_suffix = wp_generate_password( 16, false );
-            update_option( 'fre_quarantine_suffix', $quarantine_suffix, false );
+            update_option( 'pforms_quarantine_suffix', $quarantine_suffix, false );
         }
 
         $quarantine_path = $upload_dir['basedir'] . '/' . self::QUARANTINE_DIR . '-' . $quarantine_suffix;
@@ -563,7 +563,7 @@ class FRE_Upload_Handler {
      */
     private function validate_quarantined_file( $file_path, array $field ) {
         // Get allowed types for this field.
-        $file_field    = new FRE_Field_File();
+        $file_field    = new PForms_Field_File();
         $allowed_types = $file_field->get_allowed_types( $field );
 
         // Verify content matches extension using finfo.
@@ -595,14 +595,14 @@ class FRE_Upload_Handler {
          * Map of lowercase extension → minimum byte size. Keys not in the
          * returned map are not size-checked (existing behavior). Useful for
          * extending the protection to custom formats registered via
-         * `fre_mime_map` (e.g., `pes` for Brother embroidery, `cdr` for
+         * `pforms_mime_map` (e.g., `pes` for Brother embroidery, `cdr` for
          * CorelDRAW vector files).
          *
          * @since 1.5.0
          *
          * @param array $min_sizes Map of extension → minimum bytes.
          */
-        $min_sizes = (array) apply_filters( 'fre_min_file_sizes', self::MIN_FILE_SIZES );
+        $min_sizes = (array) apply_filters( 'pforms_min_file_sizes', self::MIN_FILE_SIZES );
         if ( isset( $min_sizes[ $ext ] ) ) {
             $actual_size = filesize( $file_path );
             if ( $actual_size !== false && $actual_size < (int) $min_sizes[ $ext ] ) {
@@ -655,7 +655,7 @@ class FRE_Upload_Handler {
             ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
             : 'unknown';
 
-        FRE_Logger::warning( sprintf(
+        PForms_Logger::warning( sprintf(
             'Upload blocked: file=%s, reason=%s, ip=%s',
             sanitize_file_name( $filename ),
             $reason,
@@ -669,7 +669,7 @@ class FRE_Upload_Handler {
          * @param string $reason   Rejection reason.
          * @param string $ip       Client IP.
          */
-        do_action( 'fre_upload_rejected', $filename, $reason, $ip );
+        do_action( 'pforms_upload_rejected', $filename, $reason, $ip );
     }
 
     /**
@@ -698,7 +698,7 @@ class FRE_Upload_Handler {
         }
 
         // Get allowed types for this field.
-        $file_field    = new FRE_Field_File();
+        $file_field    = new PForms_Field_File();
         $allowed_types = $file_field->get_allowed_types( $field );
 
         // Check extension against allowed types.
@@ -880,7 +880,7 @@ class FRE_Upload_Handler {
         $minimum_required = $required_bytes + ( 10 * 1024 * 1024 );
 
         if ( $free_space < $minimum_required ) {
-            FRE_Logger::warning( sprintf(
+            PForms_Logger::warning( sprintf(
                 'Disk space check failed. Required: %s, Available: %s',
                 size_format( $minimum_required ),
                 size_format( $free_space )

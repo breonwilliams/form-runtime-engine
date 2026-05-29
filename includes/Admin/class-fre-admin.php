@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Admin interface handler.
  */
-class FRE_Admin {
+class PForms_Admin {
 
     /**
      * Constructor.
@@ -36,20 +36,20 @@ class FRE_Admin {
         add_action( 'admin_init', array( $this, 'register_settings' ) );
 
         // AJAX handlers for entries.
-        add_action( 'wp_ajax_fre_mark_read', array( $this, 'ajax_mark_read' ) );
-        add_action( 'wp_ajax_fre_mark_unread', array( $this, 'ajax_mark_unread' ) );
-        add_action( 'wp_ajax_fre_delete_entry', array( $this, 'ajax_delete_entry' ) );
-        add_action( 'wp_ajax_fre_mark_spam', array( $this, 'ajax_mark_spam' ) );
+        add_action( 'wp_ajax_pforms_mark_read', array( $this, 'ajax_mark_read' ) );
+        add_action( 'wp_ajax_pforms_mark_unread', array( $this, 'ajax_mark_unread' ) );
+        add_action( 'wp_ajax_pforms_delete_entry', array( $this, 'ajax_delete_entry' ) );
+        add_action( 'wp_ajax_pforms_mark_spam', array( $this, 'ajax_mark_spam' ) );
 
         // AJAX handlers for forms management.
-        add_action( 'wp_ajax_fre_save_form', array( 'FRE_Forms_Manager', 'ajax_save_form' ) );
-        add_action( 'wp_ajax_fre_delete_form', array( 'FRE_Forms_Manager', 'ajax_delete_form' ) );
-        add_action( 'wp_ajax_fre_test_webhook', array( 'FRE_Forms_Manager', 'ajax_test_webhook' ) );
-        add_action( 'wp_ajax_fre_preview_payload', array( 'FRE_Forms_Manager', 'ajax_preview_payload' ) );
-        add_action( 'wp_ajax_fre_regenerate_secret', array( 'FRE_Forms_Manager', 'ajax_regenerate_secret' ) );
+        add_action( 'wp_ajax_pforms_save_form', array( 'PForms_Forms_Manager', 'ajax_save_form' ) );
+        add_action( 'wp_ajax_pforms_delete_form', array( 'PForms_Forms_Manager', 'ajax_delete_form' ) );
+        add_action( 'wp_ajax_pforms_test_webhook', array( 'PForms_Forms_Manager', 'ajax_test_webhook' ) );
+        add_action( 'wp_ajax_pforms_preview_payload', array( 'PForms_Forms_Manager', 'ajax_preview_payload' ) );
+        add_action( 'wp_ajax_pforms_regenerate_secret', array( 'PForms_Forms_Manager', 'ajax_regenerate_secret' ) );
 
         // AJAX handler for API key testing.
-        add_action( 'wp_ajax_fre_test_google_api_key', array( $this, 'ajax_test_google_api_key' ) );
+        add_action( 'wp_ajax_pforms_test_google_api_key', array( $this, 'ajax_test_google_api_key' ) );
     }
 
     /**
@@ -60,8 +60,8 @@ class FRE_Admin {
         add_menu_page(
             __( 'Form Entries', 'promptless-forms' ),
             __( 'Form Entries', 'promptless-forms' ),
-            FRE_Capabilities::MANAGE_FORMS,
-            'fre-entries',
+            PForms_Capabilities::MANAGE_FORMS,
+            'pforms-entries',
             array( $this, 'render_entries_page' ),
             'dashicons-feedback',
             30
@@ -72,38 +72,38 @@ class FRE_Admin {
             null,
             __( 'Entry Details', 'promptless-forms' ),
             __( 'Entry Details', 'promptless-forms' ),
-            FRE_Capabilities::MANAGE_FORMS,
-            'fre-entry',
+            PForms_Capabilities::MANAGE_FORMS,
+            'pforms-entry',
             array( $this, 'render_entry_page' )
         );
 
         // Export page.
         add_submenu_page(
-            'fre-entries',
+            'pforms-entries',
             __( 'Export Entries', 'promptless-forms' ),
             __( 'Export', 'promptless-forms' ),
-            FRE_Capabilities::MANAGE_FORMS,
-            'fre-export',
+            PForms_Capabilities::MANAGE_FORMS,
+            'pforms-export',
             array( $this, 'render_export_page' )
         );
 
         // Forms management page.
         add_submenu_page(
-            'fre-entries',
+            'pforms-entries',
             __( 'Manage Forms', 'promptless-forms' ),
             __( 'Forms', 'promptless-forms' ),
-            FRE_Capabilities::MANAGE_FORMS,
-            'fre-forms',
-            array( 'FRE_Forms_Manager', 'render_page' )
+            PForms_Capabilities::MANAGE_FORMS,
+            'pforms-forms',
+            array( 'PForms_Forms_Manager', 'render_page' )
         );
 
         // Settings page.
         add_submenu_page(
-            'fre-entries',
+            'pforms-entries',
             __( 'Settings', 'promptless-forms' ),
             __( 'Settings', 'promptless-forms' ),
-            FRE_Capabilities::MANAGE_FORMS,
-            'fre-settings',
+            PForms_Capabilities::MANAGE_FORMS,
+            'pforms-settings',
             array( $this, 'render_settings_page' )
         );
     }
@@ -113,8 +113,8 @@ class FRE_Admin {
      */
     public function register_settings() {
         register_setting(
-            'fre_settings',
-            'fre_google_places_api_key',
+            'pforms_settings',
+            'pforms_google_places_api_key',
             array(
                 'type'              => 'string',
                 'sanitize_callback' => 'sanitize_text_field',
@@ -123,18 +123,18 @@ class FRE_Admin {
         );
 
         add_settings_section(
-            'fre_api_keys_section',
+            'pforms_api_keys_section',
             __( 'API Keys', 'promptless-forms' ),
             array( $this, 'render_api_keys_section' ),
-            'fre-settings'
+            'pforms-settings'
         );
 
         add_settings_field(
-            'fre_google_places_api_key',
+            'pforms_google_places_api_key',
             __( 'Google Places API Key', 'promptless-forms' ),
             array( $this, 'render_google_places_api_key_field' ),
-            'fre-settings',
-            'fre_api_keys_section'
+            'pforms-settings',
+            'pforms_api_keys_section'
         );
     }
 
@@ -149,15 +149,15 @@ class FRE_Admin {
      * Render Google Places API key field.
      */
     public function render_google_places_api_key_field() {
-        $value = get_option( 'fre_google_places_api_key', '' );
+        $value = get_option( 'pforms_google_places_api_key', '' );
         ?>
         <input type="password"
-               id="fre_google_places_api_key"
-               name="fre_google_places_api_key"
+               id="pforms_google_places_api_key"
+               name="pforms_google_places_api_key"
                value="<?php echo esc_attr( $value ); ?>"
                class="regular-text"
                autocomplete="off" />
-        <button type="button" class="button fre-toggle-api-key" data-target="fre_google_places_api_key">
+        <button type="button" class="button fre-toggle-api-key" data-target="pforms_google_places_api_key">
             <?php esc_html_e( 'Show', 'promptless-forms' ); ?>
         </button>
         <button type="button" class="button fre-test-api-key" id="fre-test-api-key">
@@ -185,7 +185,7 @@ class FRE_Admin {
      * Render settings page.
      */
     public function render_settings_page() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
@@ -195,8 +195,8 @@ class FRE_Admin {
 
             <form method="post" action="options.php">
                 <?php
-                settings_fields( 'fre_settings' );
-                do_settings_sections( 'fre-settings' );
+                settings_fields( 'pforms_settings' );
+                do_settings_sections( 'pforms-settings' );
                 submit_button();
                 ?>
             </form>
@@ -216,28 +216,28 @@ class FRE_Admin {
      */
     public function enqueue_admin_assets( $hook ) {
         // Only load on our pages.
-        if ( strpos( $hook, 'fre-' ) === false && strpos( $hook, 'fre_' ) === false ) {
+        if ( strpos( $hook, 'fre-' ) === false && strpos( $hook, 'pforms_' ) === false ) {
             return;
         }
 
         wp_enqueue_style(
-            'fre-admin',
-            FRE_PLUGIN_URL . 'assets/css/admin.css',
+            'pforms-admin',
+            PForms_PLUGIN_URL . 'assets/css/admin.css',
             array(),
-            FRE_VERSION
+            PForms_VERSION
         );
 
         wp_enqueue_script(
-            'fre-admin',
-            FRE_PLUGIN_URL . 'assets/js/admin.js',
+            'pforms-admin',
+            PForms_PLUGIN_URL . 'assets/js/admin.js',
             array( 'jquery' ),
-            FRE_VERSION,
+            PForms_VERSION,
             true
         );
 
-        wp_localize_script( 'fre-admin', 'freAdmin', array(
+        wp_localize_script( 'pforms-admin', 'pformsAdmin', array(
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-            'nonce'   => wp_create_nonce( 'fre_admin_nonce' ),
+            'nonce'   => wp_create_nonce( 'pforms_admin_nonce' ),
             'strings' => array(
                 // Entry management strings.
                 'confirmDelete'      => __( 'Are you sure you want to delete this entry? This cannot be undone.', 'promptless-forms' ),
@@ -268,16 +268,16 @@ class FRE_Admin {
      */
     public function render_entries_page() {
         // Check user capability.
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
         // Create list table.
-        $list_table = new FRE_Entries_List_Table();
+        $list_table = new PForms_Entries_List_Table();
         $list_table->prepare_items();
 
         // Get form filter options.
-        $query     = new FRE_Entry_Query();
+        $query     = new PForms_Entry_Query();
         $form_ids  = $query->get_form_ids();
 
         // Check if filtering by form.
@@ -285,7 +285,7 @@ class FRE_Admin {
         $form_title      = '';
 
         if ( $current_form_id ) {
-            $form = fre()->registry->get( $current_form_id );
+            $form = pforms()->registry->get( $current_form_id );
             $form_title = $form && ! empty( $form['title'] ) ? $form['title'] : $current_form_id;
         }
 
@@ -301,20 +301,20 @@ class FRE_Admin {
                     );
                     ?>
                 </h1>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-entries' ) ); ?>" class="page-title-action">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-entries' ) ); ?>" class="page-title-action">
                     <?php esc_html_e( 'View All Entries', 'promptless-forms' ); ?>
                 </a>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $current_form_id ) ); ?>" class="page-title-action">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-forms&action=edit&form=' . $current_form_id ) ); ?>" class="page-title-action">
                     <?php esc_html_e( 'Edit Form', 'promptless-forms' ); ?>
                 </a>
                 <hr class="wp-header-end">
 
                 <!-- Tab navigation to match form edit page -->
                 <h2 class="nav-tab-wrapper fre-form-tabs">
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-forms&action=edit&form=' . $current_form_id ) ); ?>" class="nav-tab">
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-forms&action=edit&form=' . $current_form_id ) ); ?>" class="nav-tab">
                         <?php esc_html_e( 'Settings', 'promptless-forms' ); ?>
                     </a>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=fre-entries&form_id=' . $current_form_id ) ); ?>" class="nav-tab nav-tab-active">
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-entries&form_id=' . $current_form_id ) ); ?>" class="nav-tab nav-tab-active">
                         <?php esc_html_e( 'Entries', 'promptless-forms' ); ?>
                     </a>
                 </h2>
@@ -337,7 +337,7 @@ class FRE_Admin {
      * Render single entry page.
      */
     public function render_entry_page() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
@@ -347,7 +347,7 @@ class FRE_Admin {
             wp_die( esc_html__( 'Invalid entry ID.', 'promptless-forms' ) );
         }
 
-        $entry_detail = new FRE_Entry_Detail( $entry_id );
+        $entry_detail = new PForms_Entry_Detail( $entry_id );
         $entry_detail->render();
     }
 
@@ -355,11 +355,11 @@ class FRE_Admin {
      * Render export page.
      */
     public function render_export_page() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
-        $query    = new FRE_Entry_Query();
+        $query    = new PForms_Entry_Query();
         $form_ids = $query->get_form_ids();
 
         ?>
@@ -367,8 +367,8 @@ class FRE_Admin {
             <h1><?php esc_html_e( 'Export Entries', 'promptless-forms' ); ?></h1>
 
             <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-                <input type="hidden" name="action" value="fre_export_csv" />
-                <?php wp_nonce_field( 'fre_export_csv', 'fre_export_nonce' ); ?>
+                <input type="hidden" name="action" value="pforms_export_csv" />
+                <?php wp_nonce_field( 'pforms_export_csv', 'pforms_export_nonce' ); ?>
 
                 <table class="form-table">
                     <tr>
@@ -380,7 +380,7 @@ class FRE_Admin {
                                 <option value=""><?php esc_html_e( 'All Forms', 'promptless-forms' ); ?></option>
                                 <?php foreach ( $form_ids as $form_id ) : ?>
                                     <?php
-                                    $form  = fre()->registry->get( $form_id );
+                                    $form  = pforms()->registry->get( $form_id );
                                     $title = $form ? $form['title'] : $form_id;
                                     ?>
                                     <option value="<?php echo esc_attr( $form_id ); ?>">
@@ -438,7 +438,7 @@ class FRE_Admin {
      */
     public function admin_notices() {
         // Check email failures.
-        $email_handler = new FRE_Email_Notification();
+        $email_handler = new PForms_Email_Notification();
         $failures      = $email_handler->get_failure_count();
 
         if ( $failures > 5 ) {
@@ -468,20 +468,20 @@ class FRE_Admin {
      */
     public function handle_actions() {
         // Handle CSV export.
-        add_action( 'admin_post_fre_export_csv', array( $this, 'handle_csv_export' ) );
+        add_action( 'admin_post_pforms_export_csv', array( $this, 'handle_csv_export' ) );
     }
 
     /**
      * Handle CSV export action.
      */
     public function handle_csv_export() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'Unauthorized', 'promptless-forms' ) );
         }
 
-        check_admin_referer( 'fre_export_csv', 'fre_export_nonce' );
+        check_admin_referer( 'pforms_export_csv', 'pforms_export_nonce' );
 
-        $exporter = new FRE_CSV_Exporter();
+        $exporter = new PForms_CSV_Exporter();
 
         $args = array(
             'form_id'      => isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : '',
@@ -498,11 +498,11 @@ class FRE_Admin {
      * AJAX: Mark entry as read.
      */
     public function ajax_mark_read() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
 
@@ -510,7 +510,7 @@ class FRE_Admin {
             wp_send_json_error( array( 'message' => 'Invalid entry ID' ) );
         }
 
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
         $result     = $entry_repo->mark_read( $entry_id );
 
         if ( $result ) {
@@ -524,11 +524,11 @@ class FRE_Admin {
      * AJAX: Mark entry as unread.
      */
     public function ajax_mark_unread() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
 
@@ -536,7 +536,7 @@ class FRE_Admin {
             wp_send_json_error( array( 'message' => 'Invalid entry ID' ) );
         }
 
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
         $result     = $entry_repo->mark_unread( $entry_id );
 
         if ( $result ) {
@@ -550,11 +550,11 @@ class FRE_Admin {
      * AJAX: Delete entry.
      */
     public function ajax_delete_entry() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
 
@@ -562,7 +562,7 @@ class FRE_Admin {
             wp_send_json_error( array( 'message' => 'Invalid entry ID' ) );
         }
 
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
         $result     = $entry_repo->delete( $entry_id );
 
         if ( $result ) {
@@ -576,11 +576,11 @@ class FRE_Admin {
      * AJAX: Mark entry as spam.
      */
     public function ajax_mark_spam() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => 'Unauthorized' ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $entry_id = isset( $_POST['entry_id'] ) ? (int) $_POST['entry_id'] : 0;
 
@@ -588,7 +588,7 @@ class FRE_Admin {
             wp_send_json_error( array( 'message' => 'Invalid entry ID' ) );
         }
 
-        $entry_repo = new FRE_Entry();
+        $entry_repo = new PForms_Entry();
         $result     = $entry_repo->mark_spam( $entry_id );
 
         if ( $result ) {
@@ -636,11 +636,11 @@ class FRE_Admin {
      * AJAX: Test Google Places API key.
      */
     public function ajax_test_google_api_key() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized', 'promptless-forms' ) ) );
         }
 
-        check_ajax_referer( 'fre_admin_nonce', 'nonce' );
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
 
         $api_key = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
 

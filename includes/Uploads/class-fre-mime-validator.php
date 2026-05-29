@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * MIME type validation handler.
  */
-class FRE_Mime_Validator {
+class PForms_Mime_Validator {
 
     /**
      * Magic bytes for file type verification (Fix #6: Polyglot detection).
@@ -182,11 +182,11 @@ class FRE_Mime_Validator {
     );
 
     /**
-     * Constructor — applies the `fre_mime_map` filter so sites can register
+     * Constructor — applies the `pforms_mime_map` filter so sites can register
      * custom MIME mappings without forking this class.
      *
      * Usage:
-     *   add_filter( 'fre_mime_map', function ( $map ) {
+     *   add_filter( 'pforms_mime_map', function ( $map ) {
      *       $map['dwg'] = array( 'application/acad', 'image/vnd.dwg', 'application/octet-stream' );
      *       return $map;
      *   } );
@@ -205,7 +205,7 @@ class FRE_Mime_Validator {
          *
          * @param array $mime_map Map of lowercase extension → array of allowed MIME types.
          */
-        $this->mime_map = (array) apply_filters( 'fre_mime_map', $this->mime_map );
+        $this->mime_map = (array) apply_filters( 'pforms_mime_map', $this->mime_map );
     }
 
     /**
@@ -537,7 +537,7 @@ class FRE_Mime_Validator {
          * @param string $extension  Lowercase file extension being verified.
          */
         $valid_signatures = isset( self::MAGIC_BYTES[ $extension ] ) ? self::MAGIC_BYTES[ $extension ] : array();
-        $valid_signatures = (array) apply_filters( 'fre_magic_bytes', $valid_signatures, $extension );
+        $valid_signatures = (array) apply_filters( 'pforms_magic_bytes', $valid_signatures, $extension );
 
         // Skip if we don't have magic bytes for this extension.
         if ( empty( $valid_signatures ) ) {

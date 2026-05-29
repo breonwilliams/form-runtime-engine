@@ -9,7 +9,7 @@
  *   - Placeholder for the Phase 3 setup command.
  *   - Link to CONNECTOR_SPEC.md.
  *
- * All state read/write delegates to FRE_Connector_Settings and to WordPress
+ * All state read/write delegates to PForms_Connector_Settings and to WordPress
  * core's WP_Application_Passwords. This class holds no state itself.
  *
  * @package FormRuntimeEngine
@@ -25,25 +25,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Connector admin page controller.
  */
-class FRE_Connector_Admin {
+class PForms_Connector_Admin {
 
     /**
      * Submenu slug.
      *
      * @var string
      */
-    const PAGE_SLUG = 'fre-claude-connection';
+    const PAGE_SLUG = 'pforms-claude-connection';
 
     /**
      * Nonce action shared by all connector-admin AJAX handlers.
      *
-     * Matches the existing fre_admin_nonce used by FRE_Admin so the same
+     * Matches the existing pforms_admin_nonce used by PForms_Admin so the same
      * localized nonce value can gate both sets of handlers — one nonce per
      * admin session is simpler than one per subsystem.
      *
      * @var string
      */
-    const NONCE_ACTION = 'fre_admin_nonce';
+    const NONCE_ACTION = 'pforms_admin_nonce';
 
     /**
      * Hook suffix for the connector submenu page. Captured at registration
@@ -65,17 +65,17 @@ class FRE_Connector_Admin {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 
         // AJAX handlers — only logged-in admins with the capability can hit them.
-        add_action( 'wp_ajax_fre_connector_toggle_enabled', array( $this, 'ajax_toggle_enabled' ) );
-        add_action( 'wp_ajax_fre_connector_toggle_entry_read', array( $this, 'ajax_toggle_entry_read' ) );
-        add_action( 'wp_ajax_fre_connector_generate_password', array( $this, 'ajax_generate_password' ) );
-        add_action( 'wp_ajax_fre_connector_revoke_password', array( $this, 'ajax_revoke_password' ) );
+        add_action( 'wp_ajax_pforms_connector_toggle_enabled', array( $this, 'ajax_toggle_enabled' ) );
+        add_action( 'wp_ajax_pforms_connector_toggle_entry_read', array( $this, 'ajax_toggle_entry_read' ) );
+        add_action( 'wp_ajax_pforms_connector_generate_password', array( $this, 'ajax_generate_password' ) );
+        add_action( 'wp_ajax_pforms_connector_revoke_password', array( $this, 'ajax_revoke_password' ) );
 
         // MCP script download. Intentionally public (no auth) so the one-line
         // bash setup command can curl it without credentials. The script file
         // is static JavaScript (no secrets) — identical approach to how the
         // Promptless connector serves its equivalent.
-        add_action( 'wp_ajax_fre_download_connector', array( $this, 'ajax_download_connector' ) );
-        add_action( 'wp_ajax_nopriv_fre_download_connector', array( $this, 'ajax_download_connector' ) );
+        add_action( 'wp_ajax_pforms_download_connector', array( $this, 'ajax_download_connector' ) );
+        add_action( 'wp_ajax_nopriv_pforms_download_connector', array( $this, 'ajax_download_connector' ) );
     }
 
     /**
@@ -91,10 +91,10 @@ class FRE_Connector_Admin {
         // "Claude Connection" 2026-05-16 — the connector itself is vendor-
         // neutral; only the current default client happens to be Claude.
         $this->page_hook = add_submenu_page(
-            'fre-entries',
+            'pforms-entries',
             __( 'The Form Engine Connector', 'promptless-forms' ),
             __( 'Connector', 'promptless-forms' ),
-            FRE_Capabilities::MANAGE_FORMS,
+            PForms_Capabilities::MANAGE_FORMS,
             self::PAGE_SLUG,
             array( $this, 'render_page' )
         );
@@ -113,27 +113,27 @@ class FRE_Connector_Admin {
         $plugin_url = plugins_url( '', dirname( __DIR__, 2 ) . '/form-runtime-engine.php' );
 
         wp_enqueue_style(
-            'fre-connector-admin',
+            'pforms-connector-admin',
             $plugin_url . '/assets/css/connector-admin.css',
             array(),
-            FRE_VERSION
+            PForms_VERSION
         );
 
         wp_enqueue_script(
-            'fre-connector-admin',
+            'pforms-connector-admin',
             $plugin_url . '/assets/js/connector-admin.js',
             array(),
-            FRE_VERSION,
+            PForms_VERSION,
             true
         );
 
         wp_localize_script(
-            'fre-connector-admin',
-            'freConnectorAdmin',
+            'pforms-connector-admin',
+            'pformsConnectorAdmin',
             array(
                 'ajaxUrl'             => admin_url( 'admin-ajax.php' ),
                 'nonce'               => wp_create_nonce( self::NONCE_ACTION ),
-                'connectorScriptUrl'  => admin_url( 'admin-ajax.php?action=fre_download_connector' ),
+                'connectorScriptUrl'  => admin_url( 'admin-ajax.php?action=pforms_download_connector' ),
                 'siteUrl'             => home_url(),
                 'i18n'                => array(
                     'enabled'        => __( 'Enabled.', 'promptless-forms' ),
@@ -156,15 +156,15 @@ class FRE_Connector_Admin {
      * load for it is not worth the complexity.
      */
     public function render_page() {
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_die( esc_html__( 'You do not have permission to access this page.', 'promptless-forms' ) );
         }
 
-        $is_enabled             = FRE_Connector_Settings::is_enabled();
-        $is_entry_read_enabled  = FRE_Connector_Settings::is_entry_read_enabled();
-        $configured_at          = FRE_Connector_Settings::configured_at();
+        $is_enabled             = PForms_Connector_Settings::is_enabled();
+        $is_entry_read_enabled  = PForms_Connector_Settings::is_entry_read_enabled();
+        $configured_at          = PForms_Connector_Settings::configured_at();
         $current_user           = wp_get_current_user();
-        $rest_base_url          = rest_url( FRE_Connector_API::NAMESPACE_PREFIX . '/' . FRE_Connector_API::ROUTE_BASE );
+        $rest_base_url          = rest_url( PForms_Connector_API::NAMESPACE_PREFIX . '/' . PForms_Connector_API::ROUTE_BASE );
         $spec_url               = plugins_url( 'docs/CONNECTOR_SPEC.md', dirname( __DIR__, 2 ) . '/form-runtime-engine.php' );
         $mcp_setup_url          = plugins_url( 'docs/MCP_CONNECTOR_SETUP.md', dirname( __DIR__, 2 ) . '/form-runtime-engine.php' );
 
@@ -210,7 +210,7 @@ class FRE_Connector_Admin {
                         <input type="checkbox"
                             id="fre-connector-enabled"
                             <?php checked( $is_enabled ); ?>
-                            data-ajax-action="fre_connector_toggle_enabled"
+                            data-ajax-action="pforms_connector_toggle_enabled"
                         >
                         <span><?php esc_html_e( 'Allow Claude Cowork to call this site', 'promptless-forms' ); ?></span>
                         <span class="fre-connector-toggle-status" id="fre-enabled-status" aria-live="polite"></span>
@@ -226,7 +226,7 @@ class FRE_Connector_Admin {
                     <input type="checkbox"
                         id="fre-connector-entry-read"
                         <?php checked( $is_entry_read_enabled ); ?>
-                        data-ajax-action="fre_connector_toggle_entry_read"
+                        data-ajax-action="pforms_connector_toggle_entry_read"
                     >
                     <span class="fre-connector-permission-label"><?php esc_html_e( 'Also allow Claude Cowork to read form submissions', 'promptless-forms' ); ?></span>
                     <span class="fre-connector-toggle-status" id="fre-entry-read-status" aria-live="polite"></span>
@@ -363,7 +363,7 @@ class FRE_Connector_Admin {
     private function verify_ajax() {
         check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 
-        if ( ! current_user_can( FRE_Capabilities::MANAGE_FORMS ) ) {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
             wp_send_json_error( array( 'message' => __( 'Unauthorized.', 'promptless-forms' ) ), 403 );
         }
     }
@@ -376,7 +376,7 @@ class FRE_Connector_Admin {
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above in verify_ajax() via check_ajax_referer().
         $enabled = isset( $_POST['enabled'] ) && '1' === $_POST['enabled'];
-        FRE_Connector_Settings::set_enabled( $enabled );
+        PForms_Connector_Settings::set_enabled( $enabled );
 
         wp_send_json_success( array(
             'enabled' => $enabled,
@@ -394,7 +394,7 @@ class FRE_Connector_Admin {
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above in verify_ajax() via check_ajax_referer().
         $enabled = isset( $_POST['enabled'] ) && '1' === $_POST['enabled'];
-        FRE_Connector_Settings::set_entry_read_enabled( $enabled );
+        PForms_Connector_Settings::set_entry_read_enabled( $enabled );
 
         wp_send_json_success( array(
             'enabled' => $enabled,
@@ -426,7 +426,7 @@ class FRE_Connector_Admin {
         $existing = WP_Application_Passwords::get_user_application_passwords( $user_id );
         if ( is_array( $existing ) ) {
             foreach ( $existing as $pw ) {
-                if ( isset( $pw['name'] ) && FRE_Connector_Settings::APP_PASSWORD_NAME === $pw['name'] ) {
+                if ( isset( $pw['name'] ) && PForms_Connector_Settings::APP_PASSWORD_NAME === $pw['name'] ) {
                     WP_Application_Passwords::delete_application_password( $user_id, $pw['uuid'] );
                 }
             }
@@ -434,7 +434,7 @@ class FRE_Connector_Admin {
 
         $created = WP_Application_Passwords::create_new_application_password(
             $user_id,
-            array( 'name' => FRE_Connector_Settings::APP_PASSWORD_NAME )
+            array( 'name' => PForms_Connector_Settings::APP_PASSWORD_NAME )
         );
 
         if ( is_wp_error( $created ) ) {
@@ -444,7 +444,7 @@ class FRE_Connector_Admin {
         // WP returns [ $password_string, $item_metadata ].
         list( $password_string, $item ) = $created;
 
-        FRE_Connector_Settings::mark_configured( $user_id );
+        PForms_Connector_Settings::mark_configured( $user_id );
 
         $current_user = wp_get_current_user();
 
@@ -465,10 +465,10 @@ class FRE_Connector_Admin {
      * unauthenticated lets the one-line bash setup command curl it without
      * juggling cookies or tokens.
      *
-     * Route: /wp-admin/admin-ajax.php?action=fre_download_connector
+     * Route: /wp-admin/admin-ajax.php?action=pforms_download_connector
      */
     public function ajax_download_connector() {
-        $path = FRE_PLUGIN_DIR . 'includes/Connector/assets/form-engine-connector.js';
+        $path = PForms_PLUGIN_DIR . 'includes/Connector/assets/form-engine-connector.js';
 
         if ( ! file_exists( $path ) ) {
             status_header( 404 );
@@ -506,14 +506,14 @@ class FRE_Connector_Admin {
 
         if ( is_array( $existing ) ) {
             foreach ( $existing as $pw ) {
-                if ( isset( $pw['name'] ) && FRE_Connector_Settings::APP_PASSWORD_NAME === $pw['name'] ) {
+                if ( isset( $pw['name'] ) && PForms_Connector_Settings::APP_PASSWORD_NAME === $pw['name'] ) {
                     WP_Application_Passwords::delete_application_password( $user_id, $pw['uuid'] );
                     $count++;
                 }
             }
         }
 
-        FRE_Connector_Settings::clear_configured( $user_id );
+        PForms_Connector_Settings::clear_configured( $user_id );
 
         wp_send_json_success( array(
             'revoked_count' => $count,
