@@ -33,7 +33,7 @@ When the Promptless WP plugin is active, Promptless Forms automatically inherits
 
 **For developers**
 
-* Stable hook surface for extending behavior (`fre_submission_complete`, `fre_webhook_payload`, `fre_field_display_value`, etc.)
+* Stable hook surface for extending behavior (`pforms_submission_complete`, `pforms_webhook_payload`, `pforms_field_display_value`, etc.)
 * Connector REST API for external integration (default-disabled, opt-in via admin toggle)
 * WordPress coding standards compliant
 * Transactional InnoDB storage for entries
@@ -54,7 +54,7 @@ No. Promptless Forms works fully standalone with sensible default styling. When 
 
 = How do I display a form on a page? =
 
-Use the shortcode `[fre_form id="your-form-id"]` on any post, page, or widget. The `id` matches the form ID you set when creating the form in the admin.
+Use the shortcode `[promptless_form id="your-form-id"]` on any post, page, or widget. The `id` matches the form ID you set when creating the form in the admin.
 
 = Can I send form submissions to Zapier, Make, or Google Sheets? =
 
@@ -82,7 +82,7 @@ The Address field uses Google's Places API to provide address autocomplete. Requ
 The optional Twilio module sends SMS messages and handles missed-call text-back workflows. Requires Twilio account credentials configured in the plugin settings. Phone numbers and message content are sent to Twilio for delivery. See [Twilio's Terms of Service](https://www.twilio.com/legal/tos) and [Privacy Policy](https://www.twilio.com/legal/privacy).
 
 **Claude Cowork Connector** (default-disabled, opt-in):
-The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude Cowork) to manage forms via WordPress Application Passwords. Default state is disabled. To enable, an administrator must explicitly toggle the connector on in **Form Entries → Claude Connection** and generate a per-user Application Password. No external requests are made by the connector — it only responds to authenticated incoming requests.
+The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude Cowork) to manage forms via WordPress Application Passwords. Default state is disabled. To enable, an administrator must explicitly toggle the connector on in **Form Entries → Connector** and generate a per-user Application Password. No external requests are made by the connector — it only responds to authenticated incoming requests.
 
 == Screenshots ==
 
