@@ -3,8 +3,8 @@
  * Plugin Name: Promptless Forms
  * Plugin URI: https://promptlesswp.com
  * Description: Lightweight forms with webhooks, multi-step support, and conditional logic. Inherits brand styling when Promptless WP is active.
- * Version: 1.8.0
- * Requires at least: 5.0
+ * Version: 1.8.1
+ * Requires at least: 5.6
  * Requires PHP: 7.4
  * Author: Promptless WP
  * License: GPL-2.0-or-later
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin version.
-define( 'PForms_VERSION', '1.8.0' );
+define( 'PForms_VERSION', '1.8.1' );
 
 // Plugin directory path.
 define( 'PForms_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -109,6 +109,12 @@ final class Promptless_Forms {
         // Register deactivation hook.
         register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
 
+        // Provision a newly created subsite on a multisite network. Priority
+        // 100 ensures WordPress core has finished initializing the new site
+        // (its tables and options) before we switch into it. No-op on
+        // single-site installs (the handler checks is_multisite()).
+        add_action( 'wp_initialize_site', array( $this, 'on_new_site' ), 100 );
+
         // Run plugin-version upgrade check on every load. Cheap no-op when
         // versions match. Must fire before init() so capabilities and other
         // upgrade state are in place by the time components boot. Uses
@@ -135,46 +141,147 @@ final class Promptless_Forms {
 
     /**
      * Plugin activation.
+     *
+     * On a multisite network activation, provisions every existing site
+     * (capabilities, schema, upload directory). On very large networks the
+     * eager loop is skipped to avoid request timeouts — each site self-heals on
+     * its next load via maybe_provision_current_site(), and sites created later
+     * are provisioned by on_new_site() via the wp_initialize_site hook.
+     *
+     * @param bool $network_wide True when network-activated on multisite.
      */
-    public function activate() {
-        // Stamp version and grant default capabilities. Done first so that
-        // any subsequent failures in migrations still leave the caps in place.
-        if ( class_exists( 'PForms_Upgrader' ) ) {
-            PForms_Upgrader::on_activation();
+    public function activate( $network_wide = false ) {
+        if ( is_multisite() && $network_wide ) {
+            // Skip eager per-site provisioning on very large networks; the
+            // version-gated self-heal handles each site on its next load.
+            if ( ! wp_is_large_network( 'sites' ) ) {
+                foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
+                    switch_to_blog( (int) $site_id );
+                    $this->provision_site();
+                    restore_current_blog();
+                }
+            }
+            return;
         }
 
-        // Run database migrations.
-        $migrator = new PForms_Migrator();
-        $migrator->run_migrations();
-
-        // Run Twilio database migrations.
-        $twilio_migrator = new PForms_Twilio_Migrator();
-        $twilio_migrator->run_migrations();
-
-        // Create upload directory with protection.
-        $this->create_upload_directory();
-
-        // Flush rewrite rules.
+        // Single site, or per-site activation on a multisite network.
+        $this->provision_site();
         flush_rewrite_rules();
     }
 
     /**
-     * Plugin deactivation.
+     * Provision the current site: capabilities, database schema, Twilio schema,
+     * and the protected upload directory.
+     *
+     * Idempotent and safe to run repeatedly — shared by activation, new-subsite
+     * creation, and the load-time self-heal. Always operates in the context of
+     * the current (or switched) blog, so every read/write targets that site's
+     * tables and options.
      */
-    public function deactivate() {
-        // Unschedule webhook cron events (recurring and single).
+    private function provision_site() {
+        // Stamp version and grant default capabilities first, so a later
+        // migration failure still leaves capabilities in place.
+        if ( class_exists( 'PForms_Upgrader' ) ) {
+            PForms_Upgrader::on_activation();
+        }
+
+        // Database schema for this site.
+        ( new PForms_Migrator() )->run_migrations();
+
+        // Twilio database schema for this site.
+        ( new PForms_Twilio_Migrator() )->run_migrations();
+
+        // Protected upload directory (wp_upload_dir() is per-site).
+        $this->create_upload_directory();
+    }
+
+    /**
+     * Provision a newly created subsite on a multisite network.
+     *
+     * Hooked to wp_initialize_site. Only runs when the plugin is network-active
+     * — a plugin activated on individual sites should not auto-provision a site
+     * where an administrator has not enabled it.
+     *
+     * @param WP_Site|int $new_site The newly created site object (or its ID).
+     */
+    public function on_new_site( $new_site ) {
+        if ( ! is_multisite() ) {
+            return;
+        }
+
+        if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        if ( ! is_plugin_active_for_network( PForms_PLUGIN_BASENAME ) ) {
+            return;
+        }
+
+        $site_id = is_object( $new_site ) ? (int) $new_site->id : (int) $new_site;
+
+        switch_to_blog( $site_id );
+        $this->provision_site();
+        restore_current_blog();
+    }
+
+    /**
+     * Self-heal the current site's schema if it is missing or behind.
+     *
+     * Runs on every load (plugins_loaded) but is gated by a single autoloaded
+     * option read, so it is a no-op on healthy sites. Covers subsites created
+     * before multisite support, sites where activation was bypassed, and
+     * imported sites. If provisioning fails (e.g., a DB permission error) the
+     * db-version option stays behind, so this retries on the next load and the
+     * admin notice from check_database_health() still surfaces the problem.
+     */
+    private function maybe_provision_current_site() {
+        $stored = get_option( 'pforms_db_version', '0.0.0' );
+
+        if ( version_compare( $stored, PForms_DB_VERSION, '<' ) ) {
+            $this->provision_site();
+        }
+    }
+
+    /**
+     * Plugin deactivation.
+     *
+     * @param bool $network_wide True when network-deactivated on multisite.
+     */
+    public function deactivate( $network_wide = false ) {
+        if ( is_multisite() && $network_wide ) {
+            if ( ! wp_is_large_network( 'sites' ) ) {
+                foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
+                    switch_to_blog( (int) $site_id );
+                    $this->deactivate_site();
+                    restore_current_blog();
+                }
+            }
+            return;
+        }
+
+        $this->deactivate_site();
+        flush_rewrite_rules();
+    }
+
+    /**
+     * Per-site deactivation cleanup: unschedule this site's webhook cron events.
+     */
+    private function deactivate_site() {
         wp_clear_scheduled_hook( 'pforms_process_webhook_queue' );
         wp_clear_scheduled_hook( 'pforms_prune_webhook_log' );
         wp_clear_scheduled_hook( 'pforms_retry_webhook' );
-
-        // Flush rewrite rules.
-        flush_rewrite_rules();
     }
 
     /**
      * Initialize the plugin.
      */
     public function init() {
+        // Self-heal this site's schema before any component queries it. On a
+        // multisite network this provisions subsites created before multisite
+        // support shipped, or any site that bypassed activation. Version-gated,
+        // so it is a cheap no-op (one autoloaded option read) on healthy sites.
+        $this->maybe_provision_current_site();
+
         // Check database health.
         $this->check_database_health();
 

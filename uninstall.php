@@ -43,6 +43,7 @@ function pforms_uninstall_cleanup() {
         'fre_entries'     => $wpdb->prefix . 'fre_entries',
         'fre_entry_meta'  => $wpdb->prefix . 'fre_entry_meta',
         'fre_entry_files' => $wpdb->prefix . 'fre_entry_files',
+        'fre_webhook_log' => $wpdb->prefix . 'fre_webhook_log',
     );
 
     foreach ( $allowed_tables as $key => $table ) {
@@ -141,5 +142,16 @@ function pforms_recursive_delete( $dir ) {
     return rmdir( $dir );
 }
 
-// Run cleanup.
-pforms_uninstall_cleanup();
+// Run cleanup. On a multisite network, clean every site so no per-site tables,
+// options, capabilities, or uploaded files are orphaned. Skipped on very large
+// networks to avoid request timeouts (best-effort cleanup of the current site
+// only in that case).
+if ( is_multisite() && ! wp_is_large_network( 'sites' ) ) {
+    foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $pforms_site_id ) {
+        switch_to_blog( (int) $pforms_site_id );
+        pforms_uninstall_cleanup();
+        restore_current_blog();
+    }
+} else {
+    pforms_uninstall_cleanup();
+}

@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.8.1] - 2026-06-16
+
+Multisite network support. Promptless Forms now provisions its per-site
+database tables on every site of a network — not just the site where it was
+activated — fixing the "Database tables are missing" error on newly created
+subsites.
+
+### Added
+- Multisite-aware activation: network activation provisions every existing
+  site (bounded on very large networks via `wp_is_large_network()` to avoid
+  request timeouts).
+- New subsites are provisioned automatically on creation via the
+  `wp_initialize_site` hook (`Promptless_Forms::on_new_site()`), guarded so it
+  only runs when the plugin is network-active.
+- Load-time, version-gated self-heal (`maybe_provision_current_site()`) that
+  recreates missing tables for sites created before multisite support, or where
+  activation was bypassed. Cheap no-op on healthy sites.
+- Multisite integration tests (`tests/Integration/MultisiteProvisioningTest.php`).
+
+### Fixed
+- Network deactivation now unschedules webhook cron events per site.
+- Uninstall now removes plugin data on every site of a network, and also drops
+  the previously-orphaned `fre_webhook_log` table.
+- Raised the minimum WordPress version to 5.6 — the Cowork connector relies on
+  the Application Passwords API (introduced in WordPress 5.6). Resolves a Plugin
+  Check `wp_function_not_compatible_with_requires_wp` error.
+
 ## [1.8.0] - 2026-05-29
 
 WordPress.org compliance release — round 3. Addresses the prefix-length
