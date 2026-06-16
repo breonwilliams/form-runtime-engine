@@ -1,37 +1,40 @@
-# Form Runtime Engine — Release Process
+# Promptless Forms — Release Process
 
 **This is the canonical release procedure.** Follow every step in order. If you're an AI assistant (Claude Code, Cowork, etc.) asked to "create a release" or "tag a new version" for this plugin, this document is your source of truth.
-
-The detailed long-form release notes that previously lived in `docs/CLAUDE.md` (lines 714–820) are preserved there for historical context, but this top-level document is the operative checklist.
 
 ---
 
 ## Distribution model
 
-FRE ships via **GitHub Releases** (not the WordPress.org plugin directory). Customer sites pull updates through the bundled `FRE_GitHub_Updater` class (`includes/Updates/class-fre-github-updater.php`), which hooks `site_transient_update_plugins` to check GitHub for newer release tags.
+Promptless Forms is distributed via the **WordPress.org plugin directory**. Updates are handled automatically by WordPress core — no bundled updater required.
 
-The repository is **private**, so customer sites need a GitHub Personal Access Token in `wp-config.php` to fetch updates:
+- **SVN repository:** `https://plugins.svn.wordpress.org/promptless-forms/`
+- **Plugin page:** https://wordpress.org/plugins/promptless-forms/
+- **GitHub:** Source control and development only (not for distribution)
 
-```php
-define( 'FRE_GITHUB_TOKEN', 'github_pat_…' );
+The WordPress.org SVN repository has this structure:
 ```
-
-Token scope: **Contents: Read** on the `breonwilliams/form-runtime-engine` repo. See the Private Repository Setup section in `docs/CLAUDE.md` for the GitHub token creation steps if you need to issue a new one.
+promptless-forms/
+├── assets/          # Plugin directory assets (icons, banners, screenshots)
+├── tags/            # Immutable version snapshots (1.8.0/, 1.8.1/, etc.)
+└── trunk/           # Current development version (users on "Stable tag" get this)
+```
 
 ---
 
 ## Version-stamp locations
 
-Every release must update the version number in **every** location below. Mismatches break the auto-updater (GitHub tag vs `FRE_VERSION` vs plugin header — they all must agree).
+Every release must update the version number in **all** locations below. Mismatches break the update mechanism.
 
 | File | Line / location | Format |
 |------|----------------|--------|
-| `form-runtime-engine.php` | Header `Version:` comment (~line 6) | `Version: 1.7.0` |
-| `form-runtime-engine.php` | `FRE_VERSION` constant (~line 25) | `define( 'FRE_VERSION', '1.7.0' );` |
-| `CHANGELOG.md` | Move `[Unreleased]` content under a new heading | `## [1.7.0] — 2026-05-11` |
-| Git tag | After commit | `v1.7.0` (with `v` prefix) |
+| `form-runtime-engine.php` | Header `Version:` comment (~line 6) | `Version: 1.8.1` |
+| `form-runtime-engine.php` | `PForms_VERSION` constant (~line 25) | `define( 'PForms_VERSION', '1.8.1' );` |
+| `readme.txt` | `Stable tag:` header | `Stable tag: 1.8.1` |
+| `CHANGELOG.md` | Move `[Unreleased]` content under new heading | `## [1.8.1] — 2026-06-16` |
+| Git tag | After commit | `v1.8.1` (with `v` prefix) |
 
-> FRE does not ship a `readme.txt` — Plugin Check was not configured to require one. If you ever add one, also bump its `Stable tag` here.
+> **Critical:** The `Stable tag` in `readme.txt` tells WordPress.org which tag to serve to users. It must match an existing tag in `tags/`.
 
 ---
 
@@ -39,58 +42,96 @@ Every release must update the version number in **every** location below. Mismat
 
 - [ ] All code changes are committed and pushed to `main`
 - [ ] `CHANGELOG.md` has a populated `[Unreleased]` section (move it under the new version heading during release)
-- [ ] All four version-stamp locations updated to the new version
-- [ ] Plugin Check run locally returns clean (only the GitHub-updater warning is acceptable — see plugin-check notes below)
+- [ ] All five version-stamp locations updated to the new version
+- [ ] `readme.txt` `Requires at least:` is `5.6` or higher (Plugin Check requirement)
+- [ ] Plugin Check returns **zero errors** (run on the staged build)
 - [ ] No PHP errors in `debug.log` on a smoke-test install
-- [ ] If schema-affecting changes: bump `FRE_DB_VERSION` in the main plugin file too (separate from plugin version)
+- [ ] If schema-affecting changes: bump `PForms_DB_VERSION` in the main plugin file too
 
 ---
 
 ## Release commands (copy/paste-ready)
 
-Replace `1.7.0` with the actual version. Run from the plugin root.
+Replace `1.8.1` with the actual version. Run from the plugin root.
+
+### Step 1: Version bump and Git tag
 
 ```bash
-# 1. Verify the version stamp is consistent (catch typos before tagging).
-grep -E "^ \* Version:|FRE_VERSION" form-runtime-engine.php
+# 1. Verify version stamps are consistent.
+grep -E "^ \* Version:|PForms_VERSION" form-runtime-engine.php
+grep "Stable tag" readme.txt
 
 # 2. Commit the version bump.
 git add -A
-git commit -m "Release v1.7.0"
+git commit -m "Release v1.8.1 — WordPress multisite support"
 
-# 3. Tag with v prefix (the updater requires it).
-git tag v1.7.0
+# 3. Tag with v prefix.
+git tag v1.8.1
 
 # 4. Push branch and tag to GitHub.
 git push origin main --tags
-
-# 5. Build the release ZIP. This script handles vendor/ and strips dev files.
-./bin/build-release.sh
-
-# 6. Create the GitHub Release and attach the ZIP.
-gh release create v1.7.0 build/form-runtime-engine.zip \
-    --title "v1.7.0" \
-    --notes-file CHANGELOG.md
 ```
 
-For the release notes, you can also write a focused summary instead of dumping the whole CHANGELOG:
+### Step 2: Build the release
 
 ```bash
-gh release create v1.7.0 build/form-runtime-engine.zip \
-    --title "v1.7.0" \
-    --notes "Bug fixes and Plugin Check compliance. See CHANGELOG.md for details."
+# Build the WP.org-ready package.
+./bin/build-release.sh --wporg
+
+# This creates:
+#   build/promptless-forms/           (staged plugin files)
+#   build/promptless-forms-wporg.zip  (for manual upload if needed)
 ```
 
-**Critical:** Always attach the ZIP from `build/form-runtime-engine.zip`. GitHub's auto-generated source zipball uses a folder name like `breonwilliams-form-runtime-engine-abc1234/`, which would cause WordPress to install the update as a NEW plugin alongside the existing one instead of replacing it.
+### Step 3: Run Plugin Check
+
+```bash
+# Requires Local Sites / wp-env running with Plugin Check installed.
+wp plugin check build/promptless-forms --format=table
+
+# Must return ZERO errors. Warnings are acceptable.
+```
+
+### Step 4: Deploy to WordPress.org SVN
+
+```bash
+# Checkout the SVN repo (first time only).
+svn checkout https://plugins.svn.wordpress.org/promptless-forms/ ~/svn/promptless-forms
+
+# Or update existing checkout.
+cd ~/svn/promptless-forms && svn update
+
+# Sync the build into trunk (preserves .svn directories).
+rsync -a --delete --exclude='.svn' \
+  /path/to/form-runtime-engine/build/promptless-forms/ \
+  ~/svn/promptless-forms/trunk/
+
+# Verify trunk has correct version.
+grep "Stable tag" ~/svn/promptless-forms/trunk/readme.txt
+
+# Add new files, remove deleted files.
+cd ~/svn/promptless-forms
+svn add --force trunk
+svn status | grep '^!' | awk '{print $2}' | xargs -r svn delete
+
+# Create the version tag.
+svn copy trunk tags/1.8.1
+
+# Review changes.
+svn status
+
+# Commit (you'll be prompted for your WP.org password).
+svn commit -m "Release 1.8.1 — WordPress multisite support" --username promptlesswp
+```
 
 ---
 
 ## Post-release verification
 
-1. Open the GitHub release page. Confirm the ZIP asset is attached (not just the source tarball).
-2. On a test WordPress site that already has the old version of FRE installed, visit **Plugins → Updates**. The new version should appear within an hour (or trigger manually via WP-CLI: `wp transient delete update_plugins`).
-3. Apply the update and verify the plugin still activates without PHP errors.
-4. Spot-check a form submission to confirm the runtime is healthy.
+1. **Check SVN:** Run `svn log -l 1` to confirm the commit succeeded.
+2. **Check WordPress.org:** Visit https://wordpress.org/plugins/promptless-forms/ — version should update within a few minutes.
+3. **Test update:** On a WordPress site with the old version installed, go to **Dashboard → Updates**. The new version should appear (or trigger manually: `wp transient delete update_plugins`).
+4. **Smoke test:** Apply the update and verify the plugin activates without PHP errors. Submit a test form.
 
 ---
 
@@ -101,7 +142,7 @@ Follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/):
 ```markdown
 ## [Unreleased]
 
-## [1.7.0] — 2026-05-11
+## [1.8.1] — 2026-06-16
 
 ### Added
 - New feature
@@ -127,15 +168,17 @@ Allowed sections: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Securit
 
 ---
 
-## Plugin Check expectations
+## Plugin Check requirements
 
-The current Plugin Check report should return clean except for **one** known finding:
+Before every release, run Plugin Check on the staged build. The check **must return zero errors**.
 
-- `includes/Updates/class-fre-github-updater.php` — *"Plugin Updater detected"* (severity 9)
+Common issues to watch for:
+- `Requires at least` must be WordPress 5.6 or higher
+- No `eval()` or similar unsafe functions
+- Proper text domain usage
+- Correct file permissions
 
-This is intentional. WordPress.org forbids plugin-bundled updaters because they provide the update mechanism for WP.org-hosted plugins. FRE is self-hosted via GitHub Releases, so the bundled updater is required. The file carries a header comment explaining this, but the Plugin Check tool uses a custom PHP-based check that doesn't honor `phpcs:ignoreFile` directives — so the warning will persist even though it's understood.
-
-If any **other** Plugin Check error appears, fix it before tagging.
+If Plugin Check reports errors, fix them before deploying to WordPress.org.
 
 ---
 
@@ -143,10 +186,41 @@ If any **other** Plugin Check error appears, fix it before tagging.
 
 If a bad release ships:
 
-1. **Immediately tag a fix**: bump the patch version, fix the issue, and follow the full release flow above with the new version.
-2. **Don't delete the bad tag** — users who already updated are pinned to it. Forcing them backwards is harder than rolling forward.
-3. Note the regression in `CHANGELOG.md` under the new version's `Fixed` section so the audit trail is clear.
+1. **Immediately tag a fix**: bump the patch version, fix the issue, and follow the full release flow above.
+2. **Don't delete the bad SVN tag** — WordPress.org may cache it, and users who already updated are pinned to it.
+3. Note the regression in `CHANGELOG.md` under the new version's `Fixed` section.
+4. The new `Stable tag` in trunk will automatically serve the fixed version to all users.
 
 ---
 
-**Last updated:** 2026-05-11
+## WordPress.org SVN credentials
+
+- **Username:** `promptlesswp`
+- **Password:** Stored in Breon's password manager (SVN prompts interactively)
+- **SVN URL:** `https://plugins.svn.wordpress.org/promptless-forms/`
+
+---
+
+## Asset updates (icons, banners, screenshots)
+
+Plugin directory assets live in `~/svn/promptless-forms/assets/` (not `trunk/assets/`):
+
+| File | Dimensions | Purpose |
+|------|------------|---------|
+| `icon-128x128.png` | 128×128 | Plugin icon (standard) |
+| `icon-256x256.png` | 256×256 | Plugin icon (retina) |
+| `banner-772x250.png` | 772×250 | Header banner (standard) |
+| `banner-1544x500.png` | 1544×500 | Header banner (retina) |
+| `screenshot-1.png` | Variable | Screenshots for plugin page |
+
+To update assets:
+```bash
+cd ~/svn/promptless-forms
+cp /path/to/new-icon.png assets/icon-256x256.png
+svn add assets/icon-256x256.png  # If new file
+svn commit -m "Update plugin icon" --username promptlesswp
+```
+
+---
+
+**Last updated:** 2026-06-16
