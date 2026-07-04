@@ -440,8 +440,8 @@ For forms registered via code.
 
 ### Contact Form
 ```php
-add_action( 'fre_init', function() {
-    fre_register_form( 'contact', array(
+add_action( 'pforms_init', function() {
+    pforms_register_form( 'contact', array(
         'title'  => 'Contact Us',
         'fields' => array(
             array( 'key' => 'name', 'type' => 'text', 'label' => 'Name', 'required' => true ),
@@ -460,8 +460,8 @@ add_action( 'fre_init', function() {
 
 ### Quote Request with File Upload
 ```php
-add_action( 'fre_init', function() {
-    fre_register_form( 'quote', array(
+add_action( 'pforms_init', function() {
+    pforms_register_form( 'quote', array(
         'title'  => 'Request a Quote',
         'fields' => array(
             array( 'key' => 'name', 'type' => 'text', 'label' => 'Name', 'required' => true ),
@@ -586,7 +586,7 @@ array(
 ### Multi-Step Forms
 Split long forms into steps:
 ```php
-fre_register_form( 'quote', array(
+pforms_register_form( 'quote', array(
     'title' => 'Request a Quote',
     'steps' => array(
         array( 'key' => 'contact', 'title' => 'Your Info' ),

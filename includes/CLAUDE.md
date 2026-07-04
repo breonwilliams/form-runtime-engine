@@ -119,7 +119,7 @@ The quarantine directory itself (`uploads/fre-uploads/`) ships with a generated 
 
 ```php
 // Architects accepting AutoCAD .dwg files
-add_filter( 'fre_mime_map', function ( $map ) {
+add_filter( 'pforms_mime_map', function ( $map ) {
     $map['dwg'] = array( 'application/acad', 'image/vnd.dwg', 'application/octet-stream' );
     return $map;
 } );
@@ -140,7 +140,7 @@ When an extension has no stable magic-byte signature (truly arbitrary binary), r
 - **Payload filtering**: Honeypot/timing fields excluded from webhook payloads
 - **Non-blocking dispatch**: Webhooks sent asynchronously to avoid slowing form submission
 - **Retry with backoff**: Failed webhooks retry up to 3 times (5min, 30min, 2hr)
-- **File URL exposure**: Each `files[]` entry includes a `file_url` for downstream automations to fetch. Filenames are randomized UUIDs — URLs aren't enumerable, but they ARE permanent until the file is deleted. Webhook destinations (Zapier especially) log payloads, so URLs persist in those destinations' history. For sensitive uploads, use the `fre_webhook_file_url` filter to generate signed/expiring URLs (see the "Sensitive uploads" section in the root `CLAUDE.md` for a working `hash_hmac()` example).
+- **File URL exposure**: Each `files[]` entry includes a `file_url` for downstream automations to fetch. Filenames are randomized UUIDs — URLs aren't enumerable, but they ARE permanent until the file is deleted. Webhook destinations (Zapier especially) log payloads, so URLs persist in those destinations' history. For sensitive uploads, use the `pforms_webhook_file_url` filter to generate signed/expiring URLs (see the "Sensitive uploads" section in the root `CLAUDE.md` for a working `hash_hmac()` example).
 
 ### Webhook Log Database Table
 

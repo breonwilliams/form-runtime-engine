@@ -1,6 +1,18 @@
-# Form Runtime Engine - AI Reference
+# Form Runtime Engine (Promptless Forms) - AI Reference
 
-A lightweight WordPress form engine that renders forms from configuration arrays.
+A lightweight WordPress form engine that renders forms from configuration arrays. Distributed under the brand name **Promptless Forms** (plugin header + text domain `promptless-forms`); the repo/folder name remains `form-runtime-engine`.
+
+> **⚠️ Naming migration (doc corrected 2026-07-04 — trust THIS table, not older docs/examples):**
+> The PHP API was renamed from `fre_*` to `pforms_*`. There are **no `fre_*` back-compat aliases** — code written against the old names silently does nothing (hooks that never fire). Infrastructure names deliberately kept the `fre` prefix. The split:
+>
+> | Surface | Prefix | Examples |
+> |---|---|---|
+> | Actions/filters | `pforms_*` | `pforms_init`, `pforms_submission_complete`, `pforms_webhook_payload`, `pforms_mime_map` |
+> | Global functions | `pforms_*` / `pforms()` | `pforms_register_form()`, `pforms_get_form()`, `pforms()->registry` |
+> | Shortcodes | `pforms_form` / `promptless_form` | `[pforms_form id="contact"]` (`[fre_form]` and `[client_form]` are retired — the latter removed in 1.6.5 per WP.org review) |
+> | Constants / main class | `PForms_*` / `Promptless_Forms` | `PForms_VERSION` (1.8.1), `PForms_DB_VERSION` (1.2.0); `class_alias` keeps `Form_Runtime_Engine` working |
+> | Capability | `pforms_manage_forms` | via `PForms_Capabilities::MANAGE_FORMS` |
+> | **Kept `fre` (do NOT rename)** | — | DB tables `{prefix}fre_entries` / `fre_entry_meta` / `fre_entry_files` / `fre_webhook_log`, upload dir `fre-uploads/`, REST namespace `fre/v1`, webhook header `X-FRE-Signature`, CSS classes `.fre-form*`, PHP filenames `class-fre-*.php` (classes inside are `PForms_*`) |
 
 ## Documentation Map
 
@@ -71,11 +83,11 @@ Set `theme_variant` in form settings to control dark mode:
 
 ## Quick Start
 
-Register forms on the `fre_init` hook (not `init` or `plugins_loaded`):
+Register forms on the `pforms_init` hook (not `init` or `plugins_loaded`):
 
 ```php
-add_action( 'fre_init', function() {
-    fre_register_form( 'contact', array(
+add_action( 'pforms_init', function() {
+    pforms_register_form( 'contact', array(
         'title'  => 'Contact Us',
         'fields' => array(
             array( 'key' => 'name', 'type' => 'text', 'label' => 'Name', 'required' => true ),
@@ -86,7 +98,7 @@ add_action( 'fre_init', function() {
 });
 ```
 
-Display with shortcode: `[fre_form id="contact"]` or `[client_form id="contact"]`
+Display with shortcode: `[pforms_form id="contact"]` or `[promptless_form id="contact"]`
 
 ## Form Registration Methods
 
@@ -97,7 +109,7 @@ Use the built-in Forms Manager in the WordPress admin:
 1. Go to WordPress Admin → Form Entries → Forms → Add New
 2. Enter a Form ID and optional Title
 3. Paste **JSON configuration** (not PHP code)
-4. Save and use shortcode: `[fre_form id="your-form-id"]`
+4. Save and use shortcode: `[pforms_form id="your-form-id"]`
 
 **JSON Format Example:**
 ```json
@@ -116,15 +128,15 @@ Use the built-in Forms Manager in the WordPress admin:
 ```
 
 ### Option 2: PHP Code
-If creating forms via code (theme functions.php, custom plugin, or `fre_init` hook):
-1. Hook into `fre_init` action
-2. Use `fre_register_form()` with a PHP array
+If creating forms via code (theme functions.php, custom plugin, or `pforms_init` hook):
+1. Hook into `pforms_init` action
+2. Use `pforms_register_form()` with a PHP array
 3. The form registers automatically on page load
 
 **PHP Format Example:**
 ```php
 <?php
-fre_register_form( 'contact', array(
+pforms_register_form( 'contact', array(
     'title'  => 'Contact Us',
     'fields' => array(
         array( 'key' => 'name', 'type' => 'text', 'label' => 'Name', 'required' => true ),
@@ -322,7 +334,7 @@ array(
 )
 ```
 
-For other custom formats (`.dwg` for architects, `.raw` / `.cr2` / `.nef` for photographers, `.pes` for Brother embroidery), register the extension via the `fre_mime_map` filter — see Hooks Reference below. Defense-in-depth includes a per-format minimum file-size check (`.ai` ≥ 1KB, `.eps` ≥ 100B, `.dst` ≥ 500B by default; filterable via `fre_min_file_sizes`) to block trivial polyglot uploads.
+For other custom formats (`.dwg` for architects, `.raw` / `.cr2` / `.nef` for photographers, `.pes` for Brother embroidery), register the extension via the `pforms_mime_map` filter — see Hooks Reference below. Defense-in-depth includes a per-format minimum file-size check (`.ai` ≥ 1KB, `.eps` ≥ 100B, `.dst` ≥ 500B by default; filterable via `pforms_min_file_sizes`) to block trivial polyglot uploads.
 
 ### hidden
 Hidden field.
@@ -507,7 +519,7 @@ For consistency across forms and reusable automations, use these standard field 
 ### Full Settings Structure
 
 ```php
-fre_register_form( 'contact', array(
+pforms_register_form( 'contact', array(
     'title'    => 'Contact Form',
     'version'  => '1.0.0',
     'fields'   => array( /* ... */ ),
@@ -624,7 +636,7 @@ Enable webhooks to send form submissions to external services like Zapier, Make,
 }
 ```
 
-The smart default reflects the typical destination: Google Sheets feeds a human-reviewed lead tracker where labels are easier to scan, while Zapier / Make / custom typically feed CRM mappings or filters that prefer stable identifiers that don't break when option labels are renamed. Override per-form with `settings.webhook_resolve_option_labels` (`true` forces labels regardless of preset, `false` forces raw values regardless), or globally via the `fre_webhook_resolve_option_labels` filter.
+The smart default reflects the typical destination: Google Sheets feeds a human-reviewed lead tracker where labels are easier to scan, while Zapier / Make / custom typically feed CRM mappings or filters that prefer stable identifiers that don't break when option labels are renamed. Override per-form with `settings.webhook_resolve_option_labels` (`true` forces labels regardless of preset, `false` forces raw values regardless), or globally via the `pforms_webhook_resolve_option_labels` filter.
 
 Storage and the admin entries table always hold raw values — only the outbound payload changes.
 
@@ -641,7 +653,7 @@ Storage and the admin entries table always hold raw values — only the outbound
 - Test Connection button with rich response display (HTTP status, latency, response body)
 - Preview Payload button showing sample JSON based on form fields
 
-### Sensitive uploads — signed URLs via `fre_webhook_file_url`
+### Sensitive uploads — signed URLs via `pforms_webhook_file_url`
 
 By default, uploaded files are stored in `wp-content/uploads/` with randomized UUID filenames and served at world-readable URLs. The webhook payload's `files[].file_url` points at those direct URLs so consumers like Zapier and Make can fetch the artwork to copy it into Drive, S3, or wherever the workflow needs it.
 
@@ -650,11 +662,11 @@ Two consequences worth knowing:
 1. **The URL is permanently valid as long as the file lives on disk.** Anyone who learns the URL can fetch the file. The randomized UUID makes URLs unguessable, but they're not unforgettable — once a webhook destination logs the URL, it persists in that destination's logs.
 2. **Webhook destinations log payloads.** Zapier retains task history with full payload contents (default 30 days, longer on paid plans). Make and most CRMs do similar. Anyone with access to those logs has access to every customer's uploaded files via the URLs in the logs.
 
-For typical lead capture (contact forms, quote requests, low-sensitivity artwork) this is fine. For sensitive industries — healthcare intake, legal document submission, financial onboarding, identity verification — generate signed/expiring URLs by hooking the `fre_webhook_file_url` filter:
+For typical lead capture (contact forms, quote requests, low-sensitivity artwork) this is fine. For sensitive industries — healthcare intake, legal document submission, financial onboarding, identity verification — generate signed/expiring URLs by hooking the `pforms_webhook_file_url` filter:
 
 ```php
 // Hash-based signed URL — fetchable for 1 hour, then a 403.
-add_filter( 'fre_webhook_file_url', function ( $url, $file ) {
+add_filter( 'pforms_webhook_file_url', function ( $url, $file ) {
     if ( empty( $url ) ) {
         return $url;
     }
@@ -696,16 +708,16 @@ Example: `'reply_to' => '{field:email}'`
 
 ```php
 // After plugin fully initialized - REGISTER FORMS HERE
-do_action( 'fre_init', $plugin_instance );
+do_action( 'pforms_init', $plugin_instance );
 
 // After form registered
-do_action( 'fre_form_registered', $form_id, $config );
+do_action( 'pforms_form_registered', $form_id, $config );
 
 // After form entry row is created (fires inside the entry insert
 // transaction — files are NOT yet attached). Kept for backward
 // compatibility; for downstream listeners that need the complete entry
-// shape including uploaded files, prefer fre_submission_complete below.
-do_action( 'fre_entry_created', $entry_id, $form_id, $data );
+// shape including uploaded files, prefer pforms_submission_complete below.
+do_action( 'pforms_entry_created', $entry_id, $form_id, $data );
 
 // After a submission has been fully processed: sanitized, conditional
 // orphan values stripped, entry stored, and uploaded files attached —
@@ -713,35 +725,35 @@ do_action( 'fre_entry_created', $entry_id, $form_id, $data );
 // listens here so file_url is populated in the payload. Use this for
 // any listener that needs files (CRM sync, Slack notifications with
 // file thumbnails, file move/copy automations).
-do_action( 'fre_submission_complete', $entry_id, $form_id, $sanitized_data );
+do_action( 'pforms_submission_complete', $entry_id, $form_id, $sanitized_data );
 
 // After notification sent
-do_action( 'fre_notification_sent', $sent, $entry_id, $form_config, $entry_data );
+do_action( 'pforms_notification_sent', $sent, $entry_id, $form_config, $entry_data );
 
 // Email permanently failed after retries
-do_action( 'fre_email_permanently_failed', $entry_id, $form_config );
+do_action( 'pforms_email_permanently_failed', $entry_id, $form_config );
 
 // After webhook sent successfully
-do_action( 'fre_webhook_sent', $url, $payload, $entry_id, $form_id );
+do_action( 'pforms_webhook_sent', $url, $payload, $entry_id, $form_id );
 
 // When webhook request fails
-do_action( 'fre_webhook_failed', $wp_error, $url, $payload, $entry_id, $form_id );
+do_action( 'pforms_webhook_failed', $wp_error, $url, $payload, $entry_id, $form_id );
 ```
 
 ### Filters
 
 ```php
 // Modify valid field types
-$types = apply_filters( 'fre_field_types', array( 'text', 'email', ... ) );
+$types = apply_filters( 'pforms_field_types', array( 'text', 'email', ... ) );
 
 // Modify notification body before sending
-$body = apply_filters( 'fre_notification_body', $body, $form_config, $entry_data, $entry_id );
+$body = apply_filters( 'pforms_notification_body', $body, $form_config, $entry_data, $entry_id );
 
 // Modify webhook payload before sending (last hook before HTTP dispatch)
-$payload = apply_filters( 'fre_webhook_payload', $payload, $entry_id, $form_id, $data );
+$payload = apply_filters( 'pforms_webhook_payload', $payload, $entry_id, $form_id, $data );
 
 // Modify webhook request arguments (headers, timeout, sslverify, etc.)
-$args = apply_filters( 'fre_webhook_request_args', $args, $url, $payload, $entry_id, $form_id );
+$args = apply_filters( 'pforms_webhook_request_args', $args, $url, $payload, $entry_id, $form_id );
 ```
 
 #### Display & rendering
@@ -752,13 +764,13 @@ $args = apply_filters( 'fre_webhook_request_args', $args, $url, $payload, $entry
 // vars, admin entries list summary, admin entry detail, CSV export, webhook
 // payloads when label resolution is enabled. Use to localize labels, redact
 // sensitive option values from notifications, or inject custom formatting.
-$display = apply_filters( 'fre_field_display_value', $display, $value, $field );
+$display = apply_filters( 'pforms_field_display_value', $display, $value, $field );
 
 // Override the "skip empty optional fields" decision for a notification email.
 // Default true (current behavior). Return false to render every field with an
 // em-dash placeholder for empty values — useful when emails feed downstream
 // tooling that expects a fixed table shape.
-$hide = apply_filters( 'fre_email_hide_empty_fields', $hide, $form_config );
+$hide = apply_filters( 'pforms_email_hide_empty_fields', $hide, $form_config );
 
 // Override a field's computed visibility. Layered on top of the form's
 // declared `conditions` block — return false to hide a field that would
@@ -766,7 +778,7 @@ $hide = apply_filters( 'fre_email_hide_empty_fields', $hide, $form_config );
 // required-check), submission strip (drop orphan value before storage),
 // and email template (omit the row entirely). One filter point closes
 // the visibility decision across every surface.
-$visible = apply_filters( 'fre_field_is_visible', $visible, $field, $form_config, $data );
+$visible = apply_filters( 'pforms_field_is_visible', $visible, $field, $form_config, $data );
 ```
 
 #### Webhook label resolution
@@ -778,7 +790,7 @@ $visible = apply_filters( 'fre_field_is_visible', $visible, $field, $form_config
 // presets default to raw values (typically machine-readable
 // integrations). Per-form `settings.webhook_resolve_option_labels`
 // boolean takes precedence; this filter is the runtime override.
-$resolve = apply_filters( 'fre_webhook_resolve_option_labels', $resolve, $form_config, $webhook_preset, $data );
+$resolve = apply_filters( 'pforms_webhook_resolve_option_labels', $resolve, $form_config, $webhook_preset, $data );
 ```
 
 #### File upload validation
@@ -788,23 +800,23 @@ $resolve = apply_filters( 'fre_webhook_resolve_option_labels', $resolve, $form_c
 // .raw for photographers, .pes for Brother embroidery). The plugin
 // ships with .ai, .eps, .dst defaults for screen-printing and
 // embroidery clients.
-$mime_map = apply_filters( 'fre_mime_map', $mime_map );
+$mime_map = apply_filters( 'pforms_mime_map', $mime_map );
 
 // Extend the magic-byte signatures used by verify_magic_bytes(). Receives
 // the array for a given extension. Return an empty array to skip strict
 // signature verification for an extension and fall back to the
 // dangerous-pattern scan (useful for binary formats with no stable header).
-$signatures = apply_filters( 'fre_magic_bytes', $signatures, $extension );
+$signatures = apply_filters( 'pforms_magic_bytes', $signatures, $extension );
 
 // Extend or tighten the per-extension minimum file-size enforcement.
 // Defense-in-depth against polyglot uploads with short magic bytes.
 // Default: ai => 1024, eps => 100, dst => 500. Add custom formats here.
-$min_sizes = apply_filters( 'fre_min_file_sizes', $min_sizes );
+$min_sizes = apply_filters( 'pforms_min_file_sizes', $min_sizes );
 
 // Override the file mode applied to uploaded files. Default 0644 matches
 // WordPress core media; sites running suEXEC where 0600 still works can
 // return the stricter mode here.
-$perms = apply_filters( 'fre_uploaded_file_permissions', $perms, $final_path );
+$perms = apply_filters( 'pforms_uploaded_file_permissions', $perms, $final_path );
 ```
 
 #### Webhook file URL (sensitive uploads)
@@ -817,38 +829,38 @@ $perms = apply_filters( 'fre_uploaded_file_permissions', $perms, $final_path );
 // sites that store customer artwork off the WordPress filesystem.
 // See "Sensitive uploads" section above for a working hash_hmac
 // example.
-$url = apply_filters( 'fre_webhook_file_url', $url, $file );
+$url = apply_filters( 'pforms_webhook_file_url', $url, $file );
 ```
 
 ## API Functions
 
 ```php
 // Register a form (runtime)
-fre_register_form( $form_id, $config );
+pforms_register_form( $form_id, $config );
 
 // Get form configuration (from registry)
-$config = fre_get_form( $form_id );
+$config = pforms_get_form( $form_id );
 
 // Render form HTML
-$html = fre_render_form( $form_id, $args );
+$html = pforms_render_form( $form_id, $args );
 
 // Get plugin instance
-$plugin = fre();
+$plugin = pforms();
 $plugin->registry->get_all();          // All registered forms
 $plugin->registry->exists( $form_id ); // Check if form exists
 
 // Database-stored forms (admin UI)
-fre_get_db_forms();                              // Get all stored forms
-fre_get_db_form( $form_id );                     // Get single stored form
-fre_save_db_form( $form_id, $title, $json );     // Save form to database
-fre_delete_db_form( $form_id );                  // Delete form from database
+pforms_get_db_forms();                              // Get all stored forms
+pforms_get_db_form( $form_id );                     // Get single stored form
+pforms_save_db_form( $form_id, $title, $json );     // Save form to database
+pforms_delete_db_form( $form_id );                  // Delete form from database
 ```
 
 ## Shortcode Attributes
 
 ```
-[fre_form id="contact" class="my-form" ajax="true"]
-[client_form id="contact"]  <!-- Alias -->
+[pforms_form id="contact" class="my-form" ajax="true"]
+[promptless_form id="contact"]  <!-- Alias -->
 ```
 
 | Attribute | Default | Description |
@@ -889,7 +901,7 @@ For complete ready-to-use form examples (JSON and PHP), see **`docs/CLAUDE.md`**
 
 ## Gotchas
 
-1. **Use `fre_init` hook** - Not `init` or `plugins_loaded`. The plugin must be fully loaded first.
+1. **Use `pforms_init` hook** - Not `init` or `plugins_loaded`. The plugin must be fully loaded first.
 
 2. **Field keys must be unique** - Duplicate keys will cause registration to fail.
 
@@ -917,9 +929,9 @@ When generating forms with Claude Code:
 
 2. **Generate appropriate format:**
    - **Admin UI:** JSON object starting with `{`
-   - **PHP code:** Full PHP with `fre_register_form()` call wrapped in `fre_init` hook
+   - **PHP code:** Full PHP with `pforms_register_form()` call wrapped in `pforms_init` hook
 
-3. **Provide shortcode:** `[fre_form id="form-id"]`
+3. **Provide shortcode:** `[pforms_form id="form-id"]`
 
 **Context clues for format selection:**
 - User mentions "admin", "dashboard", "paste" → JSON
@@ -947,7 +959,7 @@ Before outputting a form, verify:
 
 ### Common Mistakes to Avoid
 
-1. **Wrong hook (PHP):** Use `fre_init`, not `init` or `plugins_loaded`
+1. **Wrong hook (PHP):** Use `pforms_init`, not `init` or `plugins_loaded`
 2. **Duplicate field keys:** Every `key` must be unique across the entire form
 3. **Missing options:** Select/radio/checkbox-group require `options` array
 4. **Orphan step references:** Don't set `"step": "foo"` without defining `{"key": "foo", "title": "..."}` in `steps`
@@ -972,14 +984,14 @@ If a form doesn't appear:
 
 1. Enable `WP_DEBUG` and `WP_DEBUG_LOG` in `wp-config.php`
 2. Check `wp-content/debug.log` for registration errors
-3. Confirm you're using `fre_init` hook (not `init` or `plugins_loaded`)
+3. Confirm you're using `pforms_init` hook (not `init` or `plugins_loaded`)
 4. Check for duplicate field keys in your config
 
 ```php
 // Quick debug: verify form is registered
 add_action( 'wp_footer', function() {
     if ( current_user_can( 'manage_options' ) ) {
-        $forms = fre()->registry->get_all();
+        $forms = pforms()->registry->get_all();
         echo '<!-- Registered forms: ' . implode( ', ', array_keys( $forms ) ) . ' -->';
     }
 });
