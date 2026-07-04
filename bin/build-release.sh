@@ -221,6 +221,53 @@ cd "${BUILD_DIR}"
 zip -r "${ZIP_NAME}" "${PLUGIN_SLUG}/" -x "*.DS_Store" "*/.git/*"
 cd ..
 
+# ============================================
+# VERIFY ZIP INTERNAL STRUCTURE
+# ============================================
+# Guards against a flattened/hand-assembled archive (Promptless Theme
+# v1.2.5 incident: a manually built zip lost a directory level and fataled
+# on every site). Checks the SHIPPED ARTIFACT's manifest, not the staging
+# folder. This script is the only sanctioned packaging path.
+echo ""
+echo "Verifying ZIP internal structure..."
+
+ZIP_MANIFEST=$(unzip -l "${BUILD_DIR}/${ZIP_NAME}")
+
+REQUIRED_ZIP_PATHS=(
+    "${PLUGIN_SLUG}/form-runtime-engine.php"
+    "${PLUGIN_SLUG}/includes/class-fre-autoloader.php"
+    "${PLUGIN_SLUG}/includes/Core/class-fre-submission-handler.php"
+    "${PLUGIN_SLUG}/includes/Uploads/class-fre-upload-handler.php"
+    "${PLUGIN_SLUG}/includes/Connector/assets/form-engine-connector.js"
+    "${PLUGIN_SLUG}/assets/css/frontend.css"
+)
+
+ZIP_STRUCTURE_OK=1
+for path in "${REQUIRED_ZIP_PATHS[@]}"; do
+    if echo "$ZIP_MANIFEST" | grep -q " ${path}$"; then
+        echo "  OK  $path"
+    else
+        echo "  MISSING FROM ZIP: $path"
+        ZIP_STRUCTURE_OK=0
+    fi
+done
+
+# A flattened build puts nested files at the plugin root — detect that too.
+if echo "$ZIP_MANIFEST" | grep -q " ${PLUGIN_SLUG}/class-fre-submission-handler.php$"; then
+    echo "  FLATTENED STRUCTURE DETECTED: includes/ files found at plugin root"
+    ZIP_STRUCTURE_OK=0
+fi
+
+if [ $ZIP_STRUCTURE_OK -eq 0 ]; then
+    rm -f "${BUILD_DIR}/${ZIP_NAME}"
+    echo ""
+    echo "ERROR: ZIP structure verification FAILED — archive deleted."
+    echo "Do NOT hand-assemble release zips; this script is the only sanctioned packaging path."
+    exit 1
+fi
+
+echo "ZIP structure verified."
+
 # Report.
 ZIP_SIZE=$(du -h "${BUILD_DIR}/${ZIP_NAME}" | cut -f1)
 echo ""
