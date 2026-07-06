@@ -74,9 +74,12 @@ entire symbol and option surface was re-prefixed to `pforms` / `PForms_`.
 - `class_alias( 'Promptless_Forms', 'Form_Runtime_Engine' )` is retained
   for any external code referencing the old main-class name.
 - **FlowMint Workflows users:** FlowMint couples to this plugin's hook,
-  classes, and accessor. FlowMint 0.6.1 speaks the new names
-  (`pforms_submission_complete`, `PForms_Entry`, `PForms_Entry_Query`,
-  `pforms()`); deploy FRE 1.8.0 and FlowMint 0.6.1 to a site together.
+  classes, and accessor. **ERRATUM (2026-07-04): the version below was
+  wrong — FlowMint 0.6.1 still speaks the OLD `fre_*` names; the
+  `pforms_*` switch landed in FlowMint 0.6.2** (commit 7f5f764). Deploy
+  FRE 1.8.0+ together with FlowMint **0.6.2 or later** — pairing FRE
+  1.8.x with FlowMint 0.6.1 leaves form-triggered workflows silently
+  dead (the listener waits on a hook that never fires).
 
 ## [1.7.1] - 2026-05-27
 
