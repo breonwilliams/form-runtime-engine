@@ -1352,6 +1352,17 @@ body.aisb-hover-none .fre-btn--primary:hover:not(:disabled) {
     .fre-field__input--date {
         -webkit-appearance: none;
         appearance: none;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* The field wrapper is a flex item; without min-width:0 its own
+       min-content size (driven by the native control) can exceed the
+       column and push past the form padding even when the input is
+       clamped. */
+    .fre-field--date {
         min-width: 0;
         max-width: 100%;
     }

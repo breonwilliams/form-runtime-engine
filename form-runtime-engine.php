@@ -403,20 +403,35 @@ final class Promptless_Forms {
 
     /**
      * Enqueue frontend scripts and styles.
+     *
+     * Assets are versioned by PLUGIN VERSION + FILE MTIME rather than the
+     * plugin version alone. With version-only cache busting, replacing the
+     * plugin's files without a version bump (hotfixes, staged rollouts,
+     * pressure-test iteration) leaves the asset URL identical — browsers,
+     * page caches, and CDNs keep serving the previous file indefinitely,
+     * which repeatedly surfaced as "the fix didn't deploy" during the
+     * 2026-07-10 Harbor & Oak iteration loop. The mtime suffix changes the
+     * URL whenever the file's content actually changes, at the cost of one
+     * filesystem stat per asset per request. filemtime() can return false
+     * on exotic filesystems; the (int) cast degrades that to a stable 0
+     * suffix — i.e. version-only behavior, never an error.
      */
     public function enqueue_frontend_assets() {
+        $css_path = PForms_PLUGIN_DIR . 'assets/css/frontend.css';
+        $js_path  = PForms_PLUGIN_DIR . 'assets/js/frontend.js';
+
         wp_register_style(
             'pforms-frontend',
             PForms_PLUGIN_URL . 'assets/css/frontend.css',
             array(),
-            PForms_VERSION
+            PForms_VERSION . '.' . (int) @filemtime( $css_path )
         );
 
         wp_register_script(
             'pforms-frontend',
             PForms_PLUGIN_URL . 'assets/js/frontend.js',
             array(),
-            PForms_VERSION,
+            PForms_VERSION . '.' . (int) @filemtime( $js_path ),
             true
         );
 
