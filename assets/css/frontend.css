@@ -1329,6 +1329,39 @@ body.aisb-hover-none .fre-btn--primary:hover:not(:disabled) {
     color-scheme: light;
 }
 
+/*
+ * iOS Safari only — @supports (-webkit-touch-callout) matches no other
+ * engine, so desktop rendering stays byte-identical.
+ *
+ * iOS renders <input type="date"> as a NATIVE control with its own
+ * intrinsic/UA sizing that can exceed the field column, so the date field
+ * overflowed the form's padded area on iPhones while every sibling input
+ * respected width:100% (Harbor & Oak request-a-showing form, 2026-07-10).
+ * Not reproducible in desktop browsers — Chrome's device emulation
+ * emulates the viewport, not iOS's native form controls.
+ *
+ * appearance:none opts out of the native styling so the shared
+ * .fre-field__input box rules (width:100%, box-sizing, padding, border,
+ * min-height floor) apply verbatim; min-width:0 releases the UA
+ * min-content constraint the base rule's 150px would otherwise sit on.
+ * Tapping still opens the iOS date wheel — appearance only affects paint.
+ * The shadow value part is left-aligned to match text inputs (iOS centers
+ * it by default once appearance is none).
+ */
+@supports (-webkit-touch-callout: none) {
+    .fre-field__input--date {
+        -webkit-appearance: none;
+        appearance: none;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .fre-field__input--date::-webkit-date-and-time-value {
+        text-align: left;
+        margin: 0;
+    }
+}
+
 /* Dark mode - invert the calendar icon for visibility */
 .fre-form--dark .fre-field__input--date,
 .aisb-section--dark .fre-form .fre-field__input--date {

@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Fixed
+- **iOS: date fields overflowed the form's padded area** (Harbor & Oak request-a-showing form, 2026-07-10). iOS Safari renders `<input type="date">` as a native control with its own intrinsic/UA sizing, so the date field extended past the form padding on iPhones while every sibling input respected `width:100%`. Not reproducible in desktop browsers (device emulation doesn't emulate iOS's native form controls). Fixed with an iOS-scoped block (`@supports (-webkit-touch-callout: none)` — matches no other engine, so desktop rendering is byte-identical): `appearance:none` opts the control out of native styling so the shared field box rules apply verbatim, `min-width:0` releases the UA min-content constraint, and the shadow value part is left-aligned to match text inputs. Tapping still opens the iOS date wheel. (`assets/css/frontend.css`.)
 
 ## [1.8.1] - 2026-06-16
 
