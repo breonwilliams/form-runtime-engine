@@ -371,6 +371,23 @@
     container-type: inline-size;
     container-name: fre-form;
     text-align: left;
+    /* Native browser chrome (date calendar indicators, select dropdown
+       panels, default checkboxes/radios, file-input buttons, textarea
+       resize grips, inner scrollbars) follows the form's theme, not the
+       page default. Declared on the form root because color-scheme
+       inherits — one pair of rules covers every control, current and
+       future, instead of per-field patches (the date field previously
+       carried its own; these root rules generalize it). The dark pair
+       below covers both the explicit dark variant and forms inside dark
+       Promptless sections, so standalone (non-AISB) themes are covered
+       too. 2026-07-10 Harbor & Oak sweep — sibling rules live in
+       Promptless WP's .aisb-section--light/--dark token blocks. */
+    color-scheme: light;
+}
+
+.fre-form--dark,
+.aisb-section--dark .fre-form {
+    color-scheme: dark;
 }
 
 .fre-field__label,
