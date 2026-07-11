@@ -5,7 +5,7 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.8.2] - 2026-07-11
 
 ### Fixed
 - **Native browser chrome now follows the form theme (`color-scheme` on the form root)** (Harbor & Oak dark-section sweep, 2026-07-10). Date calendar indicators, native select dropdown panels, default checkboxes/radios, file-input buttons, textarea resize grips, and inner scrollbars are painted by the browser in the page's default (light) scheme — invisible-contrast chrome on dark forms. The date field carried its own `color-scheme` rules; these root-level rules (`.fre-form` light; `.fre-form--dark` / `.aisb-section--dark .fre-form` dark) generalize the treatment to every control, current and future, including standalone forms on non-Promptless themes. Sibling rules ship in Promptless WP's section token roots and the Promptless theme. (`assets/css/frontend.css`.)

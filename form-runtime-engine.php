@@ -3,7 +3,7 @@
  * Plugin Name: Promptless Forms
  * Plugin URI: https://promptlesswp.com
  * Description: Lightweight forms with webhooks, multi-step support, and conditional logic. Inherits brand styling when Promptless WP is active.
- * Version: 1.8.1
+ * Version: 1.8.2
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * Author: Promptless WP
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin version.
-define( 'PForms_VERSION', '1.8.1' );
+define( 'PForms_VERSION', '1.8.2' );
 
 // Plugin directory path.
 define( 'PForms_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
