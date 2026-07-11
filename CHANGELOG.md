@@ -5,6 +5,11 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Duplicate-install guard in `uninstall.php`** (2026-07-11 ecosystem sweep). When two copies of the plugin exist under different folder names, deleting the stale copy through the Plugins screen ran `uninstall.php` — which **drops the shared entry tables** — out from under the surviving copy. Cleanup now runs only when the LAST installed copy is deleted. `RELEASE.md` gains a test-install policy note. Mirrors the guards in Promptless CPT Pages and Promptless WP.
+
 ## [1.8.2] - 2026-07-11
 
 ### Fixed

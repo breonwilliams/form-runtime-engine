@@ -224,3 +224,17 @@ svn commit -m "Update plugin icon" --username promptlesswp
 ---
 
 **Last updated:** 2026-06-16
+
+
+## Test-install policy (duplicate-plugin prevention)
+
+Only install on test sites from `build/promptless-forms.zip` (or the GitHub
+release asset built from it) — never from GitHub's auto-generated "Source
+code (zip)" or by copying the dev repo folder, both of which land in a
+differently-named plugin folder and make every future release ZIP install
+as a DUPLICATE instead of replacing. If a duplicate exists: deactivate old,
+activate new, then delete the stale FOLDER from disk — do NOT click Delete
+in the Plugins screen (that runs `uninstall.php`, which drops the shared
+entry tables; a duplicate-install guard was added 2026-07-11, but don't
+rely on it for copies older than that). Full playbook: Promptless CPT
+Pages' RELEASE.md, "Test-install policy".

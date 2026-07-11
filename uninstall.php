@@ -23,6 +23,29 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
     exit;
 }
 
+/**
+ * Duplicate-install guard (2026-07-11).
+ *
+ * If a second copy of this plugin exists under a different folder name
+ * (release-ZIP install alongside a GitHub-source or dev-folder copy),
+ * deleting the stale copy through the Plugins screen runs this file —
+ * which would DROP the shared entry tables and options out from under the
+ * copy still installed. If any other installed copy remains (identified
+ * by its form-runtime-engine.php main file in a different plugin folder),
+ * skip cleanup entirely; full cleanup runs only when the LAST copy is
+ * deleted. Mirrors the guard in Promptless CPT Pages.
+ */
+$pforms_own_dir = dirname( WP_UNINSTALL_PLUGIN );
+$pforms_mains   = glob( WP_PLUGIN_DIR . '/*/form-runtime-engine.php' );
+if ( is_array( $pforms_mains ) && '' !== $pforms_own_dir && '.' !== $pforms_own_dir ) {
+    foreach ( $pforms_mains as $pforms_main ) {
+        if ( basename( dirname( $pforms_main ) ) !== $pforms_own_dir ) {
+            return; // Another copy is still installed — preserve shared data.
+        }
+    }
+}
+unset( $pforms_own_dir, $pforms_mains, $pforms_main );
+
 // Define plugin directory if not already defined.
 if ( ! defined( 'PForms_PLUGIN_DIR' ) ) {
     define( 'PForms_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
