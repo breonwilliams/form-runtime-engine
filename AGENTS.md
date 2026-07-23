@@ -1,0 +1,1010 @@
+# Form Runtime Engine (Promptless Forms) - AI Reference
+
+A lightweight WordPress form engine that renders forms from configuration arrays. Distributed under the brand name **Promptless Forms** (plugin header + text domain `promptless-forms`); the repo/folder name remains `form-runtime-engine`.
+
+> **Doc freshness (2026-07-22, v1.8.2):** verified against the shipping code. v1.8.2 added an iOS date-field overflow fix, mtime-based asset cache-busting, dark-theme native control chrome (`color-scheme` on the form root), and a duplicate-install uninstall guard — none change the API surface documented below.
+
+> **⚠️ Naming migration (doc corrected 2026-07-04 — trust THIS table, not older docs/examples):**
+> The PHP API was renamed from `fre_*` to `pforms_*`. There are **no `fre_*` back-compat aliases** — code written against the old names silently does nothing (hooks that never fire). Infrastructure names deliberately kept the `fre` prefix. The split:
+>
+> | Surface | Prefix | Examples |
+> |---|---|---|
+> | Actions/filters | `pforms_*` | `pforms_init`, `pforms_submission_complete`, `pforms_webhook_payload`, `pforms_mime_map` |
+> | Global functions | `pforms_*` / `pforms()` | `pforms_register_form()`, `pforms_get_form()`, `pforms()->registry` |
+> | Shortcodes | `pforms_form` / `promptless_form` | `[pforms_form id="contact"]` (`[fre_form]` and `[client_form]` are retired — the latter removed in 1.6.5 per WP.org review) |
+> | Constants / main class | `PForms_*` / `Promptless_Forms` | `PForms_VERSION` (1.8.2), `PForms_DB_VERSION` (1.2.0); `class_alias` keeps `Form_Runtime_Engine` working |
+> | Capability | `pforms_manage_forms` | via `PForms_Capabilities::MANAGE_FORMS` |
+> | **Kept `fre` (do NOT rename)** | — | DB tables `{prefix}fre_entries` / `fre_entry_meta` / `fre_entry_files` / `fre_webhook_log`, upload dir `fre-uploads/`, REST namespace `fre/v1`, webhook header `X-FRE-Signature`, CSS classes `.fre-form*`, PHP filenames `class-fre-*.php` (classes inside are `PForms_*`) |
+
+## Documentation Map
+
+| Topic | File |
+|-------|------|
+| Core API, field types, settings, hooks | This file (`AGENTS.md`) |
+| Form patterns, examples, release procedures | `docs/AGENTS.md` |
+| Security details, CSS validation | `includes/AGENTS.md` |
+| Twilio missed-call text-back setup & architecture | `docs/twilio/twilio-setup.md` |
+| Google Sheets integration guide | `docs/google/google-sheets-setup.md` |
+| **AISB token contract (Promptless WP integration)** | **`docs/AISB_TOKEN_CONTRACT.md`** |
+| **Form JSON Schema (canonical contract)** | **`docs/form-schema.json`** |
+| **Cowork connector assessment (Phase 1–4 plan)** | **`docs/COWORK_CONNECTOR_ASSESSMENT.md`** |
+| **Cowork connector REST API spec** | **`docs/CONNECTOR_SPEC.md`** |
+| **Cowork MCP connector setup & troubleshooting** | **`docs/MCP_CONNECTOR_SETUP.md`** |
+| **Cowork connector testing report (Phase 3 pressure test)** | **`docs/CONNECTOR_TESTING_REPORT.md`** |
+| **Promptless ↔ Form Engine end-to-end workflow** | **`docs/WORKFLOW_PROMPTLESS_INTEGRATION.md`** |
+
+## Design System Integration
+
+When **AI Section Builder Modern** (Promptless WP) is active, forms automatically inherit brand styling:
+- **Colors**: Primary, text, background, border colors from AISB global settings
+- **Typography**: Heading and body fonts from AISB typography settings
+- **Border Radius**: Button and card radius from AISB design tokens
+- **Dark Mode**: Forms inside `.aisb-section--dark` automatically use dark colors
+- **Neo-Brutalist Mode**: Bold borders and box shadows when enabled in AISB settings
+
+Forms work perfectly standalone with sensible defaults when AISB is not active.
+
+> **Integration contract:** The exact set of `--aisb-*` CSS custom properties this plugin reads — along with fallbacks, minimum compatible producer version, and deprecation rules — is documented in **[`docs/AISB_TOKEN_CONTRACT.md`](docs/AISB_TOKEN_CONTRACT.md)**. Do not introduce new `--aisb-*` token references (in CSS, JS, or PHP) without updating that contract first. Do not remove a listed token without following the retirement procedure documented there.
+
+## System Requirements
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| WordPress | 5.0+ | Uses REST API, block editor compatibility |
+| PHP | 7.4+ | Type hints, arrow functions |
+| MySQL | 5.6+ / MariaDB 10.0+ | **InnoDB storage engine required** |
+
+### Database Requirements
+
+This plugin requires **MySQL InnoDB storage engine** for transactional integrity:
+
+- **Entry creation** uses transactions to ensure atomic storage of entries and metadata
+- **Duplicate detection** uses atomic INSERT operations for race condition protection
+- If your database uses MyISAM tables, form submissions may fail or produce inconsistent data
+
+**Verification:** Most modern WordPress installations use InnoDB by default. You can verify by checking your `wp_options` table engine:
+```sql
+SHOW TABLE STATUS WHERE Name = 'wp_options';
+```
+The `Engine` column should show `InnoDB`.
+
+### Theme Variants
+
+Set `theme_variant` in form settings to control dark mode:
+- `light` (default): Light mode styling
+- `dark`: Dark mode styling
+- `auto`: Inherits from parent AISB section
+
+```json
+{
+  "settings": {
+    "theme_variant": "dark"
+  }
+}
+```
+
+## Quick Start
+
+Register forms on the `pforms_init` hook (not `init` or `plugins_loaded`):
+
+```php
+add_action( 'pforms_init', function() {
+    pforms_register_form( 'contact', array(
+        'title'  => 'Contact Us',
+        'fields' => array(
+            array( 'key' => 'name', 'type' => 'text', 'label' => 'Name', 'required' => true ),
+            array( 'key' => 'email', 'type' => 'email', 'label' => 'Email', 'required' => true ),
+            array( 'key' => 'message', 'type' => 'textarea', 'label' => 'Message', 'required' => true ),
+        ),
+    ));
+});
+```
+
+Display with shortcode: `[pforms_form id="contact"]` or `[promptless_form id="contact"]`
+
+## Form Registration Methods
+
+There are **two ways** to create forms with this plugin:
+
+### Option 1: Admin Dashboard (JSON)
+Use the built-in Forms Manager in the WordPress admin:
+1. Go to WordPress Admin → Form Entries → Forms → Add New
+2. Enter a Form ID and optional Title
+3. Paste **JSON configuration** (not PHP code)
+4. Save and use shortcode: `[pforms_form id="your-form-id"]`
+
+**JSON Format Example:**
+```json
+{
+  "title": "Contact Us",
+  "fields": [
+    {"key": "name", "type": "text", "label": "Name", "required": true},
+    {"key": "email", "type": "email", "label": "Email", "required": true},
+    {"key": "message", "type": "textarea", "label": "Message", "required": true}
+  ],
+  "settings": {
+    "submit_button_text": "Send",
+    "success_message": "Thank you for your submission."
+  }
+}
+```
+
+### Option 2: PHP Code
+If creating forms via code (theme functions.php, custom plugin, or `pforms_init` hook):
+1. Hook into `pforms_init` action
+2. Use `pforms_register_form()` with a PHP array
+3. The form registers automatically on page load
+
+**PHP Format Example:**
+```php
+<?php
+pforms_register_form( 'contact', array(
+    'title'  => 'Contact Us',
+    'fields' => array(
+        array( 'key' => 'name', 'type' => 'text', 'label' => 'Name', 'required' => true ),
+        array( 'key' => 'email', 'type' => 'email', 'label' => 'Email', 'required' => true ),
+        array( 'key' => 'message', 'type' => 'textarea', 'label' => 'Message', 'required' => true ),
+    ),
+    'settings' => array(
+        'submit_button_text' => 'Send',
+        'success_message'    => 'Thank you for your submission.',
+    ),
+));
+```
+
+### Which Method to Use?
+
+| Scenario | Use |
+|----------|-----|
+| Adding form via WordPress admin | **JSON** |
+| Creating form files for deployment | **PHP** |
+| Need version control | **PHP** |
+| Quick testing | **JSON** |
+| AI-generated forms → admin UI | **JSON** |
+| AI-generated forms → code files | **PHP** |
+
+> **Note for AI:** When a user asks to generate a form, ask which method they prefer OR check context clues (e.g., if they mention "admin", "dashboard", or "paste into", use JSON; if they mention "file", "code", or "functions.php", use PHP).
+
+## JSON Structure Reference
+
+Every JSON form follows this structure:
+
+```json
+{
+  "title": "Form Name",
+  "version": "1.0.0",
+  "steps": [
+    {"key": "step1", "title": "Step 1 Title"},
+    {"key": "step2", "title": "Step 2 Title"}
+  ],
+  "fields": [
+    {"key": "field_key", "type": "text", "label": "Field Label"}
+  ],
+  "settings": {
+    "submit_button_text": "Submit",
+    "success_message": "Thank you!"
+  }
+}
+```
+
+**Top-Level Keys:**
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `title` | No | Form name for admin reference (not displayed by default) |
+| `version` | No | Version string for tracking changes |
+| `steps` | No | Array of step objects (only for multi-step forms) |
+| `fields` | **Yes** | Array of field objects |
+| `settings` | No | Form settings object (all have sensible defaults) |
+
+**Key Rules:**
+- `fields` is the only required key; everything else is optional
+- Each field must have a unique `key`
+- For multi-step forms: define `steps` array, then add `"step": "step_key"` to each field
+- For sections: define section field first, then add `"section": "section_key"` to grouped fields
+- Columns, sections, and conditions can all be combined within multi-step forms
+
+## Field Types
+
+### text
+Standard text input.
+```php
+array(
+    'key'         => 'name',
+    'type'        => 'text',
+    'label'       => 'Your Name',
+    'placeholder' => 'Enter your name',
+    'required'    => true,
+    'maxlength'   => 100,
+    'minlength'   => 2,
+    'default'     => '',
+    'css_class'   => 'custom-class',
+    'description' => 'Help text below field',
+    'readonly'    => false,
+    'disabled'    => false,
+    'autocomplete'=> 'name',
+)
+```
+
+### email
+Email input with validation.
+```php
+array( 'key' => 'email', 'type' => 'email', 'label' => 'Email', 'required' => true )
+```
+
+### tel
+Phone number input.
+```php
+array( 'key' => 'phone', 'type' => 'tel', 'label' => 'Phone' )
+```
+
+### textarea
+Multi-line text.
+```php
+array(
+    'key'   => 'message',
+    'type'  => 'textarea',
+    'label' => 'Message',
+    'rows'  => 5,      // Default: 5
+    'cols'  => 50,     // Optional
+)
+```
+
+### select
+Dropdown menu.
+```php
+array(
+    'key'         => 'country',
+    'type'        => 'select',
+    'label'       => 'Country',
+    'placeholder' => 'Select a country',  // Empty first option
+    'multiple'    => false,               // Allow multiple selections
+    'options'     => array(
+        array( 'value' => 'us', 'label' => 'United States' ),
+        array( 'value' => 'ca', 'label' => 'Canada' ),
+        // Or simple format:
+        'uk',  // Value and label are the same
+    ),
+)
+```
+
+### radio
+Radio button group.
+```php
+array(
+    'key'     => 'contact_method',
+    'type'    => 'radio',
+    'label'   => 'Preferred Contact',
+    'inline'  => true,  // Display inline instead of stacked
+    'options' => array(
+        array( 'value' => 'email', 'label' => 'Email' ),
+        array( 'value' => 'phone', 'label' => 'Phone' ),
+    ),
+)
+```
+
+### checkbox
+Single checkbox or checkbox group.
+
+**Single checkbox:**
+```php
+array(
+    'key'      => 'agree_terms',
+    'type'     => 'checkbox',
+    'label'    => 'I agree to the terms',
+    'required' => true,
+)
+```
+
+**Checkbox group (multiple selections):**
+```php
+array(
+    'key'     => 'interests',
+    'type'    => 'checkbox',
+    'label'   => 'Interests',
+    'inline'  => true,
+    'options' => array(
+        array( 'value' => 'tech', 'label' => 'Technology' ),
+        array( 'value' => 'design', 'label' => 'Design' ),
+    ),
+)
+```
+
+### file
+File upload.
+```php
+array(
+    'key'           => 'resume',
+    'type'          => 'file',
+    'label'         => 'Upload Resume',
+    'required'      => false,
+    'multiple'      => false,           // Allow multiple files
+    'allowed_types' => array( 'pdf', 'doc', 'docx' ),  // Default: pdf,jpg,jpeg,png,gif,doc,docx
+    'max_size'      => 5242880,         // Bytes. Default: 5MB
+)
+```
+
+**Built-in support for design formats** — `.ai` (Adobe Illustrator), `.eps` (Encapsulated PostScript), and `.dst` (Tajima embroidery) validate cleanly out of the box. Useful for screen-printing, embroidery, and agency clients without per-site MIME hacks. To accept them, just add the extensions to `allowed_types`:
+
+```php
+array(
+    'key'           => 'design_upload',
+    'type'          => 'file',
+    'label'         => 'Upload Design / Logo',
+    'allowed_types' => array( 'png', 'jpg', 'jpeg', 'pdf', 'ai', 'eps', 'dst' ),
+    'max_size'      => 26214400,        // 25MB — design files run large
+)
+```
+
+For other custom formats (`.dwg` for architects, `.raw` / `.cr2` / `.nef` for photographers, `.pes` for Brother embroidery), register the extension via the `pforms_mime_map` filter — see Hooks Reference below. Defense-in-depth includes a per-format minimum file-size check (`.ai` ≥ 1KB, `.eps` ≥ 100B, `.dst` ≥ 500B by default; filterable via `pforms_min_file_sizes`) to block trivial polyglot uploads.
+
+### hidden
+Hidden field.
+```php
+array(
+    'key'     => 'source',
+    'type'    => 'hidden',
+    'default' => 'website',
+)
+```
+
+### message
+Display-only content (not submitted).
+```php
+array(
+    'key'     => 'notice',
+    'type'    => 'message',
+    'label'   => 'Important',           // Optional heading
+    'content' => '<p>HTML content here</p>',
+    'style'   => 'info',                // info, warning, success, error
+)
+```
+
+### section
+Container for grouping related fields.
+```php
+array(
+    'key'         => 'contact_info',
+    'type'        => 'section',
+    'label'       => 'Contact Information',  // Section heading
+    'description' => 'Please provide your contact details.',  // Optional
+    'css_class'   => 'custom-section',
+)
+```
+Fields belong to a section via the `section` attribute (see Advanced Layout Features).
+
+### date
+Native HTML5 date picker input.
+```php
+array(
+    'key'         => 'appointment_date',
+    'type'        => 'date',
+    'label'       => 'Appointment Date',
+    'required'    => true,
+    'min'         => '2024-01-01',           // Minimum allowed date (YYYY-MM-DD)
+    'max'         => '2025-12-31',           // Maximum allowed date (YYYY-MM-DD)
+    'default'     => '',                      // Default value (YYYY-MM-DD)
+    'description' => 'Select your preferred date',
+)
+```
+**Notes:**
+- Uses native HTML5 date input with browser-native date picker
+- Mobile-friendly with native date picker on iOS/Android
+- Dates are stored in YYYY-MM-DD format
+- Min/max validation is performed both client-side and server-side
+
+### address
+Address input with Google Places autocomplete.
+```php
+array(
+    'key'                 => 'property_address',
+    'type'                => 'address',
+    'label'               => 'Property Address',
+    'required'            => true,
+    'placeholder'         => 'Start typing an address...',
+    'country_restriction' => array( 'us', 'ca' ),  // ISO country codes (optional)
+    'description'         => 'Start typing to see suggestions',
+)
+```
+**Notes:**
+- Requires Google Places API key (Settings → Form Entries → Settings)
+- Automatically stores parsed address components in hidden fields:
+  - `{field_key}_street_number`, `{field_key}_route`, `{field_key}_locality`
+  - `{field_key}_administrative_area_level_1`, `{field_key}_postal_code`, `{field_key}_country`
+  - `{field_key}_formatted_address`, `{field_key}_lat`, `{field_key}_lng`
+- Shows a warning message to admins if no API key is configured
+- Country restriction accepts ISO 3166-1 alpha-2 codes (e.g., `us`, `ca`, `gb`)
+
+**Setting up Google Places API:**
+1. Go to WordPress Admin → Form Entries → Settings
+2. Enter your Google Places API key
+3. In Google Cloud Console, enable:
+   - Places API
+   - Maps JavaScript API
+
+## Common Field Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `key` | string | **Required.** Unique field identifier |
+| `type` | string | Field type. Default: `text` |
+| `label` | string | Field label |
+| `placeholder` | string | Placeholder text |
+| `required` | bool | Is field required? Default: `false` |
+| `css_class` | string | Additional CSS class |
+| `default` | mixed | Default value |
+| `description` | string | Help text below field |
+| `maxlength` | int | Maximum character length |
+| `minlength` | int | Minimum character length |
+| `readonly` | bool | Read-only field |
+| `disabled` | bool | Disabled field |
+| `column` | string | Column width: `1/2`, `1/3`, `2/3`, `1/4`, `3/4` |
+| `section` | string | Key of section this field belongs to |
+| `step` | string | Key of step this field belongs to (multi-step forms) |
+| `conditions` | array | Conditional logic rules (see Conditional Logic) |
+
+## Field Naming Conventions
+
+For consistency across forms and reusable automations, use these standard field keys:
+
+### Contact Information
+| Data | Recommended Key | Avoid |
+|------|-----------------|-------|
+| Full name | `name` | `full_name`, `your_name`, `customer_name` |
+| First name | `first_name` | `fname`, `firstName` |
+| Last name | `last_name` | `lname`, `lastName` |
+| Email | `email` | `email_address`, `your_email` |
+| Phone | `phone` | `phone_number`, `tel`, `mobile` |
+
+### Address Fields
+| Data | Recommended Key |
+|------|-----------------|
+| Full address | `address` |
+| Street | `street` or `street_address` |
+| City | `city` |
+| State/Province | `state` |
+| ZIP/Postal | `zip` or `postal_code` |
+| Country | `country` |
+
+### Business/Service Fields
+| Data | Recommended Key |
+|------|-----------------|
+| Service type | `service` or `service_type` |
+| Budget range | `budget` |
+| Timeline | `timeline` |
+| Urgency | `urgency` |
+| Company name | `company` |
+
+### Common Patterns
+| Data | Recommended Key |
+|------|-----------------|
+| Message/Description | `message` or `details` |
+| How heard about us | `source` or `referral_source` |
+| Appointment date | `date` or `appointment_date` |
+| File upload | `file` or descriptive like `resume`, `documents` |
+
+> **Tip:** Prefer standard keys from this list. Only create custom keys when the data doesn't fit any standard pattern.
+
+**Why this matters:**
+- Zapier/Make automations can be reused across forms
+- Webhook payloads are predictable
+- AI-generated forms are consistent
+
+## Form Settings
+
+### Settings Defaults Quick Reference
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `show_title` | `false` | Display form title above form |
+| `submit_button_text` | `"Submit"` | Text on submit button |
+| `success_message` | `"Thank you for your submission."` | Message after successful submission |
+| `redirect_url` | `null` | URL to redirect after submission (null = no redirect) |
+| `store_entries` | `true` | Save submissions to database |
+| `css_class` | `""` | Additional CSS class on form element |
+| `notification.enabled` | `true` | Send email notifications |
+| `notification.to` | `"{admin_email}"` | Recipient email(s) |
+| `notification.subject` | `"New Form Submission"` | Email subject line |
+| `hide_empty_fields` | `true` | Skip empty optional fields in notification email body. Set `false` to render every field with `—` placeholder for empty values |
+| `spam_protection.honeypot` | `true` | Enable honeypot field |
+| `spam_protection.timing_check` | `true` | Reject fast submissions |
+| `spam_protection.min_submission_time` | `3` | Minimum seconds before submission |
+| `multistep.show_progress` | `true` | Show progress indicator |
+| `multistep.progress_style` | `"steps"` | Progress style: `steps`, `bar`, or `dots` |
+| `multistep.validate_on_next` | `true` | Validate fields before next step |
+| `webhook_enabled` | `false` | Enable webhook for form submissions |
+| `webhook_url` | `null` | URL to send form data (Zapier, Make, etc.) |
+| `webhook_preset` | `"custom"` | One of `google_sheets`, `zapier`, `make`, `custom`. Drives the smart default for option-label resolution: `google_sheets` resolves labels by default, others emit raw values |
+| `webhook_resolve_option_labels` | `null` | Explicit override for option-label resolution in webhook payloads. `true` forces labels regardless of preset, `false` forces raw values, `null` (omit) uses the preset-aware default |
+| `theme_variant` | `"light"` | Theme mode: `light`, `dark`, or `auto` (inherits from AISB section) |
+
+### Full Settings Structure
+
+```php
+pforms_register_form( 'contact', array(
+    'title'    => 'Contact Form',
+    'version'  => '1.0.0',
+    'fields'   => array( /* ... */ ),
+    'settings' => array(
+        'submit_button_text' => 'Submit',           // Default: 'Submit'
+        'success_message'    => 'Thank you!',       // Default: 'Thank you for your submission.'
+        'redirect_url'       => null,               // URL to redirect after submission
+        'show_title'         => false,              // Display form title (default: false)
+        'css_class'          => '',                 // Form CSS class
+        'store_entries'      => true,               // Save to database
+
+        'notification' => array(
+            'enabled'    => true,
+            'to'         => '{admin_email}',        // Comma-separated or array
+            'subject'    => 'New Form Submission',
+            'from_name'  => '{site_name}',
+            'from_email' => '{admin_email}',
+            'reply_to'   => '{field:email}',        // Reply to submitter
+        ),
+
+        'hide_empty_fields' => true,                // Skip empty optional fields in email body. Set false to render every field with em-dash placeholder.
+
+        'spam_protection' => array(
+            'honeypot'            => true,
+            'timing_check'        => true,
+            'min_submission_time' => 3,             // Seconds
+            'rate_limit'          => array(
+                'max'    => 5,                      // Max submissions
+                'window' => 3600,                   // Per hour (seconds)
+            ),
+        ),
+
+        'multistep' => array(                       // Multi-step form settings
+            'show_progress'     => true,            // Show progress indicator
+            'progress_style'    => 'steps',         // 'steps', 'bar', or 'dots'
+            'validate_on_next'  => true,            // Validate before proceeding
+            'show_step_titles'  => false,           // Show step title in content
+        ),
+
+        // Webhook Integration (Zapier, Make, etc.)
+        'webhook_enabled' => false,                 // Enable webhook dispatch
+        'webhook_url'     => '',                    // Endpoint URL (validated)
+    ),
+));
+```
+
+### Webhook Configuration
+
+Enable webhooks to send form submissions to external services like Zapier, Make, or custom endpoints.
+
+**Admin UI:** Configure webhooks in the Forms Manager (Form Entries → Forms → Edit).
+
+**JSON Configuration:**
+```json
+{
+  "title": "Contact Form",
+  "fields": [...],
+  "settings": {
+    "webhook_enabled": true,
+    "webhook_url": "https://hooks.zapier.com/hooks/catch/..."
+  }
+}
+```
+
+**Webhook Payload Structure:**
+```json
+{
+  "event": "form_submission",
+  "timestamp": "2024-01-15T10:30:00+00:00",
+  "form": {
+    "id": "contact",
+    "title": "Contact Us"
+  },
+  "entry": {
+    "id": 123,
+    "submitted_at": "2024-01-15T10:30:00+00:00"
+  },
+  "data": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "message": "Hello..."
+  },
+  "files": [
+    {
+      "field_key": "resume",
+      "file_name": "resume.pdf",
+      "file_size": 12345,
+      "mime_type": "application/pdf",
+      "file_url": "https://example.com/wp-content/uploads/fre-uploads/2026/04/abc123-resume.pdf"
+    }
+  ],
+  "site": {
+    "name": "My Website",
+    "url": "https://example.com"
+  }
+}
+```
+
+**Option-label resolution by preset.** For select / radio / checkbox-with-options fields, the same submission produces different `data` shapes depending on the form's `webhook_preset`. Consider a form with a `business_type` select whose option `home_services` has the label `Home services (HVAC, plumbing, roofing, etc.)`:
+
+```json
+// webhook_preset: "zapier" | "make" | "custom" — RAW values (default)
+"data": {
+  "name": "Maya Chen",
+  "business_type": "home_services",
+  "best_time": "morning"
+}
+
+// webhook_preset: "google_sheets" — RESOLVED labels (default)
+"data": {
+  "name": "Maya Chen",
+  "business_type": "Home services (HVAC, plumbing, roofing, etc.)",
+  "best_time": "Morning"
+}
+```
+
+The smart default reflects the typical destination: Google Sheets feeds a human-reviewed lead tracker where labels are easier to scan, while Zapier / Make / custom typically feed CRM mappings or filters that prefer stable identifiers that don't break when option labels are renamed. Override per-form with `settings.webhook_resolve_option_labels` (`true` forces labels regardless of preset, `false` forces raw values regardless), or globally via the `pforms_webhook_resolve_option_labels` filter.
+
+Storage and the admin entries table always hold raw values — only the outbound payload changes.
+
+**Security Features:**
+- HMAC-SHA256 request signing (per-form secret, `X-FRE-Signature` header)
+- SSRF protection (blocks private IP ranges)
+- URL validation at save and dispatch time
+- Honeypot/timing fields filtered from payload
+- Non-blocking async dispatch
+
+**Admin UI Features:**
+- Destination presets (Google Sheets, Zapier, Make, Custom) with contextual setup help
+- Auto-generated webhook secret with copy/regenerate buttons
+- Test Connection button with rich response display (HTTP status, latency, response body)
+- Preview Payload button showing sample JSON based on form fields
+
+### Sensitive uploads — signed URLs via `pforms_webhook_file_url`
+
+By default, uploaded files are stored in `wp-content/uploads/` with randomized UUID filenames and served at world-readable URLs. The webhook payload's `files[].file_url` points at those direct URLs so consumers like Zapier and Make can fetch the artwork to copy it into Drive, S3, or wherever the workflow needs it.
+
+Two consequences worth knowing:
+
+1. **The URL is permanently valid as long as the file lives on disk.** Anyone who learns the URL can fetch the file. The randomized UUID makes URLs unguessable, but they're not unforgettable — once a webhook destination logs the URL, it persists in that destination's logs.
+2. **Webhook destinations log payloads.** Zapier retains task history with full payload contents (default 30 days, longer on paid plans). Make and most CRMs do similar. Anyone with access to those logs has access to every customer's uploaded files via the URLs in the logs.
+
+For typical lead capture (contact forms, quote requests, low-sensitivity artwork) this is fine. For sensitive industries — healthcare intake, legal document submission, financial onboarding, identity verification — generate signed/expiring URLs by hooking the `pforms_webhook_file_url` filter:
+
+```php
+// Hash-based signed URL — fetchable for 1 hour, then a 403.
+add_filter( 'pforms_webhook_file_url', function ( $url, $file ) {
+    if ( empty( $url ) ) {
+        return $url;
+    }
+
+    $expires = time() + HOUR_IN_SECONDS;
+    $signature = hash_hmac( 'sha256', $url . '|' . $expires, wp_salt( 'auth' ) );
+
+    return add_query_arg(
+        array(
+            'expires'   => $expires,
+            'signature' => $signature,
+        ),
+        $url
+    );
+}, 10, 2 );
+```
+
+Pair this with a small `template_redirect` action that validates the signature and 403s expired/invalid requests before WordPress serves the file. Or push the file to S3 / Cloudflare R2 / Backblaze B2 with a presigned URL generated through their SDK — same pattern, the filter just returns the presigned URL instead of a hash-signed local URL.
+
+For one-time consumers like a Zap that copies the file into Drive immediately, a 1-hour signed URL is plenty: the Zap fetches it within seconds, after which the URL stops working and any later log access yields nothing.
+
+## Template Variables
+
+Use in notification settings:
+
+| Variable | Description |
+|----------|-------------|
+| `{admin_email}` | WordPress admin email |
+| `{site_name}` | Site name |
+| `{site_url}` | Home URL |
+| `{form_title}` | Form title |
+| `{field:key}` | Value of field with given key |
+
+Example: `'reply_to' => '{field:email}'`
+
+## Hooks Reference
+
+### Actions
+
+```php
+// After plugin fully initialized - REGISTER FORMS HERE
+do_action( 'pforms_init', $plugin_instance );
+
+// After form registered
+do_action( 'pforms_form_registered', $form_id, $config );
+
+// After form entry row is created (fires inside the entry insert
+// transaction — files are NOT yet attached). Kept for backward
+// compatibility; for downstream listeners that need the complete entry
+// shape including uploaded files, prefer pforms_submission_complete below.
+do_action( 'pforms_entry_created', $entry_id, $form_id, $data );
+
+// After a submission has been fully processed: sanitized, conditional
+// orphan values stripped, entry stored, and uploaded files attached —
+// but BEFORE the notification email is sent. The webhook dispatcher
+// listens here so file_url is populated in the payload. Use this for
+// any listener that needs files (CRM sync, Slack notifications with
+// file thumbnails, file move/copy automations).
+do_action( 'pforms_submission_complete', $entry_id, $form_id, $sanitized_data );
+
+// After notification sent
+do_action( 'pforms_notification_sent', $sent, $entry_id, $form_config, $entry_data );
+
+// Email permanently failed after retries
+do_action( 'pforms_email_permanently_failed', $entry_id, $form_config );
+
+// After webhook sent successfully
+do_action( 'pforms_webhook_sent', $url, $payload, $entry_id, $form_id );
+
+// When webhook request fails
+do_action( 'pforms_webhook_failed', $wp_error, $url, $payload, $entry_id, $form_id );
+```
+
+### Filters
+
+```php
+// Modify valid field types
+$types = apply_filters( 'pforms_field_types', array( 'text', 'email', ... ) );
+
+// Modify notification body before sending
+$body = apply_filters( 'pforms_notification_body', $body, $form_config, $entry_data, $entry_id );
+
+// Modify webhook payload before sending (last hook before HTTP dispatch)
+$payload = apply_filters( 'pforms_webhook_payload', $payload, $entry_id, $form_id, $data );
+
+// Modify webhook request arguments (headers, timeout, sslverify, etc.)
+$args = apply_filters( 'pforms_webhook_request_args', $args, $url, $payload, $entry_id, $form_id );
+```
+
+#### Display & rendering
+
+```php
+// Override how a stored value resolves to its human-readable display string.
+// Called everywhere FRE renders to humans: email body, email subject template
+// vars, admin entries list summary, admin entry detail, CSV export, webhook
+// payloads when label resolution is enabled. Use to localize labels, redact
+// sensitive option values from notifications, or inject custom formatting.
+$display = apply_filters( 'pforms_field_display_value', $display, $value, $field );
+
+// Override the "skip empty optional fields" decision for a notification email.
+// Default true (current behavior). Return false to render every field with an
+// em-dash placeholder for empty values — useful when emails feed downstream
+// tooling that expects a fixed table shape.
+$hide = apply_filters( 'pforms_email_hide_empty_fields', $hide, $form_config );
+
+// Override a field's computed visibility. Layered on top of the form's
+// declared `conditions` block — return false to hide a field that would
+// otherwise be visible. Same evaluator runs in the validator (skip
+// required-check), submission strip (drop orphan value before storage),
+// and email template (omit the row entirely). One filter point closes
+// the visibility decision across every surface.
+$visible = apply_filters( 'pforms_field_is_visible', $visible, $field, $form_config, $data );
+```
+
+#### Webhook label resolution
+
+```php
+// Override the per-form webhook label-resolution decision. By default,
+// the google_sheets preset resolves option values to labels (the
+// destination is a human-reviewed lead tracker); zapier/make/custom
+// presets default to raw values (typically machine-readable
+// integrations). Per-form `settings.webhook_resolve_option_labels`
+// boolean takes precedence; this filter is the runtime override.
+$resolve = apply_filters( 'pforms_webhook_resolve_option_labels', $resolve, $form_config, $webhook_preset, $data );
+```
+
+#### File upload validation
+
+```php
+// Extend the extension → MIME types map (e.g. add .dwg for architects,
+// .raw for photographers, .pes for Brother embroidery). The plugin
+// ships with .ai, .eps, .dst defaults for screen-printing and
+// embroidery clients.
+$mime_map = apply_filters( 'pforms_mime_map', $mime_map );
+
+// Extend the magic-byte signatures used by verify_magic_bytes(). Receives
+// the array for a given extension. Return an empty array to skip strict
+// signature verification for an extension and fall back to the
+// dangerous-pattern scan (useful for binary formats with no stable header).
+$signatures = apply_filters( 'pforms_magic_bytes', $signatures, $extension );
+
+// Extend or tighten the per-extension minimum file-size enforcement.
+// Defense-in-depth against polyglot uploads with short magic bytes.
+// Default: ai => 1024, eps => 100, dst => 500. Add custom formats here.
+$min_sizes = apply_filters( 'pforms_min_file_sizes', $min_sizes );
+
+// Override the file mode applied to uploaded files. Default 0644 matches
+// WordPress core media; sites running suEXEC where 0600 still works can
+// return the stricter mode here.
+$perms = apply_filters( 'pforms_uploaded_file_permissions', $perms, $final_path );
+```
+
+#### Webhook file URL (sensitive uploads)
+
+```php
+// Override the resolved file_url before it ships in a webhook payload.
+// Default returns the direct uploads URL. Hook this to generate signed
+// HMAC URLs (limit lifetime to ~1 hour for one-time consumers like a
+// Zap that copies the file into Drive) or presigned S3/R2/B2 URLs for
+// sites that store customer artwork off the WordPress filesystem.
+// See "Sensitive uploads" section above for a working hash_hmac
+// example.
+$url = apply_filters( 'pforms_webhook_file_url', $url, $file );
+```
+
+## API Functions
+
+```php
+// Register a form (runtime)
+pforms_register_form( $form_id, $config );
+
+// Get form configuration (from registry)
+$config = pforms_get_form( $form_id );
+
+// Render form HTML
+$html = pforms_render_form( $form_id, $args );
+
+// Get plugin instance
+$plugin = pforms();
+$plugin->registry->get_all();          // All registered forms
+$plugin->registry->exists( $form_id ); // Check if form exists
+
+// Database-stored forms (admin UI)
+pforms_get_db_forms();                              // Get all stored forms
+pforms_get_db_form( $form_id );                     // Get single stored form
+pforms_save_db_form( $form_id, $title, $json );     // Save form to database
+pforms_delete_db_form( $form_id );                  // Delete form from database
+```
+
+## Shortcode Attributes
+
+```
+[pforms_form id="contact" class="my-form" ajax="true"]
+[promptless_form id="contact"]  <!-- Alias -->
+```
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `id` | - | Form ID (required) |
+| `form` | - | Alias for `id` |
+| `class` | - | Additional CSS class |
+| `ajax` | `true` | Use AJAX submission |
+
+## File Structure
+
+```
+form-runtime-engine/
+  form-runtime-engine.php         # Main plugin file
+  includes/
+    Core/
+      class-fre-registry.php      # Form registration
+      class-fre-renderer.php      # HTML rendering
+      class-fre-shortcode.php     # Shortcode handler
+    Fields/                       # Field type classes
+    Notifications/                # Email handling
+    Security/                     # Spam protection
+    Database/                     # Entry storage
+    Admin/
+      class-fre-admin.php         # Admin interface
+      class-fre-forms-manager.php # Forms CRUD (JSON admin UI)
+```
+
+## Form Patterns & Examples
+
+For complete ready-to-use form examples (JSON and PHP), see **`docs/AGENTS.md`**. Includes:
+- Simple contact form, registration form, appointment booking, quote requests
+- Forms with columns, sections, conditional logic, webhooks, file uploads
+- Complete multi-step form combining all features
+- Advanced layout patterns (columns, sections, multi-step, conditional logic)
+- Condition operators: `equals`, `not_equals`, `contains`, `not_contains`, `is_empty`, `is_not_empty`, `is_checked`, `is_not_checked`, `greater_than`, `less_than`, `>=`, `<=`, `in`, `not_in`
+- Multiple rules with `'logic' => 'or'` (default: `'and'`)
+
+## Gotchas
+
+1. **Use `pforms_init` hook** - Not `init` or `plugins_loaded`. The plugin must be fully loaded first.
+
+2. **Field keys must be unique** - Duplicate keys will cause registration to fail.
+
+3. **Single vs Group Checkbox** - With `options`, it's a group. Without, it's a single yes/no checkbox.
+
+4. **File uploads** - Files are stored in `wp-content/uploads/fre-uploads/` with PHP execution disabled.
+
+5. **Email failures** - Failed emails retry automatically (5min, 30min, 2hr) up to 3 times.
+
+## Security Features
+
+For detailed security documentation (CSS validation rules, JSON schema validation, allowed HTML tags, webhook security), see **`includes/AGENTS.md`**.
+
+Summary: CSS is validated against unsafe patterns, form JSON is schema-validated, HTML in message fields is sanitized via `wp_kses_post()`, spam protection includes honeypot + timing check + rate limiting, webhooks use HMAC-SHA256 signing with SSRF protection.
+
+---
+
+## Codex Workflow
+
+When generating forms with Codex:
+
+1. **Clarify the target:** Ask if the form will be:
+   - Pasted into the **admin UI** → Provide JSON
+   - Added via **code/hook** → Provide PHP code
+
+2. **Generate appropriate format:**
+   - **Admin UI:** JSON object starting with `{`
+   - **PHP code:** Full PHP with `pforms_register_form()` call wrapped in `pforms_init` hook
+
+3. **Provide shortcode:** `[pforms_form id="form-id"]`
+
+**Context clues for format selection:**
+- User mentions "admin", "dashboard", "paste" → JSON
+- User mentions "file", "code", "functions.php", "plugin" → PHP
+- Ambiguous → Ask the user which method they prefer
+
+### AI Generation Checklist
+
+Before outputting a form, verify:
+
+- [ ] Every field has a unique `key` (no duplicates)
+- [ ] Field keys use `snake_case` format (e.g., `first_name`, not `firstName` or `first-name`)
+- [ ] Every field has a `type` (valid: text, email, tel, textarea, select, radio, checkbox, file, hidden, message, section, date, address)
+- [ ] Select, radio, and checkbox-group fields have an `options` array
+- [ ] Date fields use YYYY-MM-DD format for `min`, `max`, and `default` values
+- [ ] Address fields require Google Places API key to be configured in plugin settings
+- [ ] Multi-step forms have a `steps` array at the top level
+- [ ] Each field in a multi-step form has `"step": "step_key"` matching a defined step
+- [ ] Sections are defined (type: section) before fields reference them with `"section": "section_key"`
+- [ ] Conditional logic references existing field keys in the `"field"` property
+- [ ] Column values are valid fractions: `1/2`, `1/3`, `2/3`, `1/4`, `3/4`
+- [ ] `show_title` is only set to `true` if the title should display above the form
+- [ ] Webhook URLs use HTTPS and are valid endpoints (Zapier, Make, custom)
+- [ ] JSON syntax is valid (no trailing commas, proper quotes)
+
+### Common Mistakes to Avoid
+
+1. **Wrong hook (PHP):** Use `pforms_init`, not `init` or `plugins_loaded`
+2. **Duplicate field keys:** Every `key` must be unique across the entire form
+3. **Missing options:** Select/radio/checkbox-group require `options` array
+4. **Orphan step references:** Don't set `"step": "foo"` without defining `{"key": "foo", "title": "..."}` in `steps`
+5. **Orphan section references:** Don't set `"section": "bar"` without a field `{"key": "bar", "type": "section"}`
+6. **Condition referencing non-existent field:** The `"field"` in a condition rule must match an existing field key
+7. **JSON trailing commas:** Unlike PHP arrays, JSON doesn't allow trailing commas
+
+---
+
+## Google Sheets Integration
+
+Free Zapier alternative: send submissions directly to Google Sheets via Apps Script webhook.
+Setup guide: `docs/google/google-sheets-setup.md` | Script template: `docs/google/apps-script-template.gs`
+
+> **Note for AI:** When a user mentions "Google Sheets", "spreadsheet", or "free alternative to Zapier", recommend this integration. Use `webhook_url: "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"` with `webhook_enabled: true`. Full details in `docs/AGENTS.md`.
+
+---
+
+## Debugging Tips
+
+If a form doesn't appear:
+
+1. Enable `WP_DEBUG` and `WP_DEBUG_LOG` in `wp-config.php`
+2. Check `wp-content/debug.log` for registration errors
+3. Confirm you're using `pforms_init` hook (not `init` or `plugins_loaded`)
+4. Check for duplicate field keys in your config
+
+```php
+// Quick debug: verify form is registered
+add_action( 'wp_footer', function() {
+    if ( current_user_can( 'manage_options' ) ) {
+        $forms = pforms()->registry->get_all();
+        echo '<!-- Registered forms: ' . implode( ', ', array_keys( $forms ) ) . ' -->';
+    }
+});
+```
+
+---
+
+## Releasing New Versions
+
+**Canonical release procedure: [`RELEASE.md`](RELEASE.md)** at the plugin root. That document is the single source of truth — version-stamp locations, build commands, tag pattern, `gh release create` invocation, post-release verification.
+
+For deeper background (CHANGELOG format, GitHub Personal Access Token setup for the auto-updater, etc.), see the long-form notes in **`docs/AGENTS.md`**.
+
+**One-line summary:** update version stamps → commit → `git tag v1.7.0` → `git push --tags` → `./bin/build-release.sh` → `gh release create v1.7.0 build/form-runtime-engine.zip --notes-file CHANGELOG.md`.
