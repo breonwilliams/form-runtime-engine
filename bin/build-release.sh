@@ -2,85 +2,30 @@
 #
 # Build a release ZIP for Form Runtime Engine.
 #
-# Produces one of two build flavors from the same source tree:
+# Produces a single WordPress.org-compliant package:
+#   - Output: ./build/promptless-forms.zip (root folder promptless-forms/)
+#   - Distributed via the WordPress.org plugin directory SVN; the same zip
+#     is attached to GitHub Releases as a convenience artifact.
+#   - Excludes the dev-only markdown files (CLAUDE.md, *_AUDIT.md,
+#     RELEASE.md, README.md) — WP.org reads metadata from readme.txt.
 #
-#   GitHub build (default):
-#     - Includes the GitHub auto-updater (includes/Updates/).
-#     - Output: ./build/form-runtime-engine.zip
-#     - Distributed via GitHub Releases.
-#
-#   WP.org build (--wporg):
-#     - Excludes the GitHub auto-updater (WP.org guideline #8 prohibits
-#       plugins from overriding the WordPress update mechanism).
-#     - Excludes additional dev-only markdown files (CLAUDE.md, *_AUDIT.md,
-#       RELEASE.md, README.md) — WP.org reads metadata from readme.txt instead.
-#     - Output: ./build/form-runtime-engine-wporg.zip
-#     - Distributed via the WordPress.org plugin directory SVN.
+# The GitHub auto-updater and the old dual GitHub/WP.org build flavors were
+# RETIRED when the plugin moved to WordPress.org-only distribution — WP.org
+# guideline #8 prohibits plugins from overriding the core update mechanism,
+# and Plugin Check flags bundled updaters as an ERROR. This script fails the
+# build if a PForms_GitHub_Updater reference reappears (mirrors the guard in
+# Promptless CPT Pages).
 #
 # Usage:
-#   ./bin/build-release.sh            # GitHub build (default)
-#   ./bin/build-release.sh --github   # Explicit GitHub build (same as default)
-#   ./bin/build-release.sh --wporg    # WordPress.org-compliant build
-#   ./bin/build-release.sh --help     # Show this usage
-#
-# Both flavors contain a root folder named "form-runtime-engine/" so
-# WordPress recognizes them as the same plugin when uploaded/updated.
-# Only the file contents inside that folder differ between flavors.
+#   ./bin/build-release.sh
 
 set -e
-
-# Parse command-line flags.
-BUILD_TARGET="github"
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --wporg)
-            BUILD_TARGET="wporg"
-            shift
-            ;;
-        --github)
-            BUILD_TARGET="github"
-            shift
-            ;;
-        --help|-h)
-            cat <<'USAGE'
-Usage:
-  ./bin/build-release.sh            # GitHub build (default)
-  ./bin/build-release.sh --github   # Explicit GitHub build (same as default)
-  ./bin/build-release.sh --wporg    # WordPress.org-compliant build
-  ./bin/build-release.sh --help     # Show this usage
-
-GitHub build:
-  - Includes the GitHub auto-updater (includes/Updates/).
-  - Output: ./build/form-runtime-engine.zip
-  - Distributed via GitHub Releases.
-
-WP.org build:
-  - Excludes the GitHub auto-updater (WP.org guideline #8).
-  - Excludes dev-only markdown (CLAUDE.md, *_AUDIT.md, RELEASE.md, README.md).
-  - Output: ./build/form-runtime-engine-wporg.zip
-  - Distributed via the WordPress.org plugin directory SVN.
-USAGE
-            exit 0
-            ;;
-        *)
-            echo "Error: Unknown option: $1"
-            echo "Run with --help for usage."
-            exit 1
-            ;;
-    esac
-done
 
 PLUGIN_SLUG="promptless-forms"
 BUILD_DIR="build"
 TEMP_DIR="${BUILD_DIR}/${PLUGIN_SLUG}"
 
-# ZIP name differs by target so both flavors can coexist in ./build/
-# without one overwriting the other.
-if [ "$BUILD_TARGET" = "wporg" ]; then
-    ZIP_NAME="${PLUGIN_SLUG}-wporg.zip"
-else
-    ZIP_NAME="${PLUGIN_SLUG}.zip"
-fi
+ZIP_NAME="${PLUGIN_SLUG}.zip"
 
 # Get the version from the main plugin file. (Constant was renamed from
 # FRE_VERSION to PForms_VERSION in 1.8.0 as part of the WordPress.org
@@ -89,6 +34,15 @@ VERSION=$(grep -m1 "define( 'PForms_VERSION'" form-runtime-engine.php | sed "s/.
 
 if [ -z "$VERSION" ]; then
     echo "Error: Could not detect plugin version."
+    exit 1
+fi
+
+# Guard: the GitHub auto-updater was retired (WP.org-only distribution).
+# Plugin Check flags bundled updaters as an ERROR (guideline #8); fail the
+# build immediately if a reference ever reappears in shipping code.
+if grep -rq "PForms_GitHub_Updater" form-runtime-engine.php includes/ 2>/dev/null; then
+    echo "Error: PForms_GitHub_Updater reference detected — the GitHub auto-updater"
+    echo "was retired (WP.org guideline #8). Remove the reference before building."
     exit 1
 fi
 
@@ -132,7 +86,7 @@ else
     exit 1
 fi
 
-echo "Building ${PLUGIN_SLUG} v${VERSION} for ${BUILD_TARGET}..."
+echo "Building ${PLUGIN_SLUG} v${VERSION}..."
 
 # Clean only the staging subdirectory, not the whole build/ folder.
 # This lets both GitHub and WP.org ZIPs coexist in build/ when both
@@ -178,6 +132,7 @@ build
 release
 *.zip
 *.log
+_to_delete
 *.bak
 *.swp
 *.swo
@@ -186,16 +141,15 @@ release
 Thumbs.db
 BASE_EXCLUDES
 
-# WP.org-only exclusions. These files exist for developer/repo use but are
-# not part of the shipping plugin. Plugin Check rejects the GitHub auto-
-# updater (guideline #8 — plugins must use WordPress's update mechanism)
-# and warns about "unexpected markdown files" in the plugin root. The
-# WP.org review team has also explicitly flagged developer-facing planning
-# documents as "AI-generated output" that should not ship in the WP.org
-# distribution — the *_HARDENING_PLAN.md / *_AUDIT.md / *_KNOWLEDGE_MAP.md
-# files are internal engineering notes, not user-facing docs.
-if [ "$BUILD_TARGET" = "wporg" ]; then
-    cat >> "${EXCLUDE_FILE}" <<'WPORG_EXCLUDES'
+# WP.org compliance exclusions. These files exist for developer/repo use
+# but are not part of the shipping plugin. Plugin Check warns about
+# "unexpected markdown files" in the plugin root, and the WP.org review
+# team has explicitly flagged developer-facing planning documents as
+# "AI-generated output" that should not ship — the *_HARDENING_PLAN.md /
+# *_AUDIT.md / *_KNOWLEDGE_MAP.md files are internal engineering notes.
+# includes/Updates stays excluded as belt-and-suspenders: the retired
+# updater directory must never ship even if a file reappears there.
+cat >> "${EXCLUDE_FILE}" <<'WPORG_EXCLUDES'
 includes/Updates
 CLAUDE.md
 FORM_RUNTIME_AUDIT.md
@@ -209,7 +163,6 @@ docs/twilio/CREDENTIAL_ENCRYPTION_AUDIT.md
 docs/WORKFLOW_PROMPTLESS_INTEGRATION.md
 docs/MULTISITE_READINESS_ASSESSMENT.md
 WPORG_EXCLUDES
-fi
 
 # Copy production files using the assembled exclude list.
 rsync -av --exclude-from="${EXCLUDE_FILE}" . "${TEMP_DIR}/"
@@ -217,7 +170,11 @@ rsync -av --exclude-from="${EXCLUDE_FILE}" . "${TEMP_DIR}/"
 echo "Creating zip..."
 
 # Create the zip from the build directory so the root folder is correct.
+# Delete any previous archive first — `zip -r` against an existing zip runs
+# in UPDATE mode and never removes entries whose source files were deleted,
+# so a retired file would silently survive inside the stale archive.
 cd "${BUILD_DIR}"
+rm -f "${ZIP_NAME}"
 zip -r "${ZIP_NAME}" "${PLUGIN_SLUG}/" -x "*.DS_Store" "*/.git/*"
 cd ..
 
@@ -258,6 +215,20 @@ if echo "$ZIP_MANIFEST" | grep -q " ${PLUGIN_SLUG}/class-fre-submission-handler.
     ZIP_STRUCTURE_OK=0
 fi
 
+# Forbidden paths: the retired updater dir and local scratch clutter must
+# never ship. Catches both a reappearing source file and a stale entry
+# carried over from a previous archive.
+FORBIDDEN_ZIP_PATHS=(
+    "${PLUGIN_SLUG}/includes/Updates/"
+    "${PLUGIN_SLUG}/_to_delete/"
+)
+for path in "${FORBIDDEN_ZIP_PATHS[@]}"; do
+    if echo "$ZIP_MANIFEST" | grep -q " ${path}"; then
+        echo "  FORBIDDEN PATH IN ZIP: $path"
+        ZIP_STRUCTURE_OK=0
+    fi
+done
+
 if [ $ZIP_STRUCTURE_OK -eq 0 ]; then
     rm -f "${BUILD_DIR}/${ZIP_NAME}"
     echo ""
@@ -273,18 +244,12 @@ ZIP_SIZE=$(du -h "${BUILD_DIR}/${ZIP_NAME}" | cut -f1)
 echo ""
 echo "Done! Created ${BUILD_DIR}/${ZIP_NAME} (${ZIP_SIZE})"
 echo "Version: ${VERSION}"
-echo "Target:  ${BUILD_TARGET}"
 echo ""
 
-if [ "$BUILD_TARGET" = "wporg" ]; then
-    echo "Next steps (WordPress.org):"
-    echo "  1. Verify the staged build with Plugin Check:"
-    echo "     wp plugin check ${BUILD_DIR}/${PLUGIN_SLUG} --format=table"
-    echo "  2. Commit to WordPress.org SVN trunk and tag for release."
-    echo "     (see RELEASE.md for the SVN workflow once it's documented)"
-else
-    echo "Next steps (GitHub):"
-    echo "  1. Upload to GitHub release:"
-    echo "     gh release upload v${VERSION} ${BUILD_DIR}/${ZIP_NAME} --clobber"
-    echo "  2. Or upload manually via WordPress Admin → Plugins → Add New → Upload Plugin"
-fi
+echo "Next steps:"
+echo "  1. Verify the staged build with Plugin Check:"
+echo "     wp plugin check ${BUILD_DIR}/${PLUGIN_SLUG} --format=table"
+echo "  2. Deploy to WordPress.org SVN trunk and tag (see RELEASE.md)."
+echo "  3. Attach the zip to the GitHub release:"
+echo "     gh release create v${VERSION} ${BUILD_DIR}/${ZIP_NAME} --title \"Promptless Forms v${VERSION}\" --notes-file release-notes.md"
+echo "     (or: gh release upload v${VERSION} ${BUILD_DIR}/${ZIP_NAME} --clobber)"

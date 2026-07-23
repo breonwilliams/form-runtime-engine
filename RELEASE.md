@@ -12,6 +12,8 @@ Promptless Forms is distributed via the **WordPress.org plugin directory**. Upda
 - **Plugin page:** https://wordpress.org/plugins/promptless-forms/
 - **GitHub:** Source control and development only (not for distribution)
 
+> The GitHub auto-updater (`includes/Updates/`) and the old dual GitHub/WP.org build flavors were **retired** in v1.8.3 — WordPress.org is the sole update channel, and Plugin Check flags bundled updaters as an ERROR (guideline #8). `bin/build-release.sh` now produces a single WP.org-compliant package and fails the build if a `PForms_GitHub_Updater` reference reappears. Do not reintroduce an updater.
+
 The WordPress.org SVN repository has this structure:
 ```
 promptless-forms/
@@ -75,12 +77,13 @@ git push origin main --tags
 ### Step 2: Build the release
 
 ```bash
-# Build the WP.org-ready package.
-./bin/build-release.sh --wporg
+# Build the WP.org-ready package (single flavor — the updater and the old
+# dual GitHub/WP.org builds were retired; see Distribution model above).
+./bin/build-release.sh
 
 # This creates:
-#   build/promptless-forms/           (staged plugin files)
-#   build/promptless-forms-wporg.zip  (for manual upload if needed)
+#   build/promptless-forms/     (staged plugin files)
+#   build/promptless-forms.zip  (GitHub release asset / manual upload)
 ```
 
 ### Step 3: Run Plugin Check

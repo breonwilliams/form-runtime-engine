@@ -312,16 +312,6 @@ final class Promptless_Forms {
         if ( is_admin() ) {
             $this->init_admin();
 
-            // Initialize GitHub auto-updater. The updater is intentionally
-            // shipped only in the GitHub distribution build — the WordPress.org
-            // build excludes includes/Updates/ entirely (WP.org guideline #8
-            // prohibits plugins from overriding the core update mechanism).
-            // The class_exists() gate lets the same bootstrap code run cleanly
-            // in both distributions without a fatal in the WP.org build.
-            if ( class_exists( 'PForms_GitHub_Updater' ) ) {
-                new PForms_GitHub_Updater();
-            }
-
             // Claude Cowork connector admin page (registers submenu + AJAX).
             ( new PForms_Connector_Admin() )->init();
         }

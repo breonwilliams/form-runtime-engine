@@ -95,7 +95,8 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 == Changelog ==
 
 = 1.8.3 =
-* Internal: developer/AI reference documentation (AGENTS.md) is now maintained in the repository. No functional changes.
+* Removed the legacy GitHub auto-updater — updates are delivered exclusively through the WordPress.org plugin directory.
+* Internal: developer/AI reference documentation (AGENTS.md) is now maintained in the repository.
 
 See CHANGELOG.md in the plugin folder or visit the GitHub repository for full release notes.
 

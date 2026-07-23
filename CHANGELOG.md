@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.8.3] - 2026-07-22
 
+### Removed
+- **GitHub auto-updater retired** (`includes/Updates/class-fre-github-updater.php`, its bootstrap wiring, autoloader entry, and the dual GitHub/WP.org build flavors). Promptless Forms ships exclusively through the WordPress.org plugin directory — core delivers updates, and Plugin Check flags bundled updaters as an ERROR (guideline #8). `bin/build-release.sh` now produces a single WP.org-compliant zip (`build/promptless-forms.zip`) and fails the build if an updater reference reappears. Mirrors the retirement already done in Promptless CPT Pages.
+
 ### Added
-- **`AGENTS.md` is now tracked in the repo** — the AI-reference doc for the `pforms_*` API surface (the authoritative `fre_*`→`pforms_*` naming-migration table, field types, hooks, settings), freshened against v1.8.2 before first commit. Documentation-only release: no functional changes.
+- **`AGENTS.md` is now tracked in the repo** — the AI-reference doc for the `pforms_*` API surface (the authoritative `fre_*`→`pforms_*` naming-migration table, field types, hooks, settings), freshened against v1.8.2 before first commit.
 
 ## [1.8.2] - 2026-07-11
 

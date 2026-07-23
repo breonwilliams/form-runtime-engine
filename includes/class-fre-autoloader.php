@@ -92,9 +92,6 @@ class PForms_Autoloader {
         // Integration classes.
         'PForms_Design_System'       => 'Integration/class-fre-design-system.php',
 
-        // Updates classes.
-        'PForms_GitHub_Updater'      => 'Updates/class-fre-github-updater.php',
-
         // Twilio classes.
         'PForms_Twilio_Migrator'     => 'Twilio/class-fre-twilio-migrator.php',
         'PForms_Twilio_Validator'    => 'Twilio/class-fre-twilio-validator.php',
