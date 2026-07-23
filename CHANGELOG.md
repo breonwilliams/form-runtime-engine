@@ -5,6 +5,11 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.3] - 2026-07-22
+
+### Added
+- **`AGENTS.md` is now tracked in the repo** — the AI-reference doc for the `pforms_*` API surface (the authoritative `fre_*`→`pforms_*` naming-migration table, field types, hooks, settings), freshened against v1.8.2 before first commit. Documentation-only release: no functional changes.
+
 ## [1.8.2] - 2026-07-11
 
 ### Fixed

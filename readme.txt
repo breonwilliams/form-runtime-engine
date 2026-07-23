@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.0
-Stable tag: 1.8.2
+Stable tag: 1.8.3
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -93,6 +93,9 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 5. Claude Cowork connector setup screen — default-disabled, opt-in App Password generation
 
 == Changelog ==
+
+= 1.8.3 =
+* Internal: developer/AI reference documentation (AGENTS.md) is now maintained in the repository. No functional changes.
 
 See CHANGELOG.md in the plugin folder or visit the GitHub repository for full release notes.
 
