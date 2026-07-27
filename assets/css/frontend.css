@@ -116,8 +116,10 @@
     /* Glow effect color for hover */
     --fre-button-glow-color: var(--aisb-button-glow-color, rgba(99, 102, 241, 0.4));
 
-    /* Ghost button (secondary/previous button) */
-    --fre-ghost-color: var(--aisb-smart-light-ghost-button, var(--aisb-smart-light-section-link, var(--fre-primary-color)));
+    /* Ghost button (secondary/previous button). Surface-corrected link
+       color first — the light surface is the darker, harder backdrop, so a
+       color passing there passes on the whiter section bg too (finding #16). */
+    --fre-ghost-color: var(--aisb-smart-light-surface-link, var(--aisb-smart-light-ghost-button, var(--fre-primary-color)));
     --fre-ghost-hover-bg: var(--aisb-button-primary-hover-bg, var(--fre-primary-hover));
     --fre-ghost-hover-text: var(--aisb-button-primary-hover-text, var(--fre-button-text));
 
@@ -147,8 +149,13 @@
     --fre-surface-color: var(--aisb-color-dark-surface, #2a2a2a);
     --fre-border-color: var(--aisb-smart-dark-surface-border, var(--aisb-color-dark-border, #4b5563));
 
-    /* Ghost button in dark mode */
-    --fre-ghost-color: var(--aisb-smart-dark-ghost-button, var(--aisb-smart-dark-section-link, var(--fre-primary-color)));
+    /* Ghost button in dark mode. Surface-corrected link color FIRST:
+       forms routinely render on the surface card (fre-form--surface-card),
+       and the dark surface (#2a2a2a-ish) is the LIGHTER, harder backdrop —
+       a color passing 4.5:1 there also passes on the darker section bg.
+       Same worst-case-backdrop convention as --fre-text-muted and
+       --fre-border-color above (demo-04 finding #16, 2026-07-27). */
+    --fre-ghost-color: var(--aisb-smart-dark-surface-link, var(--aisb-smart-dark-ghost-button, var(--fre-primary-color)));
 
     /* Status color text in dark mode.
 
@@ -342,12 +349,17 @@
 
 .aisb-section--dark .fre-progress__step--active .fre-progress__label,
 .fre-form--dark .fre-progress__step--active .fre-progress__label {
-    color: var(--aisb-smart-dark-section-link, var(--fre-primary-color));
+    /* Surface-corrected first: the multistep form usually sits on the
+       surface card, where the section-corrected value can fail AA (demo-04
+       finding #16: 3.75:1 on the dark surface vs 4.5 required; Lighthouse-
+       flagged). Surface correction is the worst-case backdrop, so it also
+       passes on the plain section background. */
+    color: var(--aisb-smart-dark-surface-link, var(--aisb-smart-dark-section-link, var(--fre-primary-color)));
 }
 
 .aisb-section--dark .fre-progress__current,
 .fre-form--dark .fre-progress__current {
-    color: var(--aisb-smart-dark-section-link, var(--fre-primary-color));
+    color: var(--aisb-smart-dark-surface-link, var(--aisb-smart-dark-section-link, var(--fre-primary-color)));
 }
 
 /* ==========================================================================
@@ -1066,7 +1078,8 @@
 }
 
 .fre-progress__step--active .fre-progress__label {
-    color: var(--aisb-smart-light-section-link, var(--fre-primary-color));
+    /* Surface-corrected first — worst-case backdrop (finding #16). */
+    color: var(--aisb-smart-light-surface-link, var(--aisb-smart-light-section-link, var(--fre-primary-color)));
     font-weight: 500;
 }
 
@@ -1143,7 +1156,8 @@
 
 .fre-progress__current {
     font-weight: 600;
-    color: var(--aisb-smart-light-section-link, var(--fre-primary-color));
+    /* Surface-corrected first — worst-case backdrop (finding #16). */
+    color: var(--aisb-smart-light-surface-link, var(--aisb-smart-light-section-link, var(--fre-primary-color)));
 }
 
 /* Bar container for adaptive progress switching */
