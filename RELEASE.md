@@ -24,6 +24,21 @@ promptless-forms/
 
 ---
 
+## Which zip is installable (critical)
+
+Every GitHub release page shows auto-generated **"Source code (zip / tar.gz)"** links. **Never install these on a WordPress site.** They are raw repository archives:
+
+- The folder inside is named `form-runtime-engine-<tag>`, so WordPress treats it as a **brand-new plugin** — no update prompt, and it installs alongside the existing copy.
+- Plugin Check derives the expected text domain from that folder name, producing hundreds of false `TextDomainMismatch` ERRORs against the correct `promptless-forms` domain.
+- Dev-only files (`tests/`, `bin/`, `phpunit.xml.dist`) are present and trigger real Plugin Check ERRORs — the release build strips them.
+
+Installable builds come from exactly two places:
+
+1. **WordPress.org** — the normal user path (Dashboard → Updates, or the plugin directory).
+2. **The `promptless-forms.zip` asset** attached under **Assets** on the GitHub release (produced by `bin/build-release.sh`; the folder inside is `promptless-forms/`).
+
+---
+
 ## Version-stamp locations
 
 Every release must update the version number in **all** locations below. Mismatches break the update mechanism.
