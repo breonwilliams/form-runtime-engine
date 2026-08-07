@@ -5,6 +5,11 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.8.4
+
+- Progress accents + ghost color: surface-corrected variable chains first (finding #16)
+- GitHub auto-updater retired; WordPress.org is the sole distribution channel
+
 ## [1.8.3] - 2026-07-22
 
 ### Removed

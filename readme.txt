@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.0
-Stable tag: 1.8.3
+Stable tag: 1.8.4
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -93,6 +93,10 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 5. Claude Cowork connector setup screen — default-disabled, opt-in App Password generation
 
 == Changelog ==
+
+= 1.8.4 =
+* Fixed: multi-step progress labels and ghost buttons now use surface-corrected colors on elevated surfaces (accessible contrast in both themes)
+* Changed: updates are distributed exclusively through WordPress.org (legacy GitHub auto-updater removed)
 
 = 1.8.3 =
 * Removed the legacy GitHub auto-updater — updates are delivered exclusively through the WordPress.org plugin directory.
