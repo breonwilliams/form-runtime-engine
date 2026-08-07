@@ -287,8 +287,8 @@ class PForms_Connector_Admin {
                 <div id="fre-setup-command-container" style="display:none;">
                     <div class="fre-connector-code-block">
                         <pre id="fre-setup-command"></pre>
-                        <button type="button" class="button fre-connector-copy-btn" id="fre-copy-setup-command"><?php esc_html_e( 'Copy Command', 'promptless-forms' ); ?></button>
                     </div>
+                    <button type="button" class="button fre-connector-copy-btn" id="fre-copy-setup-command"><?php esc_html_e( 'Copy Command', 'promptless-forms' ); ?></button>
                     <p class="description"><?php esc_html_e( 'After running the command, quit Claude Desktop (Cmd+Q) and reopen it. The connector will be active in your next session.', 'promptless-forms' ); ?></p>
                 </div>
 
