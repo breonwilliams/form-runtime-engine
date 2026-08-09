@@ -115,7 +115,7 @@ class PForms_Connector_Admin {
         wp_enqueue_style(
             'pforms-connector-admin',
             $plugin_url . '/assets/css/connector-admin.css',
-            array(),
+            array( 'buttons' ),
             PForms_VERSION
         );
 
