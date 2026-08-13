@@ -5,6 +5,10 @@ All notable changes to Form Runtime Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.5] - 2026-08-13
+
+- Connector setup: moved the Copy Command button below the code block (it previously overlaid the command) and removed the `!important` flags from the copy-button styles, resolving the overlap and a color-contrast issue.
+
 ## 1.8.4
 
 - Progress accents + ghost color: surface-corrected variable chains first (finding #16)
