@@ -899,6 +899,60 @@ For complete ready-to-use form examples (JSON and PHP), see **`docs/CLAUDE.md`**
 - Condition operators: `equals`, `not_equals`, `contains`, `not_contains`, `is_empty`, `is_not_empty`, `is_checked`, `is_not_checked`, `greater_than`, `less_than`, `>=`, `<=`, `in`, `not_in`
 - Multiple rules with `'logic' => 'or'` (default: `'and'`)
 
+## Test Suite — KNOWN-RED BASELINE (2026-09-01)
+
+`composer run test:unit` does **not** pass on a clean checkout. Baseline as of
+**2026-09-01**:
+
+```
+Tests: 224, Assertions: 558, Failures: 14
+```
+
+**All 14 are in `tests/Unit/FieldValidationTest.php`** and all are *passing-case*
+tests (`test_text_field_required_with_value_passes`,
+`test_email_field_valid_email_passes`, `test_date_field_min_max_validation`, …).
+
+**Treat 14 as the floor, not as failure.** A run reporting more than 14, or
+failures outside `FieldValidationTest.php`, is a real regression. A run
+reporting exactly these 14 is the standing baseline. Without this note a
+session cannot tell the two apart and will either panic or wave through
+something real.
+
+### Cause — diagnosed, NOT a production bug
+
+The tests feed **bare field keys**; the validator reads **prefixed input
+names**. `PForms_Field_Type::get_name()`
+(`includes/Fields/abstract-fre-field-type.php:56`) returns:
+
+```php
+return 'pforms_field_' . sanitize_key( $field['key'] );
+```
+
+`PForms_Validator::validate()` then does
+`$value = isset( $data[ $name ] ) ? $data[ $name ] : ''`. A test passing
+`array( 'name' => 'John Doe' )` for a field keyed `name` therefore leaves the
+validator looking for `pforms_field_name`, finding nothing, and correctly
+reporting "Name is required."
+
+**Proven, not assumed**: prefixing the submitted-data key in ONE test moved the
+count from 14 to 13. The fixtures are wrong, not the validator.
+
+**Rendered forms are unaffected.** Real inputs are named `pforms_field_*`, so
+real submissions arrive correctly keyed — this is not silently dropping
+anybody's form data. That mattered enough to check: the alternative reading of
+"14 passing-case validation tests fail" is that every required field rejects
+every submission, which in a forms plugin would be severe. It is not that.
+
+Most likely fallout from the 1.8.0 `fre_*` → `pforms_*` rename, where the input
+prefix moved and these fixtures were not updated. Note this is a DIFFERENT
+mechanism from class-name drift, which has been checked and ruled out (58
+`PForms_*` declarations in `includes/`, 227 `\PForms_*` references in `tests/`,
+no `FRE_*` classes remaining).
+
+**The fix is to update the fixtures** to use `get_name()` rather than the bare
+key — deliberately not done as part of the connector TLS port, to keep that
+change reviewable. Until then, this baseline is what makes the gate usable.
+
 ## Gotchas
 
 1. **Use `pforms_init` hook** - Not `init` or `plugins_loaded`. The plugin must be fully loaded first.
