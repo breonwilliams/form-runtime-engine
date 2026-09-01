@@ -284,6 +284,36 @@ class PForms_Connector_Admin {
                     </ul>
                 </div>
 
+                <?php
+                // Local HTTPS trust notice. Node does NOT read the macOS keychain --
+                // it ships its own Mozilla CA bundle -- so trusting a dev certificate
+                // in Local or Keychain Access fixes browsers and leaves the connector
+                // failing with DEPTH_ZERO_SELF_SIGNED_CERT. The setup command probes
+                // Local by Flywheel's conventional certificate path and wires
+                // NODE_EXTRA_CA_CERTS automatically, but wp-env, Herd and Valet keep
+                // certificates elsewhere, so the probe can legitimately miss. Say so
+                // here rather than emitting a command that fails opaquely.
+                $fre_home     = wp_parse_url( home_url() );
+                $fre_host     = isset( $fre_home['host'] ) ? $fre_home['host'] : '';
+                $fre_is_https = isset( $fre_home['scheme'] ) && 'https' === $fre_home['scheme'];
+                $fre_is_local = 'localhost' === $fre_host
+                    || (bool) preg_match( '/\.(local|test)$/i', $fre_host );
+                if ( $fre_is_https && $fre_is_local ) :
+                    $fre_cert_hint = '$HOME/Library/Application Support/Local/run/router/nginx/certs/'
+                        . $fre_host . '.crt';
+                    ?>
+                <div class="fre-requirements" style="border-left:4px solid #d63638;">
+                    <strong><?php esc_html_e( 'Local HTTPS site — certificate trust', 'promptless-forms' ); ?></strong>
+                    <p class="description" style="margin-top:6px;">
+                        <?php esc_html_e( 'Node does not read the macOS keychain, so trusting this certificate in Local or Keychain Access fixes browsers only — the connector will still fail with a self-signed certificate error. The command below automatically points NODE_EXTRA_CA_CERTS at Local by Flywheel\'s certificate if it finds one here:', 'promptless-forms' ); ?>
+                    </p>
+                    <p><code style="user-select:all;"><?php echo esc_html( $fre_cert_hint ); ?></code></p>
+                    <p class="description">
+                        <?php esc_html_e( 'If you use wp-env, Herd, Valet or another tool, that file will not exist. Add NODE_EXTRA_CA_CERTS to this server\'s "env" block in claude_desktop_config.json by hand, pointing at your own certificate, then quit and reopen Claude Desktop. Regenerating the connection preserves env keys you added. Never set NODE_TLS_REJECT_UNAUTHORIZED=0 — it disables certificate verification for every site, including production.', 'promptless-forms' ); ?>
+                    </p>
+                </div>
+                <?php endif; ?>
+
                 <div id="fre-setup-command-container" style="display:none;">
                     <div class="fre-connector-code-block">
                         <pre id="fre-setup-command"></pre>
