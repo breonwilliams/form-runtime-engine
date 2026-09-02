@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **"Please wait a moment before submitting." on any form older than 24 hours.** The timing token carried a hard 86400-second expiry, so a validly-signed token was rejected purely for age — and the visitor was told to slow down, which is advice they cannot act on because waiting is precisely what they had already done.
+
+  The check is inverted at its root. This class exists to detect submissions that are too FAST; a 25-hour-old token is the strongest available evidence that a submission was not rushed, and it was being treated as spam.
+
+  It was also a guaranteed false positive that no careful behaviour avoids, because the two credentials drift apart by design. `assets/js/frontend.js` refreshes the NONCE once a form has been open an hour (there is a dedicated `ajax_refresh_nonce` endpoint for it), while nothing anywhere refreshes the timing token — it is minted once, at render, in `class-fre-renderer.php`. So the session is kept alive indefinitely while the token expires on a fixed clock. Any submission more than 24 hours after the HTML was generated failed: a tab left open overnight (mobile Safari restores tabs with their JS state, so the refresh fires and the nonce passes), or a page served from a long-lived cache, where the token is already partly aged when the visitor receives it.
+
+  Reproduced over HTTP against a real rendered form, changing only the token's age: 60 seconds succeeds, 25 hours returns `timing_check_failed` with the reported message.
+
+  The ceiling bought nothing against bots either — a token costs one GET to obtain, so an attacker just fetches a fresh one. Removed. Forgery is still prevented by the HMAC signature, and `min_submission_time` still applies. Verified after the change: 25-hour and 30-day-old tokens are accepted, while a 1-second-old token, a garbage token and a tampered signature are all still blocked.
+
+  Note that `is_too_old()` already exists in this class for the separate "form rendered suspiciously long ago" concern, with the same 86400 default. It is never called, and reads the legacy `_pforms_timestamp` field. If that concern is ever worth acting on it belongs there, called explicitly — not folded into a speed check.
+
+
+### Fixed
+
 - **`GET /connector/schema` returned 404 for every consumer, since the day it was written.** The handler probed only `docs/PForms_KNOWLEDGE_MAP.md` — a filename anticipating an `FRE_*` -> `PForms_*` rename that never happened. The file on disk has always been `docs/FRE_KNOWLEDGE_MAP.md`, so the path never matched anything.
 
   The impact is larger than a broken URL. `formengine_preflight` advertises this endpoint as `schema_reference_url` and instructs every AI consumer to "ALWAYS WebFetch that URL before creating or updating forms" — it is the authoritative rulebook covering column layouts, conditional visibility, multistep shape, and the documented drift patterns. Every session that followed that instruction got a 404 and proceeded without it, which is exactly how silent field-name drift reaches production: a bogus key is accepted, stored, and never rendered, with a `success: true` response.

@@ -127,12 +127,36 @@ class PForms_Timing_Check {
             return new WP_Error( 'invalid_signature', 'Invalid timing token signature.' );
         }
 
-        // Check token age (max 24 hours).
-        $age = time() - $timestamp;
-        if ( $age > 86400 ) {
-            return new WP_Error( 'token_expired', 'Timing token expired.' );
-        }
-
+        // NO AGE CEILING HERE, deliberately.
+        //
+        // This class detects submissions that are too FAST. Rejecting a token
+        // for being too OLD inverted that: a 25-hour-old token is the
+        // strongest available evidence that a submission was not rushed, and
+        // it was being treated as spam. The visitor got "Please wait a moment
+        // before submitting." — advice that cannot help, because waiting is
+        // exactly what they had already done.
+        //
+        // It also produced a guaranteed false positive that no amount of
+        // careful behaviour avoids. The client refreshes the NONCE after an
+        // hour open (assets/js/frontend.js, refreshNonce) but nothing ever
+        // refreshed this token, so the two credentials drifted apart: the
+        // session was kept alive indefinitely while the token expired at
+        // exactly 86400s. Any form submitted more than 24 hours after its
+        // HTML was generated failed here — a tab left open overnight, or a
+        // page served from a long-lived cache. Reproduced over HTTP: the same
+        // request with a 60-second-old token succeeds and with a 25-hour-old
+        // token returns timing_check_failed.
+        //
+        // The ceiling bought nothing against bots either: a token costs one
+        // GET to obtain, so an attacker simply fetches a fresh one. It only
+        // ever penalised slow humans.
+        //
+        // Forgery is still prevented by the HMAC check above, and the actual
+        // anti-bot value — min_submission_time — still applies to the
+        // timestamp this returns. If "form rendered suspiciously long ago" is
+        // ever a concern worth acting on, is_too_old() below exists for
+        // exactly that and should be called explicitly, not smuggled into a
+        // speed check.
         return $timestamp;
     }
 
