@@ -302,7 +302,7 @@ class PForms_Connector_Admin {
                     $fre_cert_hint = '$HOME/Library/Application Support/Local/run/router/nginx/certs/'
                         . $fre_host . '.crt';
                     ?>
-                <div class="fre-requirements" style="border-left:4px solid #d63638;">
+                <div class="fre-connector-requirements fre-connector-requirements--caution">
                     <strong><?php esc_html_e( 'Local HTTPS site — certificate trust', 'promptless-forms' ); ?></strong>
                     <p class="description" style="margin-top:6px;">
                         <?php esc_html_e( 'Node does not read the macOS keychain, so trusting this certificate in Local or Keychain Access fixes browsers only — the connector will still fail with a self-signed certificate error. The command below automatically points NODE_EXTRA_CA_CERTS at Local by Flywheel\'s certificate if it finds one here:', 'promptless-forms' ); ?>
