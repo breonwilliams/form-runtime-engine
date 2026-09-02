@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.6] — 2026-09-02
+
 ### Fixed
 
 - **"Please wait a moment before submitting." on any form older than 24 hours.** The timing token carried a hard 86400-second expiry, so a validly-signed token was rejected purely for age — and the visitor was told to slow down, which is advice they cannot act on because waiting is precisely what they had already done.

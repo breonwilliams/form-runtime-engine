@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.0
-Stable tag: 1.8.5
+Stable tag: 1.8.6
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,12 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.8.6 =
+* Fixed: forms left open for more than 24 hours were rejected with "Please wait a moment before submitting." — advice the visitor could not act on, because waiting was exactly what they had done. A form left in a phone tab overnight, or served from a long-lived cache, now submits normally. Bot protection is unchanged: submissions faster than the minimum time, and forged tokens, are still blocked.
+* Fixed: the connector's schema document returned "not found" for every request, so AI sessions were told to read the rulebook and got nothing.
+* Fixed: the connector's rate limiter counted requests it never handled, using up the allowance several times faster than intended.
+* Fixed: the connector could not reach an HTTPS local development site.
+
 = 1.8.5 =
 * Improved: the "Copy Command" button on the Connector setup screen now sits below the command block instead of overlaying it, fixing a tap-target overlap and a color-contrast issue.
 
@@ -108,6 +114,9 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 See CHANGELOG.md in the plugin folder or visit the GitHub repository for full release notes.
 
 == Upgrade Notice ==
+
+= 1.8.6 =
+Fixes a false "Please wait a moment before submitting." rejection on any form open longer than 24 hours — a tab left overnight, or a cached page. Bot protection is unchanged. Also fixes the connector's schema endpoint and its rate limiter. Recommended for all users.
 
 = 1.8.1 =
 Multisite network support. Forms now provision correctly on all subsites. Fixes "Database tables are missing" on newly created subsites.
