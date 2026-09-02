@@ -519,12 +519,27 @@ class PForms_Connector_API {
         // map is the canonical rulebook; the JSON Schema is a fallback for
         // strict-shape use cases but doesn't cover the drift patterns or
         // design-intent rules that consumers need to avoid silent failures.
+        //
+        // TWO filenames are probed, deliberately. This endpoint 404'd from the
+        // day it was written: it looked only for PForms_KNOWLEDGE_MAP.md, a
+        // name anticipating a FRE_* -> PForms_* rename that never happened.
+        // The file on disk has always been FRE_KNOWLEDGE_MAP.md, so every
+        // consumer that followed preflight's "ALWAYS WebFetch that URL before
+        // creating or updating forms" instruction got a 404 and carried on
+        // without the rulebook — which is precisely how silent field-name
+        // drift (a bogus key accepted, stored, and never rendered) reaches
+        // production. Probing both names fixes it now and survives the rename
+        // whenever it happens.
+        $filenames = array( 'PForms_KNOWLEDGE_MAP.md', 'FRE_KNOWLEDGE_MAP.md' );
+
         $candidates = array();
-        if ( defined( 'PForms_PLUGIN_DIR' ) ) {
-            $candidates[] = PForms_PLUGIN_DIR . 'docs/PForms_KNOWLEDGE_MAP.md';
+        foreach ( $filenames as $filename ) {
+            if ( defined( 'PForms_PLUGIN_DIR' ) ) {
+                $candidates[] = PForms_PLUGIN_DIR . 'docs/' . $filename;
+            }
+            // Relative fallback for unusual installs where PForms_PLUGIN_DIR isn't set.
+            $candidates[] = dirname( __DIR__, 2 ) . '/docs/' . $filename;
         }
-        // Relative fallback for unusual installs where PForms_PLUGIN_DIR isn't set.
-        $candidates[] = dirname( __DIR__, 2 ) . '/docs/PForms_KNOWLEDGE_MAP.md';
 
         foreach ( $candidates as $path ) {
             if ( file_exists( $path ) && is_readable( $path ) ) {

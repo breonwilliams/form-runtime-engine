@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`GET /connector/schema` returned 404 for every consumer, since the day it was written.** The handler probed only `docs/PForms_KNOWLEDGE_MAP.md` — a filename anticipating an `FRE_*` -> `PForms_*` rename that never happened. The file on disk has always been `docs/FRE_KNOWLEDGE_MAP.md`, so the path never matched anything.
+
+  The impact is larger than a broken URL. `formengine_preflight` advertises this endpoint as `schema_reference_url` and instructs every AI consumer to "ALWAYS WebFetch that URL before creating or updating forms" — it is the authoritative rulebook covering column layouts, conditional visibility, multistep shape, and the documented drift patterns. Every session that followed that instruction got a 404 and proceeded without it, which is exactly how silent field-name drift reaches production: a bogus key is accepted, stored, and never rendered, with a `success: true` response.
+
+  The handler now probes both filenames, so it works today and survives the rename whenever it happens. Verified: 200, `text/markdown`, 26,446 bytes.
+
+
+### Fixed
+
 - **Connector rate limiter charged every request up to 6 times, across buckets it never touched.** `enforce_rate_limit()` runs inside the `permission_callback`, and WordPress core hooks `rest_send_allow_header()` to `rest_post_dispatch` — which calls the permission callback of EVERY handler registered on the matched route to build the `Allow:` header. Core treats permission callbacks as pure predicates it may invoke speculatively, so a counter with a side effect in one is charged for calls that never happened.
 
   Measured on a single `DELETE /forms/{id}`: **six increments across three buckets** — one legitimate `delete_form` from the real dispatch, then from the Allow-header pass another `delete_form`, one `get_form`, and `update_form` **three times** (`WP_REST_Server::EDITABLE` covers POST, PUT and PATCH). Consequences: every write route's usable limit was **halved** (the documented 5/min for `delete_form` rejected the 4th call), and `get_form` / `update_form` were drained by requests that never used them — a handful of deletes could rate-limit a caller out of updating forms entirely. This also explains counters showing usage for routes that were never called.
