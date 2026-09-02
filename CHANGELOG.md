@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Connector rate limiter charged every request up to 6 times, across buckets it never touched.** `enforce_rate_limit()` runs inside the `permission_callback`, and WordPress core hooks `rest_send_allow_header()` to `rest_post_dispatch` — which calls the permission callback of EVERY handler registered on the matched route to build the `Allow:` header. Core treats permission callbacks as pure predicates it may invoke speculatively, so a counter with a side effect in one is charged for calls that never happened.
+
+  Measured on a single `DELETE /forms/{id}`: **six increments across three buckets** — one legitimate `delete_form` from the real dispatch, then from the Allow-header pass another `delete_form`, one `get_form`, and `update_form` **three times** (`WP_REST_Server::EDITABLE` covers POST, PUT and PATCH). Consequences: every write route's usable limit was **halved** (the documented 5/min for `delete_form` rejected the 4th call), and `get_form` / `update_form` were drained by requests that never used them — a handful of deletes could rate-limit a caller out of updating forms entirely. This also explains counters showing usage for routes that were never called.
+
+  Fixed by returning early from `enforce_rate_limit()` when `doing_filter( 'rest_post_dispatch' )` is true. That is an exact discriminator, not a heuristic: it is true only during core's Allow-header pass and false during the real dispatch. Returning true there is correct — that pass is answering "which methods may this user call", which should not spend quota. Verified: one DELETE now records exactly 1, three record 3, and `get_form` / `update_form` are untouched.
+
+  Found while tearing down a dev site through the connector, when the 4th `delete_form` call was rejected against a documented limit of 5.
+
 - **The connector could not reach an HTTPS local dev site, and the error blamed the wrong thing.** Node does not read the macOS keychain — it ships its own Mozilla CA bundle — so trusting a Local by Flywheel certificate fixes browsers and leaves every connector call failing with `DEPTH_ZERO_SELF_SIGNED_CERT`. Ported from the reference fix in Promptless WP (`ai-section-builder-modern`), where it was diagnosed and verified end to end.
 
   - **The setup command no longer destroys config you added by hand.** It rebuilt `c.mcpServers["form-engine-wordpress"]` from scratch, so env keys (`NODE_EXTRA_CA_CERTS`, `HTTP_PROXY`) and server-level keys (`cwd`, `disabled`) were silently lost on every regenerate. It now merges at BOTH levels, overwriting only `command`, `args` and the three env keys it owns. Correct regardless of the certificate work — a regenerate should never discard user config.

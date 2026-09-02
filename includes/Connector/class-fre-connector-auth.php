@@ -166,6 +166,37 @@ class PForms_Connector_Auth {
      * @return true|WP_Error True when under limit, WP_Error 429 when exceeded.
      */
     public static function enforce_rate_limit( $route_key, $user_id ) {
+        /*
+         * Do not participate in WordPress core's Allow-header pass.
+         *
+         * WP core hooks rest_send_allow_header() to `rest_post_dispatch`. To
+         * build the `Allow:` response header it calls the permission_callback
+         * of EVERY handler registered on the matched route — not just the one
+         * that served the request — to decide which methods this user may
+         * use. Core treats permission callbacks as pure predicates it may
+         * invoke speculatively; a counter with a side effect inside one is
+         * therefore charged for calls that never happened.
+         *
+         * Measured on a single DELETE to /forms/{id} (2026-09-01): SIX
+         * increments across THREE buckets — one legitimate `delete_form` from
+         * the real dispatch, then from the Allow-header pass another
+         * `delete_form`, one `get_form`, and `update_form` THREE times
+         * (WP_REST_Server::EDITABLE covers POST, PUT and PATCH). Net effect:
+         * every write route's usable limit was HALVED, and the `get_form` /
+         * `update_form` buckets were drained by requests that never touched
+         * them — a few deletes could rate-limit the caller out of updating
+         * forms entirely.
+         *
+         * `doing_filter( 'rest_post_dispatch' )` is true only during that
+         * speculative pass and false during the real dispatch, so this is an
+         * exact discriminator rather than a heuristic. Returning true here is
+         * correct: we are not serving a request, we are answering "which
+         * methods may this user call", which no quota should be spent on.
+         */
+        if ( function_exists( 'doing_filter' ) && doing_filter( 'rest_post_dispatch' ) ) {
+            return true;
+        }
+
         $limit = self::RATE_LIMITS[ $route_key ] ?? self::DEFAULT_RATE_LIMIT;
 
         $transient_key = 'pforms_connector_rate_' . sanitize_key( $route_key ) . '_' . (int) $user_id;
