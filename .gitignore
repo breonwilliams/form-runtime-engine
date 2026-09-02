@@ -1,10 +1,15 @@
 # Development/Testing artifacts
 vendor/
-tests/
 build/
-bin/install-wp-tests.sh
-phpunit.xml
 .phpunit.result.cache
+
+# The test suite IS tracked. It was ignored until 1.8.6, which meant the
+# plugin's only automated safety net lived on one machine: a fresh clone had
+# no tests, no phpunit.xml and no way to install the WP test library, and
+# nothing could run them in CI. That is how 14 field-validation tests stayed
+# red indefinitely. tests/ is excluded from the release ZIP by the rsync
+# exclude list in bin/build-release.sh, not by this file, so tracking them
+# does not ship them.
 composer
 composer-setup.php
 
