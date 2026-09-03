@@ -2,7 +2,7 @@
 Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
-Tested up to: 7.0
+Tested up to: 7.1
 Stable tag: 1.8.6
 Requires PHP: 7.4
 License: GPLv2 or later
