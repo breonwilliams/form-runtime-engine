@@ -77,12 +77,17 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
             esc_attr( $id )
         );
 
+        // A single checkbox is its own control, so describedby goes on the
+        // input itself rather than on a group wrapper.
+        $single_described_by = $this->get_described_by( $field, $form_id );
+
         $html .= sprintf(
-            '<input type="checkbox" id="%s" name="%s" value="1" class="fre-field__checkbox"%s%s />',
+            '<input type="checkbox" id="%s" name="%s" value="1" class="fre-field__checkbox"%s%s%s />',
             esc_attr( $id ),
             esc_attr( $name ),
             $checked,
-            ! empty( $field['required'] ) ? ' required aria-required="true"' : ''
+            ! empty( $field['required'] ) ? ' required aria-required="true"' : '',
+            '' !== $single_described_by ? ' aria-describedby="' . esc_attr( $single_described_by ) . '"' : ''
         );
 
         if ( ! empty( $field['label'] ) ) {
@@ -101,12 +106,16 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
 
         if ( ! empty( $field['description'] ) ) {
             $html .= sprintf(
-                '<p class="fre-field__description">%s</p>',
+                '<p class="fre-field__description" id="%s">%s</p>',
+                esc_attr( $this->get_description_id( $field, $form_id ) ),
                 esc_html( $field['description'] )
             );
         }
 
-        $html .= '<div class="fre-field__error" role="alert" aria-live="polite"></div>';
+        $html .= sprintf(
+            '<div class="fre-field__error" id="%s" role="alert" aria-live="polite"></div>',
+            esc_attr( $this->get_error_id( $field, $form_id ) )
+        );
         $html .= '</div>';
 
         return $html;
@@ -131,10 +140,15 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
             $fieldset_classes[] = 'fre-field__checkbox-group--inline';
         }
 
+        // aria-describedby belongs on the GROUP: the description and the error
+        // apply to the choice as a whole, not to any single checkbox.
+        $described_by = $this->get_described_by( $field, $form_id );
+
         $html = sprintf(
-            '<fieldset class="%s" role="group"%s>',
+            '<fieldset class="%s" role="group"%s%s>',
             implode( ' ', $fieldset_classes ),
-            ! empty( $field['required'] ) ? ' aria-required="true"' : ''
+            ! empty( $field['required'] ) ? ' aria-required="true"' : '',
+            '' !== $described_by ? ' aria-describedby="' . esc_attr( $described_by ) . '"' : ''
         );
 
         // Legend for accessibility.
@@ -213,7 +227,10 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
             );
         }
 
-        $wrapper .= '<div class="fre-field__error" role="alert" aria-live="polite"></div>';
+        $wrapper .= sprintf(
+            '<div class="fre-field__error" id="%s" role="alert" aria-live="polite"></div>',
+            esc_attr( $this->get_error_id( $field, $form_id ) )
+        );
         $wrapper .= '</div>';
 
         return $wrapper;

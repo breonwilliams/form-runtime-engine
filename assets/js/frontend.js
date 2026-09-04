@@ -922,6 +922,14 @@
             if (errorEl) {
                 errorEl.textContent = message;
             }
+
+            // The CLASS is a visual signal only. aria-invalid is what puts the
+            // field into an error STATE for assistive technology: without it a
+            // screen reader announces "First name, edit text" on every later
+            // focus with no indication anything is wrong. The message itself is
+            // reachable because the input's aria-describedby points at the
+            // error element (see abstract-fre-field-type.php).
+            this.setFieldInvalid(field, true);
         }
 
         /**
@@ -939,6 +947,8 @@
             if (errorEl) {
                 errorEl.textContent = '';
             }
+
+            this.setFieldInvalid(field, false);
         }
 
         /**
@@ -949,6 +959,29 @@
                 field.classList.remove('fre-field--has-error');
                 const errorEl = field.querySelector('.fre-field__error');
                 if (errorEl) errorEl.textContent = '';
+                this.setFieldInvalid(field, false);
+            });
+        }
+
+        /**
+         * Toggle aria-invalid on every control inside a field.
+         *
+         * Applied to all controls rather than one so radio and checkbox groups
+         * are covered. Removed rather than set to "false" when clearing:
+         * aria-invalid="false" is valid but noisier, and absence is the
+         * conventional resting state.
+         *
+         * @param {HTMLElement} field   The .fre-field wrapper.
+         * @param {boolean}     invalid Whether the field is in an error state.
+         */
+        setFieldInvalid(field, invalid) {
+            field.querySelectorAll('input, select, textarea').forEach(control => {
+                if (control.type === 'hidden') return;
+                if (invalid) {
+                    control.setAttribute('aria-invalid', 'true');
+                } else {
+                    control.removeAttribute('aria-invalid');
+                }
             });
         }
 
