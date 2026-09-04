@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Form errors were announced once and then unreachable.** Validation messages
+  rendered into a `role="alert"` element with no `id`, and no field carried
+  `aria-invalid` or `aria-describedby`. A screen reader heard the errors when
+  they appeared; tab back to the field afterwards and it announced "First name,
+  edit text" with no indication it was in error or why. Every field type now
+  points at its own error element, and controls are marked `aria-invalid` while
+  in error and cleared when corrected. Covers all nine field types, with the
+  attribute on the `fieldset` for radio and checkbox groups, where the message
+  applies to the choice rather than to one option. (WCAG 1.3.1, 3.3.1, 4.1.2)
+
+- **Field descriptions were not announced either.** Help text had no `id` and
+  nothing referenced it, so it was visible but invisible to assistive
+  technology. Now part of each field's `aria-describedby`.
+
+- **Error text failed colour contrast on the surface most forms sit on.**
+  `#dc2626` measures 4.25:1 against the default card background, below the
+  4.5:1 required for body text — on the one message a user most needs to read.
+  A code comment asserted 5.7:1, which was simply wrong. Now `#b91c1c`: 5.70:1
+  on the card and 6.47:1 on white. (WCAG 1.4.3)
+
+  Only reachable in the error state, which is why no static scan had found it.
+
 ## [1.8.6] — 2026-09-02
 
 ### Fixed

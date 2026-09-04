@@ -79,13 +79,22 @@
        --aisb-smart-*-text), and these FRE variables become thin
        fallbacks. Out of scope for a CSS-only fix in this plugin. */
     --fre-error-color: var(--aisb-color-error, #ef4444);
-    /* Light-mode text variant: `#ef4444` only hits 3.76:1 on a white
-       background, which clears the 3:1 non-text-UI bar (so it's fine on
-       error borders) but FAILS the 4.5:1 bar required for body text.
-       `#dc2626` (Tailwind red-600) hits 5.9:1 on white and 5.7:1 on the
-       default AISB light surface — passes AA on both. Dark-mode rule
-       below overrides this to `#fca5a5` for dark surfaces. */
-    --fre-error-text-color: #dc2626;
+    /* Light-mode text variant. `#ef4444` only reaches 3.76:1 on white: fine
+       for an error BORDER (the 3:1 non-text bar) but short of the 4.5:1
+       required for body text.
+
+       This previously used `#dc2626` (red-600) on the strength of a comment
+       claiming 5.9:1 on white and 5.7:1 on the light surface. Measured,
+       those figures were wrong: red-600 is 4.83:1 on white and 4.25:1 on the
+       default AISB card surface (#f5f0e6), so it FAILED AA on exactly the
+       surface most forms sit on. axe reported it as a serious 1.4.3
+       violation across four error messages — and only in the error state,
+       which is why no static scan had caught it.
+
+       `#b91c1c` (red-700) measures 6.47:1 on white and 5.70:1 on the card
+       surface, clearing AA on both with margin while still reading as red.
+       The dark-mode rule below overrides this to `#fca5a5`. */
+    --fre-error-text-color: #b91c1c;
     --fre-error-focus-ring: color-mix(in srgb, var(--fre-error-color) 20%, transparent);
     --fre-success-color: var(--aisb-color-success, #10b981);
     --fre-warning-color: var(--aisb-color-warning, #f59e0b);

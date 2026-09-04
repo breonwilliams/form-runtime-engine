@@ -47,6 +47,12 @@ class PForms_Field_Select extends PForms_Field_Type_Abstract {
         if ( ! empty( $field['disabled'] ) ) {
             $attributes['disabled'] = true;
         }
+        // Ties the control to its description and error message so both are
+        // announced on focus, not only when they first appear.
+        $described_by = $this->get_described_by( $field, $form_id );
+        if ( '' !== $described_by ) {
+            $attributes['aria-describedby'] = $described_by;
+        }
 
         if ( ! empty( $field['multiple'] ) ) {
             $attributes['multiple'] = true;

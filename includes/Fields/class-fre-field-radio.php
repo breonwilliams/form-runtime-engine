@@ -41,10 +41,15 @@ class PForms_Field_Radio extends PForms_Field_Type_Abstract {
             $fieldset_classes[] = 'fre-field__radio-group--inline';
         }
 
+        // aria-describedby belongs on the GROUP, not on each radio: the
+        // description and the error apply to the choice, not to one option.
+        $described_by = $this->get_described_by( $field, $form_id );
+
         $html = sprintf(
-            '<fieldset class="%s" role="radiogroup"%s>',
+            '<fieldset class="%s" role="radiogroup"%s%s>',
             implode( ' ', $fieldset_classes ),
-            ! empty( $field['required'] ) ? ' aria-required="true"' : ''
+            ! empty( $field['required'] ) ? ' aria-required="true"' : '',
+            '' !== $described_by ? ' aria-describedby="' . esc_attr( $described_by ) . '"' : ''
         );
 
         // Legend for accessibility.
@@ -118,13 +123,21 @@ class PForms_Field_Radio extends PForms_Field_Type_Abstract {
         $wrapper .= $html;
 
         if ( ! empty( $field['description'] ) ) {
+            // The id is required, not cosmetic: the <fieldset> above points at
+            // it with aria-describedby, and without it that reference dangles —
+            // which reads to assistive technology as "there is more information
+            // here" when there is nothing to find.
             $wrapper .= sprintf(
-                '<p class="fre-field__description">%s</p>',
+                '<p class="fre-field__description" id="%s">%s</p>',
+                esc_attr( $this->get_description_id( $field, $form_id ) ),
                 esc_html( $field['description'] )
             );
         }
 
-        $wrapper .= '<div class="fre-field__error" role="alert" aria-live="polite"></div>';
+        $wrapper .= sprintf(
+            '<div class="fre-field__error" id="%s" role="alert" aria-live="polite"></div>',
+            esc_attr( $this->get_error_id( $field, $form_id ) )
+        );
         $wrapper .= '</div>';
 
         return $wrapper;

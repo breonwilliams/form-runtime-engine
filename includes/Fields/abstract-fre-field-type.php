@@ -69,6 +69,58 @@ abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
     }
 
     /**
+     * The id of this field's error element.
+     *
+     * Errors were rendered into a `role="alert"` div with NO id, so nothing
+     * could reference them. A screen reader heard the message once, when it
+     * appeared, and never again: tab back to the field and it announced
+     * "First name, edit text" with no hint that it was in error or why.
+     * Referencing this id from the input's aria-describedby makes the message
+     * part of the field's own description, so it is read on every focus.
+     *
+     * @param array  $field   Field configuration.
+     * @param string $form_id Form ID.
+     * @return string
+     */
+    protected function get_error_id( array $field, $form_id ) {
+        return $this->get_id( $field, $form_id ) . '-error';
+    }
+
+    /**
+     * The id of this field's description ("help text") element.
+     *
+     * @param array  $field   Field configuration.
+     * @param string $form_id Form ID.
+     * @return string
+     */
+    protected function get_description_id( array $field, $form_id ) {
+        return $this->get_id( $field, $form_id ) . '-description';
+    }
+
+    /**
+     * The aria-describedby value for this field, or '' when there is nothing
+     * to point at.
+     *
+     * The error id is ALWAYS included, even though the element is empty until
+     * a validation failure. That is deliberate: pointing at an empty element
+     * announces nothing, whereas adding the attribute only once an error
+     * exists means changing it at the same moment its content changes, which
+     * assistive technology is not reliable about picking up.
+     *
+     * @param array  $field   Field configuration.
+     * @param string $form_id Form ID.
+     * @return string
+     */
+    protected function get_described_by( array $field, $form_id ) {
+        $ids = array();
+        if ( ! empty( $field['description'] ) ) {
+            $ids[] = $this->get_description_id( $field, $form_id );
+        }
+        $ids[] = $this->get_error_id( $field, $form_id );
+        return implode( ' ', $ids );
+    }
+
+    /**
      * Check if this field stores a value.
      *
      * @return bool
@@ -380,13 +432,18 @@ abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
         // Description.
         if ( ! empty( $field['description'] ) ) {
             $html .= sprintf(
-                '<p class="fre-field__description">%s</p>',
+                '<p class="fre-field__description" id="%s">%s</p>',
+                esc_attr( $this->get_description_id( $field, $form_id ) ),
                 esc_html( $field['description'] )
             );
         }
 
-        // Error placeholder.
-        $html .= '<div class="fre-field__error" role="alert" aria-live="polite"></div>';
+        // Error placeholder. The id is what the input's aria-describedby
+        // points at; without it the message is visible but unreachable.
+        $html .= sprintf(
+            '<div class="fre-field__error" id="%s" role="alert" aria-live="polite"></div>',
+            esc_attr( $this->get_error_id( $field, $form_id ) )
+        );
 
         $html .= '</div>';
 
@@ -455,6 +512,13 @@ abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
         if ( ! empty( $field['required'] ) ) {
             $attributes['required'] = true;
             $attributes['aria-required'] = 'true';
+        }
+
+        // Ties the field to its description and its error message so both are
+        // announced when the field receives focus, not only when they appear.
+        $described_by = $this->get_described_by( $field, $form_id );
+        if ( '' !== $described_by ) {
+            $attributes['aria-describedby'] = $described_by;
         }
 
         if ( ! empty( $field['maxlength'] ) ) {
