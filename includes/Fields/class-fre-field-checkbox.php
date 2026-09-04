@@ -221,8 +221,13 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
         $wrapper .= $html;
 
         if ( ! empty( $field['description'] ) ) {
+            // The id is required, not cosmetic: the <fieldset> above points at
+            // it with aria-describedby, and without it that reference dangles —
+            // which reads to assistive technology as "there is more information
+            // here" when there is nothing to find.
             $wrapper .= sprintf(
-                '<p class="fre-field__description">%s</p>',
+                '<p class="fre-field__description" id="%s">%s</p>',
+                esc_attr( $this->get_description_id( $field, $form_id ) ),
                 esc_html( $field['description'] )
             );
         }

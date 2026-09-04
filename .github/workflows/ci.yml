@@ -1,0 +1,69 @@
+# CI for Promptless Forms.
+#
+# This repository had no workflow at all until now: 257 unit tests that nobody
+# ran automatically, and an accessibility contract (tests/Unit/AccessibilityTest.php)
+# protecting fixes that had only ever been verified by hand in a browser.
+#
+# Two jobs:
+#   lint — php -l over every shipped file across the supported version range. A
+#          file that does not parse is not a failing test, it is a fatal on
+#          every request that touches it.
+#   test — the PHPUnit Unit suite. The Integration suite needs a WordPress test
+#          install (bin/install-wp-tests.sh) and is not wired here yet.
+#
+# Mirrors post-runtime-engine's workflow, including its `composer update`
+# lesson — see the comment on that step.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: PHP syntax (${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.2']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: PHP syntax check (all plugin files)
+        run: |
+          set -e
+          find . -name '*.php' -not -path './vendor/*' -not -path './build/*' -print0 \
+            | xargs -0 -n1 -P4 php -l > /dev/null
+
+  test:
+    name: Unit tests (${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Run every PHP version even if one fails — a 7.4-only failure and an
+      # 8.2-only failure are different bugs, and cancelling half the matrix
+      # hides one of them.
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.2']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer
+      # `composer update`, NOT `composer install`: a lock file generated on a
+      # newer PHP pins packages that hard-require it, and installing that lock
+      # on the 7.4 leg refuses outright before a single test runs. Resolving
+      # per-leg gives each version a compatible dependency set; the code under
+      # test is the plugin, not the dev dependencies.
+      - name: Resolve dev dependencies for this PHP version
+        run: composer update --no-interaction --prefer-dist
+      - name: Run Unit suite
+        run: composer run test:unit
