@@ -864,9 +864,28 @@
     background-color: var(--fre-button-hover-bg);
 }
 
+/* Keyboard focus: an OUTLINE, and never `outline: none` on its own.
+   This rule used to be `outline: none` plus a box-shadow ring, and on any site
+   running the neo-brutalist button skin it produced NO focus indicator at all —
+   WCAG 2.4.7, Level AA. neo-brutalist.css sets its own box-shadow on this
+   button at higher specificity (`body.aisb-neo-brutalist-buttons ...
+   .fre-form__submit-button`) and contains no `:focus` rule of any kind, so the
+   ring lost the cascade while the `outline: none` still applied.
+
+   Measured on the demo site: tabbing to Submit changed exactly one computed
+   property — `outline-offset` — with `outline-style` staying `none`. Nothing
+   painted. A screenshot of the button focused and unfocused was byte-identical.
+
+   An outline survives that: no skin here sets one, and it draws outside the box
+   so a background or shadow override cannot hide it. The box-shadow ring stays
+   as an enhancement where it wins. */
 .fre-form__submit-button:focus {
-    outline: none;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--fre-primary-color) 30%, transparent);
+}
+
+.fre-form__submit-button:focus-visible {
+    outline: 3px solid var(--fre-primary-color, currentColor);
+    outline-offset: 3px;
 }
 
 /* Fallback for browsers without color-mix support */
@@ -1269,9 +1288,18 @@
     cursor: not-allowed;
 }
 
+/* Same defect, same fix as the submit button above — neo-brutalist.css styles
+   `.fre-btn--primary` the same way and has no :focus rule, so these lose their
+   ring under that skin too. Not exercised on the demo site because its form is
+   single-step and the step-nav buttons never render, which is precisely why it
+   is worth fixing rather than waiting for it to be reported. */
 .fre-btn:focus {
-    outline: none;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--fre-primary-color) 30%, transparent);
+}
+
+.fre-btn:focus-visible {
+    outline: 3px solid var(--fre-primary-color, currentColor);
+    outline-offset: 3px;
 }
 
 .fre-btn--secondary:focus {
