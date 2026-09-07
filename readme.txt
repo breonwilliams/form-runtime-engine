@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.8.6
+Stable tag: 1.8.7
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,10 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.8.7 =
+* Fixed: the submit button had no visible keyboard focus indicator on sites using the neo-brutalist button style — the ring was overridden and `outline: none` still applied, leaving less than the browser default (WCAG 2.4.7).
+* Fixed: validation errors are now announced by screen readers and correctly associated with their field, including radio and checkbox groups whose description pointed at an element that did not exist.
+
 = 1.8.6 =
 * Fixed: forms left open for more than 24 hours were rejected with "Please wait a moment before submitting." — advice the visitor could not act on, because waiting was exactly what they had done. A form left in a phone tab overnight, or served from a long-lived cache, now submits normally. Bot protection is unchanged: submissions faster than the minimum time, and forged tokens, are still blocked.
 * Fixed: the connector's schema document returned "not found" for every request, so AI sessions were told to read the rulebook and got nothing.
@@ -115,6 +119,9 @@ See CHANGELOG.md in the plugin folder or visit the GitHub repository for full re
 
 == Upgrade Notice ==
 
+= 1.8.7 =
+Accessibility fixes: the submit button now shows a keyboard focus ring on every button style, and validation errors are announced by screen readers and tied to the right field. No settings or form data change.
+
 = 1.8.6 =
 Fixes a false "Please wait a moment before submitting." rejection on any form open longer than 24 hours — a tab left overnight, or a cached page. Bot protection is unchanged. Also fixes the connector's schema endpoint and its rate limiter. Recommended for all users.
 
@@ -129,6 +136,3 @@ Header tidy-up — Author URI removed (was identical to Plugin URI, which WP.org
 
 = 1.7.0 =
 WP.org compliance release. The Custom CSS form-setting is removed — use theme CSS or a CSS plugin instead. `[client_form]` is replaced by `[fre_form]` and `[promptless_form]`; update old tags. Form data, entries, webhooks, and css_class are unaffected.
-
-= 1.6.5 =
-Routine maintenance release.

@@ -31,6 +31,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Only reachable in the error state, which is why no static scan had found it.
 
+## [1.8.7] - 2026-09-06
+
+### Fixed
+
+- **The submit button had no focus indicator at all.**
+  `.fre-form__submit-button:focus` read `outline: none` plus a box-shadow ring.
+  On any site running the neo-brutalist button skin that produced NOTHING:
+  neo-brutalist.css sets its own box-shadow at higher specificity and contains
+  no `:focus` rule of any kind, so the ring lost the cascade while the
+  `outline: none` still applied — leaving the button with less than the browser
+  default. Measured: tabbing to Submit changed exactly one computed property,
+  `outline-offset`, with `outline-style` staying `none`, and a screenshot of the
+  button focused and unfocused was byte-identical. Fixed with an outline, which
+  no skin here overrides and which draws outside the box where a background or
+  shadow cannot hide it. `.fre-btn` carried the same defect and is fixed too.
+
+- **Validation errors were unreachable by assistive technology**, and radio and
+  checkbox groups pointed `aria-describedby` at an element id that was never
+  rendered — a dangling reference, so the description was announced to nobody.
+
+### Added
+
+- **`tests/Unit/AccessibilityTest.php`** — 32 assertions over the rendered form
+  markup, plus a CI workflow, which this repository did not have.
+
 ## [1.8.6] — 2026-09-02
 
 ### Fixed
