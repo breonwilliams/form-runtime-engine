@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A full-page cache handed every visitor an already-expired nonce, and the
+  recovery discarded their file.** WordPress nonces last 24 hours. Managed
+  hosting routinely caches a page for far longer — the site this was found on
+  served its quote pages with `max-age=2678400`, 31 days — so the `_wpnonce`
+  baked into the HTML was long dead before most visitors ever saw the form.
+  Every submission from a cached page was rejected with "Your session expired.
+  The form has been refreshed."
+
+  The existing guard could not fire. It refreshed the nonce when the form had
+  been open over an hour, measured from `renderTime` — the moment the
+  JavaScript loaded. On a cached page that is always `now`, so the form always
+  looked freshly rendered no matter how old the nonce inside it was. The age of
+  the page and the age of the nonce are simply different things, and only one
+  of them was being measured.
+
+  Three changes:
+
+  - `nonceObtainedAt` starts `null`, meaning "this nonce came from the HTML and
+    its age is UNKNOWN", and is set only by `applyNonce()` when we obtain one
+    ourselves. The pre-submit refresh now fires when the age is unknown OR over
+    an hour, which makes the plugin correct under caching rather than assuming
+    it away.
+  - A failed refresh no longer aborts the submission. The baked-in nonce may
+    still be valid and the server is the authority; a genuine rejection is
+    handled below. Previously a blocked refresh told the visitor to reload,
+    throwing away everything they had typed.
+  - `nonce_expired` now retries ONCE, transparently. The server's rejection
+    already carries a fresh nonce and the submitted data, so everything needed
+    to finish the submission is in hand; making the visitor click again — after
+    telling them their "session expired", which means nothing to someone
+    filling in a quote form — asks them to fix a problem they did not cause.
+    The retry reuses `currentSubmissionId`, so the server's idempotency check
+    cannot turn it into a duplicate entry.
+
+- **Uploads were silently dropped whenever a form was repopulated.** A file
+  input's `value` cannot be assigned — browsers forbid it — so `repopulateForm()`
+  restored every text field and left the file input empty, with nothing on
+  screen to say so. On a quote form built around attaching artwork, a visitor
+  who hit the expired-nonce path lost their file and had no way to know until
+  the business replied asking for it. Chosen files are now retained in memory
+  and re-attached to the retried request.
+
+  Verified end to end against a real multistep form with a file field: with the
+  nonce refresh blocked and the rendered nonce stale, the first attempt is
+  rejected, the retry succeeds, and the file arrives — one entry created, not
+  two, with the attachment written to disk and linked to it.
+
 - **A submission that SUCCEEDED could be reported to the visitor as a failure.**
   The submit handler did `await response.json()` with no status check, so any
   response that was not JSON — an edge timeout page, a 502 from the origin, a
