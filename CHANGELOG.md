@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A submission that SUCCEEDED could be reported to the visitor as a failure.**
+  The submit handler did `await response.json()` with no status check, so any
+  response that was not JSON — an edge timeout page, a 502 from the origin, a
+  security appliance's block page — threw a `SyntaxError`, landed in a generic
+  catch, and produced "An error occurred. Please try again." with the HTTP
+  status discarded.
+
+  Observed on a live site: two entries from the same person minutes apart, BOTH
+  saved and BOTH emailed. The submission had worked; the response never made it
+  back; the visitor was told it failed and sent it again. The business saw a
+  duplicate enquiry and the customer had no idea theirs had arrived.
+
+  The response is now read as text and parsed explicitly. A body that is not our
+  JSON envelope, and a `fetch()` that rejects outright, both route to a new
+  `handleTransportFailure()` which:
+
+  - says the outcome is UNKNOWN rather than claiming failure, because the entry
+    may already exist;
+  - asks the visitor to retry **on the page** instead of reloading. This is the
+    part that stops duplicates: `currentSubmissionId` is only cleared on
+    success, so an in-place retry carries the same id and the server's existing
+    idempotency check returns the stored response or reports the original as
+    still processing. Reloading mints a fresh id and defeats it — which is how
+    the duplicate pair above was created;
+  - logs status, statusText, submission id, form id and a 300-character body
+    preview to the console. With `WP_DEBUG` off — the default on production —
+    the PHP side logs nothing, and an edge timeout never reaches PHP at all, so
+    this is the only place the real cause is visible.
+
+  Server-sent JSON errors are untouched and still surface their own message.
+
+  Verified against a real form with each failure injected: a non-JSON 502, a
+  rejected `fetch()`, and a JSON body that is not our envelope all produce the
+  new message (with the status where one exists); a server validation error
+  still shows the server's wording; and an ordinary submission still succeeds.
+
+
+### Fixed
+
 - **Form errors were announced once and then unreachable.** Validation messages
   rendered into a `role="alert"` element with no `id`, and no field carried
   `aria-invalid` or `aria-describedby`. A screen reader heard the errors when

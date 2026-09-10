@@ -766,7 +766,36 @@
                     credentials: 'same-origin',
                 });
 
-                const result = await response.json();
+                // READ the response before trusting it.
+                //
+                // This was `await response.json()` with no status check. Any
+                // response that is not JSON — an edge timeout page, a 502 from
+                // the origin, a security appliance's HTML block page — threw a
+                // SyntaxError, landed in the catch below, and was reported to
+                // the visitor as "An error occurred. Please try again." with
+                // the HTTP status discarded.
+                //
+                // That is not a cosmetic problem. Observed on a live site: two
+                // entries from the same person, minutes apart, BOTH saved and
+                // BOTH emailed. The submission had succeeded; the response
+                // never made it back; the visitor was told it failed and sent
+                // it again. The business saw a duplicate, and the customer had
+                // no idea their enquiry had arrived.
+                const raw = await response.text();
+                let result = null;
+                try {
+                    result = JSON.parse(raw);
+                } catch (parseError) {
+                    this.handleTransportFailure(response.status, response.statusText, raw);
+                    return;
+                }
+
+                // A JSON body that is not OUR envelope is equally unusable —
+                // some proxies return JSON error documents of their own.
+                if (!result || typeof result.success === 'undefined') {
+                    this.handleTransportFailure(response.status, response.statusText, raw);
+                    return;
+                }
 
                 if (result.success) {
                     // Clear saved data.
@@ -801,8 +830,10 @@
                     this.handleError(result.data);
                 }
             } catch (error) {
-                console.error('FRE: Submission error', error);
-                this.showMessage('error', 'An error occurred. Please try again.');
+                // fetch() itself rejected: the request never completed. The
+                // server may still have received and processed it, so this is
+                // deliberately NOT reported as a clean failure.
+                this.handleTransportFailure(null, error && error.message, null);
             } finally {
                 // Reset button state.
                 this.isSubmitting = false;
@@ -818,6 +849,48 @@
          *
          * @param {Object} data - Error data.
          */
+        /**
+         * A submission whose OUTCOME IS UNKNOWN.
+         *
+         * Reached when the response could not be read as our JSON envelope, or
+         * when fetch() rejected outright. In every one of those cases the
+         * server may already have saved the entry and sent the notification —
+         * so the visitor must not be told, flatly, that it failed.
+         *
+         * The message therefore asks them to retry ON THIS PAGE. That matters:
+         * `currentSubmissionId` is only cleared on success, so a retry from
+         * here carries the SAME submission id and the server's idempotency
+         * check either returns the stored response or reports the original as
+         * still processing. Reloading generates a fresh id and defeats that —
+         * which is exactly how the duplicate pair above was created.
+         *
+         * @param {number|null} status     HTTP status, or null if fetch rejected.
+         * @param {string}      statusText Status text or the network error message.
+         * @param {string|null} body       Raw response body, if one arrived.
+         */
+        handleTransportFailure(status, statusText, body) {
+            // Everything a support conversation needs, in one console entry.
+            // This is the only place the real cause is visible: with WP_DEBUG
+            // off — the default on production — the PHP side logs nothing, and
+            // an edge timeout never reaches PHP at all.
+            console.error('FRE: submission transport failure', {
+                status: status,
+                statusText: statusText,
+                submissionId: this.currentSubmissionId,
+                formId: this.formId,
+                bodyPreview: typeof body === 'string' ? body.slice(0, 300) : null,
+            });
+
+            const detail = status ? ' (HTTP ' + status + ')' : '';
+            this.showMessage(
+                'error',
+                'We could not confirm whether your submission went through, so it may ' +
+                    'already have been received. Please try again on this page rather ' +
+                    'than reloading — reloading can send a duplicate.' + detail
+            );
+            this.scrollToMessages();
+        }
+
         handleError(data) {
             // Handle nonce expiration.
             if (data.code === 'nonce_expired') {
