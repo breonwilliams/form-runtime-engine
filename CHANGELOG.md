@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.8] - 2026-09-12
+
 ### Fixed
 
 - **A full-page cache handed every visitor an already-expired nonce, and the
@@ -92,6 +94,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new message (with the status where one exists); a server validation error
   still shows the server's wording; and an ordinary submission still succeeds.
 
+## [1.8.7] - 2026-09-06
+
+_The three entries immediately below shipped in 1.8.7 (PR #1, `559a9e5`) but were left under Unreleased when 1.8.7 was cut; moved here with the 1.8.8 release. The readme's 1.8.7 note already described them._
 
 ### Fixed
 
@@ -116,9 +121,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on the card and 6.47:1 on white. (WCAG 1.4.3)
 
   Only reachable in the error state, which is why no static scan had found it.
-
-## [1.8.7] - 2026-09-06
-
 ### Fixed
 
 - **The submit button had no focus indicator at all.**

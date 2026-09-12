@@ -127,8 +127,7 @@ node_modules
 vendor
 tests
 AGENTS.md
-bin/install-wp-tests.sh
-bin/build-release.sh
+bin/
 build
 release
 *.zip

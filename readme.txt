@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.8.7
+Stable tag: 1.8.8
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,11 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.8.8 =
+* Fixed: on sites with full-page caching, every submission from a cached page was rejected with "Your session expired" because the security token baked into the cached HTML had long expired. The form now refreshes its token before submitting whenever its age is unknown, and a rejected submission is retried once, transparently, with the fresh token the server sends back. No duplicate entries: the retry reuses the same submission id.
+* Fixed: a chosen file was silently dropped when the form was repopulated after that rejection. Files are now kept in memory and re-attached to the retried request.
+* Fixed: a submission that had succeeded could be reported to the visitor as a failure when the response was not JSON (an edge timeout, a 502, a security appliance's block page), which led visitors to submit again and businesses to receive duplicates. The outcome is now reported as unknown with an in-place retry that the server's idempotency check recognises, and the real cause is logged to the browser console.
+
 = 1.8.7 =
 * Fixed: the submit button had no visible keyboard focus indicator on sites using the neo-brutalist button style — the ring was overridden and `outline: none` still applied, leaving less than the browser default (WCAG 2.4.7).
 * Fixed: validation errors are now announced by screen readers and correctly associated with their field, including radio and checkbox groups whose description pointed at an element that did not exist.
@@ -111,13 +116,12 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 * Fixed: multi-step progress labels and ghost buttons now use surface-corrected colors on elevated surfaces (accessible contrast in both themes)
 * Changed: updates are distributed exclusively through WordPress.org (legacy GitHub auto-updater removed)
 
-= 1.8.3 =
-* Removed the legacy GitHub auto-updater — updates are delivered exclusively through the WordPress.org plugin directory.
-* Internal: developer/AI reference documentation (AGENTS.md) is now maintained in the repository.
-
 See CHANGELOG.md in the plugin folder or visit the GitHub repository for full release notes.
 
 == Upgrade Notice ==
+
+= 1.8.8 =
+Fixes lost submissions on sites with full-page caching ("Your session expired" on every attempt), files dropped on retry, and successful submissions reported as failures that led to duplicate entries. No settings or form data change. Recommended for all users.
 
 = 1.8.7 =
 Accessibility fixes: the submit button now shows a keyboard focus ring on every button style, and validation errors are announced by screen readers and tied to the right field. No settings or form data change.
@@ -130,9 +134,6 @@ Multisite network support. Forms now provision correctly on all subsites. Fixes 
 
 = 1.8.0 =
 WP.org compliance prefix rename (fre_ → pforms_). Auto migration moves your forms, settings, and keys. Embed shortcode is now [promptless_form]. PHP API functions are pforms_*. Sites using FlowMint must update it with this release.
-
-= 1.7.1 =
-Header tidy-up — Author URI removed (was identical to Plugin URI, which WP.org doesn't allow). No other changes.
 
 = 1.7.0 =
 WP.org compliance release. The Custom CSS form-setting is removed — use theme CSS or a CSS plugin instead. `[client_form]` is replaced by `[fre_form]` and `[promptless_form]`; update old tags. Form data, entries, webhooks, and css_class are unaffected.
