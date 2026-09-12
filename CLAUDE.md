@@ -899,10 +899,19 @@ For complete ready-to-use form examples (JSON and PHP), see **`docs/CLAUDE.md`**
 - Condition operators: `equals`, `not_equals`, `contains`, `not_contains`, `is_empty`, `is_not_empty`, `is_checked`, `is_not_checked`, `greater_than`, `less_than`, `>=`, `<=`, `in`, `not_in`
 - Multiple rules with `'logic' => 'or'` (default: `'and'`)
 
-## Test Suite — KNOWN-RED BASELINE (2026-09-01)
+## Test Suite — GREEN as of 2026-09-12 (was known-red from 2026-09-01)
 
-`composer run test:unit` does **not** pass on a clean checkout. Baseline as of
-**2026-09-01**:
+`composer run test:unit` passes on a clean checkout — measured at the 1.8.8
+release:
+
+```
+OK (257 tests, 631 assertions)
+```
+
+**Any failure is now a real regression.** The section below is the history
+of the 14 fixture failures that stood between 2026-09-01 and the 1.8.7/1.8.8
+work, kept because the diagnosis (bare keys vs prefixed input names) is the
+kind of thing that recurs after a rename. The old baseline was:
 
 ```
 Tests: 224, Assertions: 558, Failures: 14
