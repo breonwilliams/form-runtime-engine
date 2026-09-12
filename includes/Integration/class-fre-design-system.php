@@ -130,5 +130,7 @@ class PForms_Design_System {
             array( 'pforms-frontend' ),
             PForms_VERSION
         );
+        // Right-to-left locales load the rtlcss sibling (assets/css/*-rtl.css); see bin/build-rtl.sh.
+        wp_style_add_data( 'pforms-neo-brutalist', 'rtl', 'replace' );
     }
 }

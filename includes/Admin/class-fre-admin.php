@@ -226,6 +226,8 @@ class PForms_Admin {
             array(),
             PForms_VERSION
         );
+        // Right-to-left locales load the rtlcss sibling (assets/css/*-rtl.css); see bin/build-rtl.sh.
+        wp_style_add_data( 'pforms-admin', 'rtl', 'replace' );
 
         wp_enqueue_script(
             'pforms-admin',
