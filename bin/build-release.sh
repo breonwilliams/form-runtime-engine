@@ -197,6 +197,7 @@ REQUIRED_ZIP_PATHS=(
     "${PLUGIN_SLUG}/includes/Uploads/class-fre-upload-handler.php"
     "${PLUGIN_SLUG}/includes/Connector/assets/form-engine-connector.js"
     "${PLUGIN_SLUG}/assets/css/frontend.css"
+    "${PLUGIN_SLUG}/assets/css/frontend-rtl.css"
 )
 
 ZIP_STRUCTURE_OK=1

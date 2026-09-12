@@ -416,6 +416,8 @@ final class Promptless_Forms {
             array(),
             PForms_VERSION . '.' . (int) @filemtime( $css_path )
         );
+        // Right-to-left locales load the rtlcss sibling (assets/css/*-rtl.css); see bin/build-rtl.sh.
+        wp_style_add_data( 'pforms-frontend', 'rtl', 'replace' );
 
         wp_register_script(
             'pforms-frontend',

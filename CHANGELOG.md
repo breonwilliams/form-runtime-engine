@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Right-to-left locales load right-to-left stylesheets.** Every shipped
+  stylesheet now has an rtlcss-generated sibling (`assets/css/X-rtl.css`,
+  committed, written by `bin/build-rtl.sh` — the tool WordPress core uses)
+  and every enqueue registers it with `wp_style_add_data( …, 'rtl',
+  'replace' )`, so a form on an Arabic or Hebrew site mirrors its labels,
+  steps, buttons and admin screens instead of 19 `left`/`right` declarations
+  pointing the wrong way. `tests/Unit/RtlStylesheetsTest.php` fails when a
+  stylesheet changes without its sibling being regenerated, ships without
+  one, or is enqueued without the registration. Verified on Local with the
+  Arabic language pack.
+
 ## [1.8.8] - 2026-09-12
 
 ### Fixed
