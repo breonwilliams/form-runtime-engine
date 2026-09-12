@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.8.8
+Stable tag: 1.9.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,9 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.9.0 =
+* Added: right-to-left languages load right-to-left stylesheets, so a form on an Arabic or Hebrew site mirrors its labels, steps, buttons and admin screens.
+
 = 1.8.8 =
 * Fixed: on sites with full-page caching, every submission from a cached page was rejected with "Your session expired" because the security token baked into the cached HTML had long expired. The form now refreshes its token before submitting whenever its age is unknown, and a rejected submission is retried once, transparently, with the fresh token the server sends back. No duplicate entries: the retry reuses the same submission id.
 * Fixed: a chosen file was silently dropped when the form was repopulated after that rejection. Files are now kept in memory and re-attached to the retried request.
@@ -112,13 +115,13 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 = 1.8.5 =
 * Improved: the "Copy Command" button on the Connector setup screen now sits below the command block instead of overlaying it, fixing a tap-target overlap and a color-contrast issue.
 
-= 1.8.4 =
-* Fixed: multi-step progress labels and ghost buttons now use surface-corrected colors on elevated surfaces (accessible contrast in both themes)
-* Changed: updates are distributed exclusively through WordPress.org (legacy GitHub auto-updater removed)
 
 See CHANGELOG.md in the plugin folder or visit the GitHub repository for full release notes.
 
 == Upgrade Notice ==
+
+= 1.9.0 =
+Adds right-to-left stylesheets: forms on Arabic or Hebrew sites now mirror correctly. No settings or form data change.
 
 = 1.8.8 =
 Fixes lost submissions on sites with full-page caching ("Your session expired" on every attempt), files dropped on retry, and successful submissions reported as failures that led to duplicate entries. No settings or form data change. Recommended for all users.
@@ -132,8 +135,6 @@ Fixes a false "Please wait a moment before submitting." rejection on any form op
 = 1.8.1 =
 Multisite network support. Forms now provision correctly on all subsites. Fixes "Database tables are missing" on newly created subsites.
 
-= 1.8.0 =
-WP.org compliance prefix rename (fre_ → pforms_). Auto migration moves your forms, settings, and keys. Embed shortcode is now [promptless_form]. PHP API functions are pforms_*. Sites using FlowMint must update it with this release.
 
 = 1.7.0 =
 WP.org compliance release. The Custom CSS form-setting is removed — use theme CSS or a CSS plugin instead. `[client_form]` is replaced by `[fre_form]` and `[promptless_form]`; update old tags. Form data, entries, webhooks, and css_class are unaffected.
