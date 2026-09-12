@@ -43,6 +43,25 @@
             this.renderTime = Date.now();
             this.isSubmitting = false;
 
+            // WHEN THE CURRENT NONCE WAS OBTAINED, or null when it came baked
+            // into the HTML and its age is therefore UNKNOWN.
+            //
+            // It has to start null. A page served from a full-page cache is
+            // brand new to the browser — renderTime is `now` — while the nonce
+            // inside it can be weeks old. Trusting renderTime is what let a
+            // 31-day edge cache hand every visitor a nonce that WordPress had
+            // already expired after 24 hours.
+            this.nonceObtainedAt = null;
+
+            // Files the visitor chose, kept so a retry can re-attach them.
+            // A file input's value cannot be set programmatically, so once the
+            // form is repopulated after a rejected submission the upload is
+            // gone unless it was retained here.
+            this.retainedFiles = new Map();
+
+            // One automatic retry per submission after a nonce refresh.
+            this.nonceRetryUsed = false;
+
             // Fix #4: Track submission UUID to prevent duplicate submissions on retry.
             this.currentSubmissionId = null;
 
@@ -710,18 +729,29 @@
 
             e.preventDefault();
 
-            // Check if form has been open for too long (> 1 hour).
+            // Get a nonce whose age we KNOW before submitting.
+            //
+            // This used to refresh only when the form had been open an hour,
+            // measured from renderTime. That check cannot fire on a cached
+            // page: the JavaScript starts when the visitor loads it, so the
+            // form always looks new while its embedded nonce may be weeks old.
+            // Refreshing whenever the age is UNKNOWN (null) or over an hour
+            // makes the plugin immune to full-page caching, which on managed
+            // hosting should be assumed rather than treated as a misconfigured
+            // edge case.
             const hourMs = 60 * 60 * 1000;
-            if (Date.now() - this.renderTime > hourMs) {
+            const nonceAgeUnknown = this.nonceObtainedAt === null;
+            if (nonceAgeUnknown || Date.now() - this.nonceObtainedAt > hourMs) {
+                // A failure here is NOT fatal. The baked-in nonce may still be
+                // valid, and the server is the authority on that — so the
+                // submission proceeds and a genuine rejection is handled by the
+                // nonce_expired path, which now retries transparently. The old
+                // behaviour told the visitor to reload, discarding their input
+                // and any file they had chosen.
                 try {
-                    const freshNonce = await this.refreshNonce();
-                    const nonceInput = this.form.querySelector('[name="_wpnonce"]');
-                    if (nonceInput) {
-                        nonceInput.value = freshNonce;
-                    }
+                    this.applyNonce(await this.refreshNonce());
                 } catch (error) {
-                    this.showMessage('error', 'Your session expired. Please refresh the page and try again.');
-                    return;
+                    console.warn('FRE: could not refresh nonce before submit; using the rendered one', error);
                 }
             }
 
@@ -750,6 +780,28 @@
 
             // Prepare form data.
             const formData = new FormData(this.form);
+
+            // Keep the chosen files, and put them back if the input has been
+            // emptied by a repopulate. `input.value` cannot be assigned for a
+            // file input — browsers forbid it — so repopulateForm() silently
+            // drops uploads. On a quote form whose whole point is attaching
+            // artwork, that meant the visitor had to find and re-select their
+            // file after a rejection they did not cause.
+            this.form.querySelectorAll('input[type="file"]').forEach((input) => {
+                if (!input.name) return;
+                if (input.files && input.files.length) {
+                    this.retainedFiles.set(input.name, Array.from(input.files));
+                    return;
+                }
+                const retained = this.retainedFiles.get(input.name);
+                if (!retained || !retained.length) return;
+                // The empty input already contributed a zero-length entry;
+                // replace it rather than appending a second one.
+                formData.delete(input.name);
+                formData.delete(input.name + '[]');
+                const key = input.multiple ? input.name + '[]' : input.name;
+                retained.forEach((file) => formData.append(key, file, file.name));
+            });
             formData.append('action', 'pforms_submit_form');
             formData.append('_pforms_submission_id', this.currentSubmissionId);
 
@@ -766,7 +818,36 @@
                     credentials: 'same-origin',
                 });
 
-                const result = await response.json();
+                // READ the response before trusting it.
+                //
+                // This was `await response.json()` with no status check. Any
+                // response that is not JSON — an edge timeout page, a 502 from
+                // the origin, a security appliance's HTML block page — threw a
+                // SyntaxError, landed in the catch below, and was reported to
+                // the visitor as "An error occurred. Please try again." with
+                // the HTTP status discarded.
+                //
+                // That is not a cosmetic problem. Observed on a live site: two
+                // entries from the same person, minutes apart, BOTH saved and
+                // BOTH emailed. The submission had succeeded; the response
+                // never made it back; the visitor was told it failed and sent
+                // it again. The business saw a duplicate, and the customer had
+                // no idea their enquiry had arrived.
+                const raw = await response.text();
+                let result = null;
+                try {
+                    result = JSON.parse(raw);
+                } catch (parseError) {
+                    this.handleTransportFailure(response.status, response.statusText, raw);
+                    return;
+                }
+
+                // A JSON body that is not OUR envelope is equally unusable —
+                // some proxies return JSON error documents of their own.
+                if (!result || typeof result.success === 'undefined') {
+                    this.handleTransportFailure(response.status, response.statusText, raw);
+                    return;
+                }
 
                 if (result.success) {
                     // Clear saved data.
@@ -774,6 +855,8 @@
 
                     // Fix #4: Clear submission ID on success for next submission.
                     this.currentSubmissionId = null;
+                    this.nonceRetryUsed = false;
+                    this.retainedFiles.clear();
 
                     // Show success message.
                     this.showMessage('success', result.data.message);
@@ -801,8 +884,10 @@
                     this.handleError(result.data);
                 }
             } catch (error) {
-                console.error('FRE: Submission error', error);
-                this.showMessage('error', 'An error occurred. Please try again.');
+                // fetch() itself rejected: the request never completed. The
+                // server may still have received and processed it, so this is
+                // deliberately NOT reported as a clean failure.
+                this.handleTransportFailure(null, error && error.message, null);
             } finally {
                 // Reset button state.
                 this.isSubmitting = false;
@@ -818,18 +903,79 @@
          *
          * @param {Object} data - Error data.
          */
+        /**
+         * A submission whose OUTCOME IS UNKNOWN.
+         *
+         * Reached when the response could not be read as our JSON envelope, or
+         * when fetch() rejected outright. In every one of those cases the
+         * server may already have saved the entry and sent the notification —
+         * so the visitor must not be told, flatly, that it failed.
+         *
+         * The message therefore asks them to retry ON THIS PAGE. That matters:
+         * `currentSubmissionId` is only cleared on success, so a retry from
+         * here carries the SAME submission id and the server's idempotency
+         * check either returns the stored response or reports the original as
+         * still processing. Reloading generates a fresh id and defeats that —
+         * which is exactly how the duplicate pair above was created.
+         *
+         * @param {number|null} status     HTTP status, or null if fetch rejected.
+         * @param {string}      statusText Status text or the network error message.
+         * @param {string|null} body       Raw response body, if one arrived.
+         */
+        handleTransportFailure(status, statusText, body) {
+            // Everything a support conversation needs, in one console entry.
+            // This is the only place the real cause is visible: with WP_DEBUG
+            // off — the default on production — the PHP side logs nothing, and
+            // an edge timeout never reaches PHP at all.
+            console.error('FRE: submission transport failure', {
+                status: status,
+                statusText: statusText,
+                submissionId: this.currentSubmissionId,
+                formId: this.formId,
+                bodyPreview: typeof body === 'string' ? body.slice(0, 300) : null,
+            });
+
+            const detail = status ? ' (HTTP ' + status + ')' : '';
+            this.showMessage(
+                'error',
+                'We could not confirm whether your submission went through, so it may ' +
+                    'already have been received. Please try again on this page rather ' +
+                    'than reloading — reloading can send a duplicate.' + detail
+            );
+            this.scrollToMessages();
+        }
+
         handleError(data) {
             // Handle nonce expiration.
             if (data.code === 'nonce_expired') {
                 // Update nonce.
-                const nonceInput = this.form.querySelector('[name="_wpnonce"]');
-                if (nonceInput && data.new_nonce) {
-                    nonceInput.value = data.new_nonce;
+                if (data.new_nonce) {
+                    this.applyNonce(data.new_nonce);
                 }
 
                 // Repopulate form data if provided.
                 if (data.submitted_data) {
                     this.repopulateForm(data.submitted_data);
+                }
+
+                // RETRY ONCE, TRANSPARENTLY.
+                //
+                // The server has just handed back a valid nonce and the data
+                // that was submitted, so everything needed to complete the
+                // submission is in hand. Making the visitor click again — after
+                // telling them their "session expired", a phrase that means
+                // nothing to someone filling in a quote form — is asking them
+                // to fix a problem that is not theirs, and costs them their
+                // file attachment along the way.
+                //
+                // Once only, tracked per submission. The retry carries the same
+                // submission id, so the server's idempotency check cannot turn
+                // this into a duplicate entry.
+                if (!this.nonceRetryUsed) {
+                    this.nonceRetryUsed = true;
+                    this.clearMessages();
+                    this.submitForm();
+                    return;
                 }
             }
 
@@ -850,6 +996,24 @@
             // Show general error message.
             this.showMessage('error', data.message);
             this.scrollToMessages();
+        }
+
+        /**
+         * Stores a nonce on the form and records WHEN it was obtained.
+         *
+         * The timestamp is the point of this: it is what lets the pre-submit
+         * check tell a nonce of known age from one that arrived inside cached
+         * HTML and could be any age at all.
+         *
+         * @param {string} nonce Fresh nonce value.
+         */
+        applyNonce(nonce) {
+            if (!nonce) return;
+            const nonceInput = this.form.querySelector('[name="_wpnonce"]');
+            if (nonceInput) {
+                nonceInput.value = nonce;
+            }
+            this.nonceObtainedAt = Date.now();
         }
 
         /**
