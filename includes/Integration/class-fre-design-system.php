@@ -22,8 +22,13 @@ class PForms_Design_System {
      * Constructor.
      */
     public function __construct() {
-        // Enqueue neo-brutalist styles if AISB is active and setting is enabled.
-        add_action( 'wp_enqueue_scripts', array( $this, 'maybe_enqueue_neo_brutalist' ), 30 );
+        // REGISTER the neo-brutalist stylesheet when AISB is active and the
+        // setting is on; the renderer ENQUEUES it when a form renders. It used
+        // to be enqueued here, on every page — and because it depends on
+        // `pforms-frontend`, that dragged the 58 KB main stylesheet onto
+        // every page of the site whether or not a form was on it (measured
+        // 2026-09-13: 0% of it used on seven of eight demo pages).
+        add_action( 'wp_enqueue_scripts', array( $this, 'maybe_register_neo_brutalist' ), 30 );
     }
 
     /**
@@ -110,12 +115,20 @@ class PForms_Design_System {
     }
 
     /**
-     * Conditionally enqueue neo-brutalist styles.
+     * Conditionally REGISTER the neo-brutalist stylesheet.
      *
-     * Only enqueues when AISB is active and neo-brutalist settings are enabled.
-     * The body classes (aisb-neo-brutalist-cards, etc.) are added by AISB itself.
+     * Registered (not enqueued) when AISB is active and a neo-brutalist
+     * setting is on — so "registered" is the signal the renderer reads:
+     * PForms_Renderer::enqueue_assets() enqueues this handle beside
+     * `pforms-frontend` only when a form actually renders. Pages without a
+     * form ship neither stylesheet. The body classes
+     * (aisb-neo-brutalist-cards, etc.) are added by AISB itself.
+     *
+     * Register-early / enqueue-at-render is the same contract Post Runtime's
+     * render cache relies on: a cache hit re-enqueues the handles recorded
+     * at render time, which now include this one.
      */
-    public function maybe_enqueue_neo_brutalist() {
+    public function maybe_register_neo_brutalist() {
         if ( ! $this->is_plugin_active() ) {
             return;
         }
@@ -124,7 +137,7 @@ class PForms_Design_System {
             return;
         }
 
-        wp_enqueue_style(
+        wp_register_style(
             'pforms-neo-brutalist',
             PForms_PLUGIN_URL . 'assets/css/neo-brutalist.css',
             array( 'pforms-frontend' ),

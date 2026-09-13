@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The frontend stylesheets loaded on every page of the site, not just
+  pages with a form.** When Promptless WP's neo-brutalist setting was on,
+  `PForms_Design_System` enqueued `neo-brutalist.css` on `wp_enqueue_scripts`
+  — on every page — and because that handle depends on `pforms-frontend`,
+  WordPress pulled the 58 KB main stylesheet along with it. Measured
+  2026-09-13 with CSS coverage: both sheets present on all eight demo pages,
+  0% used on the seven without a form. The design-system class now only
+  REGISTERS the neo-brutalist handle, and the renderer enqueues it beside
+  `pforms-frontend` when a form renders — the register-early /
+  enqueue-at-render contract Post Runtime's render cache already relies on
+  (a cache hit re-enqueues the handles recorded at render time, which now
+  include this one). A record cached in the hour before the update carries
+  the old handle list, so its form renders without the neo-brutalist sheet
+  until that entry expires. `tests/Unit/AssetsAtRenderTest.php` pins the
+  contract. Verified pixel-identical on nine demo pages, including the form
+  page, at mobile and desktop widths.
+
 ## [1.9.0] - 2026-09-12
 
 ### Added
