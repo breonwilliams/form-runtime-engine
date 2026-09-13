@@ -901,11 +901,19 @@ class PForms_Renderer {
     }
 
     /**
-     * Enqueue form assets.
+     * Enqueue form assets — at render time, so only pages that carry a
+     * form pay for them. Handles are registered on wp_enqueue_scripts by
+     * the plugin (frontend) and PForms_Design_System (neo-brutalist, only
+     * when AISB's setting is on); enqueueing an unregistered handle is a
+     * harmless no-op, which is why the neo-brutalist enqueue needs no
+     * settings check of its own here.
      */
     private function enqueue_assets() {
         wp_enqueue_style( 'pforms-frontend' );
         wp_enqueue_script( 'pforms-frontend' );
+        if ( wp_style_is( 'pforms-neo-brutalist', 'registered' ) ) {
+            wp_enqueue_style( 'pforms-neo-brutalist' );
+        }
     }
 
     /**
