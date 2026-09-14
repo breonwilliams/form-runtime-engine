@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.9.0
+Stable tag: 1.9.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,9 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.9.1 =
+* Fixed: the form stylesheets loaded on every page of the site whenever Promptless WP's neo-brutalist style was on, not just on pages with a form. They now load only where a form renders, so pages without a form are lighter.
+
 = 1.9.0 =
 * Added: right-to-left languages load right-to-left stylesheets, so a form on an Arabic or Hebrew site mirrors its labels, steps, buttons and admin screens.
 
@@ -120,6 +123,9 @@ See CHANGELOG.md in the plugin folder or visit the GitHub repository for full re
 
 == Upgrade Notice ==
 
+= 1.9.1 =
+Form stylesheets now load only on pages that show a form, instead of on every page when the neo-brutalist style is on. No settings or form data change.
+
 = 1.9.0 =
 Adds right-to-left stylesheets: forms on Arabic or Hebrew sites now mirror correctly. No settings or form data change.
 
@@ -134,7 +140,3 @@ Fixes a false "Please wait a moment before submitting." rejection on any form op
 
 = 1.8.1 =
 Multisite network support. Forms now provision correctly on all subsites. Fixes "Database tables are missing" on newly created subsites.
-
-
-= 1.7.0 =
-WP.org compliance release. The Custom CSS form-setting is removed — use theme CSS or a CSS plugin instead. `[client_form]` is replaced by `[fre_form]` and `[promptless_form]`; update old tags. Form data, entries, webhooks, and css_class are unaffected.
