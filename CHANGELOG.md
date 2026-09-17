@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-09-17
+
+### Fixed
+
+- **A submitted field value could become the notification's sender, and the
+  mail provider refused every notification.** `build_headers()` resolved
+  `settings.notification.from_email` with the submitted entry data, so a form
+  configured with `"from_email": "{field:email}"` sent its notification From
+  the visitor's address. Providers that only accept a From on a verified
+  domain — Resend, SES, Postmark, SendGrid, Google Workspace SMTP — rejected
+  it (Resend: `403 validation_error`), so the mail never left WordPress and
+  never appeared in the provider's dashboard either. On the client site where
+  this was found it went unnoticed for days, and only ever worked while WP
+  Mail SMTP's "Force From Email" rewrote the header on the way out; that
+  setting was found switched off twice. The plugin no longer depends on it:
+  `from_email` now resolves system tokens only (`{admin_email}`,
+  `{site_name}`, `{site_url}`, `{form_title}`). A `{field:...}` token there is
+  ignored at send time (logged when `WP_DEBUG` is on), and no From header is
+  sent, so WordPress's own sender applies — the address a mail plugin
+  configures through `wp_mail_from`. There is deliberately no domain check:
+  staging hosts, migrated sites and ESP sending domains all differ from
+  `home_url()`, and a static cross-domain sender is the site owner's choice.
+  `reply_to` is unchanged and still resolves `{field:email}`; the submitter
+  belongs there. `from_name` still resolves field tokens — it is display
+  text and does not affect provider verification.
+- **The connector described a `reply_to` default that does not exist.** Its
+  schema hints said `reply_to` "defaults to {field:email} when an email field
+  exists"; the registry default is, and always was, empty — traced on a live
+  send, a form with an email field and no `reply_to` sent no Reply-To header.
+  The hint now says there is no default and how to set one, and no longer
+  advertises `{field:...}` tokens in `from_email`. The knowledge map,
+  `CLAUDE.md` and `AGENTS.md` say the same.
+
+### Changed
+
+- **Saving a form with a `{field:...}` token in `notification.from_email` is
+  refused** (`schema_error`, from the admin, the connector and
+  `PForms_Forms_Repository::save()`), with a message that points to
+  `reply_to`. Authors find out when they write the config, not from a
+  notification that never arrives.
+
+### Added
+
+- `PForms_Email_Notification::has_field_token()` and the
+  `FIELD_TOKEN_PATTERN` constant — one definition of a field placeholder,
+  shared by the template parser, the send-time guard and the save-time check.
+- `tests/Unit/NotificationHeadersTest.php` — builds the headers directly: a
+  field token (alone or composed, e.g. `noreply@{field:domain}`) never
+  reaches From; `reply_to` with `{field:email}` still resolves; system tokens
+  and static cross-domain senders still work; the save-time refusal; and the
+  connector description agreeing with the registry default.
+
+**Upgrade note — existing forms change behaviour.** A form stored before
+1.10.0 with a `{field:...}` token in `notification.from_email` still loads,
+but its notifications are now sent without a From header (WordPress's
+configured sender is used instead of the visitor's address). If that form has
+no `reply_to` of its own and its `from_email` is exactly one field token
+(e.g. `{field:email}`), that token is used as the Reply-To, so replying still
+reaches the submitter; a composed value such as `noreply@{field:domain}` is
+not carried anywhere. Editing and saving such a form is refused until the
+token is moved out of `from_email`. This is intended. If a site's
+notifications suddenly show a different sender after this update, this is
+why: set `from_email` to an address on the provider-verified domain, and
+`reply_to` to `{field:email}`.
+
 ## [1.9.1] - 2026-09-14
 
 ### Fixed

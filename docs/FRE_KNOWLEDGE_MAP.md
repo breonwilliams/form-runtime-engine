@@ -267,8 +267,9 @@ Email notifications sent on successful submission.
 ```
 
 - `to` — single address (comma-separated for multiple) or array of addresses. `{admin_email}` template token supported.
-- `subject`, `from_name`, `from_email` — standard email headers
-- `reply_to` — supports `{field:<key>}` template tokens to pull values from the submission (example above sets Reply-To to the submitter's email)
+- `subject`, `from_name` — standard email headers; `{field:<key>}` tokens allowed.
+- `from_email` — the sender. **A fixed address on a domain the site's mail provider has verified; system tokens (`{admin_email}`, `{site_name}`, `{site_url}`, `{form_title}`) only.** A `{field:<key>}` token here is rejected when the form is saved: providers such as Resend, SES and Postmark refuse a From on an unverified domain, so a visitor's address as the sender makes every notification fail before it leaves WordPress. Forms stored before 1.10.0 with such a token are not rejected on load; at send time the token is ignored (logged when `WP_DEBUG` is on), no From header is sent so WordPress's configured sender applies, and the token is used as Reply-To if `reply_to` is empty. Defaults to `{admin_email}`.
+- `reply_to` — supports `{field:<key>}` template tokens to pull values from the submission (example above sets Reply-To to the submitter's email). **No default:** when empty, no Reply-To header is sent. This is where the submitter goes.
 - Template tokens (`{field:<key>}`) resolve **option labels** for select/radio/checkbox-with-options fields, not raw values — so `{field:business_type}` substitutes `Home services (HVAC, plumbing, roofing, etc.)` rather than `home_services`.
 
 **Empty-field rendering** — by default, optional fields with empty values are skipped from the body table (keeps notifications scannable). Per-form override:

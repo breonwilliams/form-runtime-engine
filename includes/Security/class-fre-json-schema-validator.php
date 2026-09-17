@@ -174,6 +174,10 @@ class PForms_JSON_Schema_Validator {
         if ( isset( $config['settings'] ) ) {
             $settings_result = self::validate_settings( $config['settings'] );
             $result['warnings'] = array_merge( $result['warnings'], $settings_result['warnings'] );
+            if ( ! empty( $settings_result['errors'] ) ) {
+                $result['valid']  = false;
+                $result['errors'] = array_merge( $result['errors'], $settings_result['errors'] );
+            }
         }
 
         // Validate steps if present.
@@ -363,8 +367,18 @@ class PForms_JSON_Schema_Validator {
      */
     private static function validate_settings( $settings ) {
         $result = array(
+            'errors'   => array(),
             'warnings' => array(),
         );
+
+        // The notification sender can never come from submitted data: mail
+        // providers reject a From on an unverified domain, and the runtime
+        // ignores a field token there since 1.10.0. Refuse it when a form is
+        // saved so the author finds out now, not from a missing email.
+        if ( is_array( $settings ) && isset( $settings['notification']['from_email'] )
+            && PForms_Email_Notification::has_field_token( $settings['notification']['from_email'] ) ) {
+            $result['errors'][] = __( 'settings.notification.from_email cannot contain a {field:...} token: the sender must be an address on a domain your mail provider has verified. Put the submitter in settings.notification.reply_to instead, e.g. "{field:email}".', 'promptless-forms' );
+        }
 
         if ( ! is_array( $settings ) ) {
             $result['warnings'][] = __( 'Settings should be an object.', 'promptless-forms' );

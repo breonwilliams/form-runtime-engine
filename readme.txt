@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.9.1
+Stable tag: 1.10.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,10 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.10.0 =
+* Fixed: a form could send its notification From the visitor's address (a {field:...} token in the sender), which mail providers such as Resend reject, so the email never arrived. The sender now never comes from submitted data; the submitter goes in Reply-To. Existing forms configured that way change sender on update.
+* Fixed: the connector described a Reply-To default that does not exist.
+
 = 1.9.1 =
 * Fixed: the form stylesheets loaded on every page of the site whenever Promptless WP's neo-brutalist style was on, not just on pages with a form. They now load only where a form renders, so pages without a form are lighter.
 
@@ -115,13 +119,10 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 * Fixed: the connector's rate limiter counted requests it never handled, using up the allowance several times faster than intended.
 * Fixed: the connector could not reach an HTTPS local development site.
 
-= 1.8.5 =
-* Improved: the "Copy Command" button on the Connector setup screen now sits below the command block instead of overlaying it, fixing a tap-target overlap and a color-contrast issue.
-
-
-See CHANGELOG.md in the plugin folder or visit the GitHub repository for full release notes.
-
 == Upgrade Notice ==
+
+= 1.10.0 =
+Behaviour change: a {field:...} token in a form's notification sender is now ignored, so those notifications use your site's configured sender (the submitter moves to Reply-To). Set the sender to an address on your verified mail domain.
 
 = 1.9.1 =
 Form stylesheets now load only on pages that show a form, instead of on every page when the neo-brutalist style is on. No settings or form data change.
@@ -137,6 +138,3 @@ Accessibility fixes: the submit button now shows a keyboard focus ring on every 
 
 = 1.8.6 =
 Fixes a false "Please wait a moment before submitting." rejection on any form open longer than 24 hours — a tab left overnight, or a cached page. Bot protection is unchanged. Also fixes the connector's schema endpoint and its rate limiter. Recommended for all users.
-
-= 1.8.1 =
-Multisite network support. Forms now provision correctly on all subsites. Fixes "Database tables are missing" on newly created subsites.
