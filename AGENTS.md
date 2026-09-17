@@ -700,9 +700,14 @@ Use in notification settings:
 | `{site_name}` | Site name |
 | `{site_url}` | Home URL |
 | `{form_title}` | Form title |
-| `{field:key}` | Value of field with given key |
+| `{field:key}` | Value of field with given key — **not allowed in `from_email`** |
 
 Example: `'reply_to' => '{field:email}'`
+
+`from_email` is the sender and never comes from submitted data (since 1.10.0): a
+`{field:...}` token there is rejected on save and ignored at send time, because
+mail providers reject a From on an unverified domain. The submitter goes in
+`reply_to`, which has no default (empty means no Reply-To header).
 
 ## Hooks Reference
 

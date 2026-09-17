@@ -197,7 +197,7 @@ class PForms_Email_Notification {
 
         // Replace field placeholders.
         $template = preg_replace_callback(
-            '/\{field:([^}]+)\}/',
+            self::FIELD_TOKEN_PATTERN,
             function( $matches ) use ( $entry_data, $field_map ) {
                 $field_key = $matches[1];
                 if ( ! isset( $entry_data[ $field_key ] ) ) {
@@ -378,7 +378,48 @@ class PForms_Email_Notification {
     }
 
     /**
+     * Pattern matching a submitted-field placeholder, e.g. {field:email}.
+     * Shared by parse_template() and the sender guard so they cannot drift.
+     */
+    const FIELD_TOKEN_PATTERN = '/\{field:([^}]+)\}/';
+
+    /**
+     * Whether a template string contains a submitted-field placeholder.
+     *
+     * @param mixed $template Template string.
+     * @return bool
+     */
+    public static function has_field_token( $template ) {
+        return is_string( $template ) && 1 === preg_match( self::FIELD_TOKEN_PATTERN, $template );
+    }
+
+    /**
      * Build email headers.
+     *
+     * The From ADDRESS never comes from submitted data. It identifies the
+     * site as the sender, and mail providers (Resend, SES, Postmark,
+     * SendGrid, Google Workspace SMTP…) refuse a From that is not on a
+     * domain the site has verified — so `from_email: "{field:email}"` made
+     * every notification fail at the provider with the visitor's address as
+     * the sender, before 1.10.0. Only system tokens ({admin_email},
+     * {site_name}, {site_url}, {form_title}) are resolved in from_email; a
+     * field token there is ignored and logged, and no From header is sent,
+     * so WordPress's own sender applies — the address mail plugins
+     * configure through `wp_mail_from`. There is deliberately no domain
+     * check: the plugin cannot know which domain the site's provider has
+     * verified (staging hosts, migrated sites and ESP sending domains all
+     * differ from home_url()), and a static address is the site owner's
+     * explicit choice.
+     *
+     * The submitter belongs in Reply-To. `reply_to` is resolved exactly as
+     * before, field tokens included. When a form's from_email is exactly one
+     * field token (e.g. "{field:email}") and it has no reply_to of its own,
+     * that token is used as the Reply-To instead, so "reply goes to the
+     * visitor" keeps working for forms written the old way.
+     *
+     * from_name is display text, not an address: it does not affect
+     * provider verification and is header-sanitised, so field tokens there
+     * (e.g. "{field:name} via {site_name}") still resolve.
      *
      * @param array $form_config Form configuration.
      * @param array $entry_data  Entry data.
@@ -393,18 +434,41 @@ class PForms_Email_Notification {
             ? $this->sanitize_email_header( $this->parse_template( $notification['from_name'], $entry_data, $form_config ) )
             : get_bloginfo( 'name' );
 
-        $from_email = isset( $notification['from_email'] )
-            ? sanitize_email( $this->parse_template( $notification['from_email'], $entry_data ) )
-            : get_option( 'admin_email' );
+        $from_template        = isset( $notification['from_email'] ) ? (string) $notification['from_email'] : '';
+        $from_has_field_token = self::has_field_token( $from_template );
+
+        if ( ! isset( $notification['from_email'] ) ) {
+            $from_email = get_option( 'admin_email' );
+        } elseif ( $from_has_field_token ) {
+            $from_email = '';
+            PForms_Logger::warning(
+                sprintf(
+                    'Notification from_email "%s" on form "%s" contains a submitted-field token; ignored. The sender cannot come from submitted data (providers reject unverified From domains). WordPress\'s default sender is used; the submitter is set as Reply-To when reply_to is empty. Put {field:...} in reply_to instead.',
+                    $from_template,
+                    isset( $form_config['id'] ) ? $form_config['id'] : ''
+                )
+            );
+        } else {
+            // System tokens only: entry data is deliberately NOT passed.
+            $from_email = sanitize_email( $this->parse_template( $from_template, array(), $form_config ) );
+        }
 
         if ( is_email( $from_email ) ) {
             $headers[] = "From: {$from_name} <{$from_email}>";
         }
 
         // Reply-To header.
-        if ( ! empty( $notification['reply_to'] ) ) {
+        $reply_template = ! empty( $notification['reply_to'] ) ? (string) $notification['reply_to'] : '';
+        if ( '' === $reply_template && $from_has_field_token
+            && 1 === preg_match( '/^\s*\{field:[^}]+\}\s*$/', $from_template ) ) {
+            // Only a from_email that is exactly one field token clearly meant
+            // "the submitter's address"; a composed one (noreply@{field:x})
+            // is not carried anywhere.
+            $reply_template = $from_template;
+        }
+        if ( '' !== $reply_template ) {
             $reply_to = sanitize_email(
-                $this->parse_template( $notification['reply_to'], $entry_data )
+                $this->parse_template( $reply_template, $entry_data )
             );
 
             if ( is_email( $reply_to ) ) {
