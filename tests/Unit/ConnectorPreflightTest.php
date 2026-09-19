@@ -509,4 +509,27 @@ class ConnectorPreflightTest extends UnitTestCase {
         }
         return substr( $js, $start, $end - $start );
     }
+
+    /**
+     * The schema route serves a generated rulebook when the knowledge map is
+     * not installed (the release ZIP leaves it out). Until 2026-09-19 it
+     * answered 404 there while the preflight told assistants to fetch it.
+     */
+    public function test_generated_schema_document_carries_the_rules_and_the_schema() {
+        \Brain\Monkey\Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+        $doc = \PForms_Connector_API::generated_schema_document();
+
+        $this->assertStringStartsWith( '# Promptless Forms connector rulebook', $doc );
+        $this->assertStringContainsString( '## Critical rules', $doc );
+        $this->assertStringContainsString( '**config_is_string**', $doc );
+        $this->assertStringContainsString( '## Field hints', $doc );
+        $this->assertStringContainsString( '"$schema"', $doc, 'the shipped form JSON Schema is included' );
+        $this->assertStringNotContainsString( 'This list is a summary', $doc, 'read_first points at this document; it is not repeated in it' );
+    }
+
+    public function test_the_schema_route_no_longer_answers_404() {
+        $src = file_get_contents( \FRE_TEST_PLUGIN_DIR . 'includes/Connector/class-fre-connector-api.php' );
+        $this->assertStringNotContainsString( "'schema_document_not_found'", $src );
+        $this->assertStringContainsString( 'self::generated_schema_document()', $src );
+    }
 }
