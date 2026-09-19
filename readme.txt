@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.10.0
+Stable tag: 1.10.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,13 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.10.1 =
+* Changed: deleting the plugin keeps entries, uploaded files and forms unless "Remove all data" is turned on in Settings.
+* Changed: multi-step forms check each step's fields on Next.
+* Fixed: the admin screens had lost their script and styles since 1.8.0; entry search, filter and bulk actions work again.
+* Fixed: conditions on radio buttons, checkboxes and mixed-case keys; a required field in a hidden section blocked the form; required files were not enforced on the server; ajax="false" lost submissions.
+* Fixed: Twilio missed-call leads now reach the form's webhook.
+
 = 1.10.0 =
 * Fixed: a form could send its notification From the visitor's address (a {field:...} token in the sender), which mail providers such as Resend reject, so the email never arrived. The sender now never comes from submitted data; the submitter goes in Reply-To. Existing forms configured that way change sender on update.
 * Fixed: the connector described a Reply-To default that does not exist.
@@ -113,13 +120,11 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 * Fixed: the submit button had no visible keyboard focus indicator on sites using the neo-brutalist button style — the ring was overridden and `outline: none` still applied, leaving less than the browser default (WCAG 2.4.7).
 * Fixed: validation errors are now announced by screen readers and correctly associated with their field, including radio and checkbox groups whose description pointed at an element that did not exist.
 
-= 1.8.6 =
-* Fixed: forms left open for more than 24 hours were rejected with "Please wait a moment before submitting." — advice the visitor could not act on, because waiting was exactly what they had done. A form left in a phone tab overnight, or served from a long-lived cache, now submits normally. Bot protection is unchanged: submissions faster than the minimum time, and forged tokens, are still blocked.
-* Fixed: the connector's schema document returned "not found" for every request, so AI sessions were told to read the rulebook and got nothing.
-* Fixed: the connector's rate limiter counted requests it never handled, using up the allowance several times faster than intended.
-* Fixed: the connector could not reach an HTTPS local development site.
 
 == Upgrade Notice ==
+
+= 1.10.1 =
+Restores the admin screens' script and styles, fixes several conditional-logic and required-field bugs, and sends Twilio leads to the form's webhook. Deleting the plugin now keeps entries and forms unless you opt in under Settings.
 
 = 1.10.0 =
 Behaviour change: a {field:...} token in a form's notification sender is now ignored, so those notifications use your site's configured sender (the submitter moves to Reply-To). Set the sender to an address on your verified mail domain.
@@ -136,5 +141,3 @@ Fixes lost submissions on sites with full-page caching ("Your session expired" o
 = 1.8.7 =
 Accessibility fixes: the submit button now shows a keyboard focus ring on every button style, and validation errors are announced by screen readers and tied to the right field. No settings or form data change.
 
-= 1.8.6 =
-Fixes a false "Please wait a moment before submitting." rejection on any form open longer than 24 hours — a tab left overnight, or a cached page. Bot protection is unchanged. Also fixes the connector's schema endpoint and its rate limiter. Recommended for all users.
