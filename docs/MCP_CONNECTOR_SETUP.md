@@ -27,7 +27,7 @@ The architecture is identical to the Promptless WP connector's MCP bridge — th
 - **Node.js 14+** installed. Works with Homebrew-installed Node, the official installer, or nvm-managed versions.
 - **Claude Desktop** installed and launched at least once (so its config directory exists).
 - **WordPress site reachable over HTTPS** with Application Passwords enabled. WordPress enforces HTTPS for Application Passwords by default; the `WP_ENVIRONMENT_TYPE=local` constant waives this for Local by Flywheel and similar local-dev environments.
-- **An admin user** on the site with the `fre_manage_forms` capability (administrators receive this automatically on plugin activation — see Phase 1 of the Cowork connector work).
+- **An admin user** on the site with the `pforms_manage_forms` capability (administrators receive this automatically on plugin activation — see Phase 1 of the Cowork connector work).
 
 ---
 

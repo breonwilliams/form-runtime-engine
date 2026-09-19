@@ -45,7 +45,7 @@ The credential is a WordPress Application Password created through the plugin's 
 **Requirements:**
 
 - The site must run over HTTPS. Application Passwords require HTTPS by WordPress core policy (local-development sites may bypass via `wp_is_application_passwords_available` filter).
-- The authenticating user must have the `fre_manage_forms` capability (added by the plugin — see the Phase 1 capability introduction). The administrator role receives this capability automatically on plugin install or upgrade.
+- The authenticating user must have the `pforms_manage_forms` capability (added by the plugin — see the Phase 1 capability introduction). The administrator role receives this capability automatically on plugin install or upgrade.
 - The connector must be enabled site-wide via the toggle on the "Claude Connection" admin page. Disabled connector returns `403 connector_disabled` on every route (see §7).
 
 **Credential rotation:** Generating a new App Password through the admin UI revokes any prior Form Runtime Engine App Password for the same user. At most one connector credential exists per user per site at any time.
@@ -64,7 +64,7 @@ Every request to a connector endpoint passes through three concentric checks, in
 
 1. **Connector enabled?** Site owner must have toggled "Enable Claude Cowork Connection" on. Default is off. Failing this check returns `403 connector_disabled` before any authentication happens.
 2. **Authenticated?** Must present valid App Password credentials. Failing returns `401 rest_not_logged_in`.
-3. **Authorized?** Authenticated user must have the `fre_manage_forms` capability. Failing returns `403 rest_forbidden`.
+3. **Authorized?** Authenticated user must have the `pforms_manage_forms` capability. Failing returns `403 rest_forbidden`.
 
 A fourth check — entry-read toggle — applies only to the entries endpoints (`/entries`, `/entries/{id}`). If the site owner has not explicitly enabled entry read access, these two endpoints return `403 entry_access_disabled` even for an otherwise fully authenticated caller. All other endpoints are unaffected by this toggle. The toggle default is off. See §5 for threat-model reasoning.
 
@@ -152,7 +152,7 @@ Collection (for list endpoints):
 | `connector_disabled` | 403 | Outer gate is off. Administrator must enable the connector. |
 | `entry_access_disabled` | 403 | Inner gate (entries) is off. Administrator must enable entry read access. |
 | `rest_not_logged_in` | 401 | No or invalid credentials. |
-| `rest_forbidden` | 403 | Authenticated but lacks `fre_manage_forms` capability. |
+| `rest_forbidden` | 403 | Authenticated but lacks `pforms_manage_forms` capability. |
 | `rate_limit_exceeded` | 429 | Per-user per-route limit hit. Retry after `data.retry_after` seconds. |
 | `form_not_found` | 404 | No form exists with the given ID. |
 | `entry_not_found` | 404 | No entry exists with the given ID. |
@@ -187,7 +187,7 @@ The page exposes:
 - **Setup command section.** Placeholder in Phase 2. Phase 3 will fill this with the bash command that installs the MCP server into Claude Desktop's configuration.
 - **Link to this specification document** so API consumers can find the contract without leaving the admin.
 
-All actions require the `fre_manage_forms` capability.
+All actions require the `pforms_manage_forms` capability.
 
 ---
 
@@ -208,7 +208,7 @@ Health check. Returns information about the connector state from the caller's pe
     "entry_read_enabled": true,
     "authenticated_as": "admin",
     "user_capabilities": {
-      "fre_manage_forms": true
+      "pforms_manage_forms": true
     },
     "schema_document_url": "https://{site_url}/wp-content/plugins/form-runtime-engine/docs/form-schema.json"
   }
@@ -252,7 +252,7 @@ Get a single form.
     "connector_version": 3,
     "created": 1712345678,
     "modified": 1712345999,
-    "shortcode": "[fre_form id=\"contact\"]"
+    "shortcode": "[pforms_form id=\"contact\"]"
   }
 }
 ```
@@ -440,7 +440,7 @@ Submit a form programmatically. Primary use case: Claude Cowork verifying a form
 The following are explicitly not part of this contract in v1:
 
 - File upload via connector. Forms may be defined with file fields, but submitting files via `POST /forms/{id}/submit` is not supported.
-- Entry deletion via connector. Entries can only be deleted through the admin UI, gated behind `fre_manage_forms` and an explicit user action.
+- Entry deletion via connector. Entries can only be deleted through the admin UI, gated behind `pforms_manage_forms` and an explicit user action.
 - Bulk operations. Every endpoint acts on a single resource; batch creation or batch update is not part of v1. Consumers loop calls.
 - Multisite. Tested on single-site WordPress installs only in v1.
 - Webhook-secret read. The secret is write-only through the API.

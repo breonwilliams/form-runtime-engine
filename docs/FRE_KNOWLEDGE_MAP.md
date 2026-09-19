@@ -41,7 +41,7 @@ A form is a JSON object with three top-level keys:
 - `settings` — form-level behavior and presentation (optional but almost always wanted)
 - `steps` — optional array; only present for multi-step forms
 
-Forms are identified by an `id` (URL-safe slug matching `^[a-z0-9\-_]+$`). The shortcode used to embed a form on a WordPress page is `[fre_form id="<id>"]`.
+Forms are identified by an `id` (URL-safe slug matching `^[a-z0-9\-_]+$`). The shortcode used to embed a form on a WordPress page is `[pforms_form id="<id>"]`.
 
 ---
 
@@ -55,7 +55,7 @@ FRE supports thirteen field types. All accept the universal base properties in P
 | `email` | Email input with built-in format validation | `placeholder` |
 | `tel` | Phone input | `placeholder`, `description` (helpful for format hints) |
 | `textarea` | Multi-line text | `rows`, `cols`, `maxlength` |
-| `select` | Dropdown | `options` (required, at least 1), `multiple` |
+| `select` | Dropdown | `options` (required, at least 1), `multiple`, `placeholder` (renders an empty first option — see the required-select rule below) |
 | `radio` | Radio button group | `options` (required, at least 1), `inline` (render horizontally) |
 | `checkbox` | Single boolean OR checkbox group | `options` (optional — present for group, omitted for single boolean), `inline` |
 | `file` | File upload | `allowed_types` (array of extensions), `max_size` (bytes, default 5MB), `multiple` |
@@ -66,6 +66,8 @@ FRE supports thirteen field types. All accept the universal base properties in P
 | `address` | Google Places autocomplete address | `country_restriction` (array of lowercase ISO 3166-1 alpha-2 codes) |
 
 **Required-options rule:** `select` and `radio` MUST include an `options` array with at least one entry. `checkbox` may or may not — with options it renders as a group, without it renders as a single boolean.
+
+**Required-select rule:** give every `required` single `select` a `placeholder` (e.g. `"Choose one…"`). Without one the browser preselects the FIRST option, so `required` can never fail and a visitor who skips the question silently submits option one — a service-request form files every skipped report as its first category. The placeholder renders as an empty first option the visitor must change.
 
 **Message-field rule:** `message` fields must have either `label` or `content` (or both). They exist to display information; neither being present would make the field meaningless.
 
@@ -314,7 +316,7 @@ When `false`, every field renders with an em-dash (`—`) placeholder for empty 
 
 `true` forces label resolution regardless of preset. `false` forces raw values regardless of preset. Omit to use the preset-aware default.
 
-**File uploads in webhook payloads** — the payload's `files` array carries one entry per uploaded file with `field_key`, `file_name`, `file_size`, `mime_type`, and `file_url`. The URL is publicly fetchable (uses randomized UUID filenames for non-enumerability) so downstream automations can copy the file into Drive, S3, etc. The webhook fires on the `fre_submission_complete` action — AFTER files are attached to the entry — so `file_url` is always populated. For sensitive industries (healthcare, legal, financial), generate signed/expiring URLs via the `fre_webhook_file_url` filter.
+**File uploads in webhook payloads** — the payload's `files` array carries one entry per uploaded file with `field_key`, `file_name`, `file_size`, `mime_type`, and `file_url`. The URL is publicly fetchable (uses randomized UUID filenames for non-enumerability) so downstream automations can copy the file into Drive, S3, etc. The webhook fires on the `pforms_submission_complete` action — AFTER files are attached to the entry — so `file_url` is always populated. For sensitive industries (healthcare, legal, financial), generate signed/expiring URLs via the `pforms_webhook_file_url` filter.
 
 **Webhook secrets:** NOT exposed via API. Use the admin UI for secret rotation.
 
@@ -352,7 +354,7 @@ Must match `^[a-z0-9\-_]+$`. No spaces, no caps. This becomes the shortcode attr
 
 ### 8.5 Entry reads require separate capability
 
-Reading submission entries via `formengine_list_entries` or `formengine_get_entry` requires the connector's entry-read toggle to be enabled in the admin UI AND the authenticated user to have `fre_manage_forms`. Entry-read is a separate setting from "connector enabled" because entry data is more sensitive.
+Reading submission entries via `formengine_list_entries` or `formengine_get_entry` requires the connector's entry-read toggle to be enabled in the admin UI AND the authenticated user to have `pforms_manage_forms`. Entry-read is a separate setting from "connector enabled" because entry data is more sensitive.
 
 ### 8.6 `managed_by` is immutable post-create
 

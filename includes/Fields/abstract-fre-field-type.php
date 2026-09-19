@@ -151,11 +151,13 @@ abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
         if ( ! empty( $field['required'] ) && $this->is_empty( $value ) ) {
             return new WP_Error(
                 'required_field',
-                sprintf(
-                    /* translators: %s: field label */
-                    __( '%s is required.', 'promptless-forms' ),
-                    $this->get_label( $field )
-                )
+                // Label-free on purpose. The message shows beside its own
+                // field (and a screen reader announces it with the field's
+                // label), so naming the field again only reads badly when the
+                // label is a question or a sentence: "Tell us what it is is
+                // required.", "…a public record. must be checked." (2026-09-19
+                // pressure test). Connector clients get it keyed by field.
+                __( 'This field is required.', 'promptless-forms' )
             );
         }
 
