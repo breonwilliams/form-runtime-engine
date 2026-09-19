@@ -115,6 +115,7 @@ function pforms_uninstall_cleanup() {
     // against their entries; remove them before the table that lists them.
     $files_table = $wpdb->prefix . 'fre_entry_files';
     if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $files_table ) ) === $files_table ) {
+        // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $files_table is the prefix plus a fixed name.
         $attachment_ids = $wpdb->get_col( "SELECT DISTINCT attachment_id FROM `{$files_table}` WHERE attachment_id IS NOT NULL AND attachment_id > 0" );
         foreach ( $attachment_ids as $attachment_id ) {
             wp_delete_attachment( (int) $attachment_id, true );

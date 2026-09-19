@@ -138,6 +138,13 @@ Each confirmed in the code and live on Local before changing it.
   preflight's `select` hint now say to give every required select a
   placeholder.
 
+### Fixed — found in the release check (2026-09-19)
+
+- **Plugin Check reported three new warnings on the release build**, on the
+  required-file check and the opt-in uninstall. Both read input that is
+  already authenticated or a fixed table name; the reason is now recorded
+  where each happens.
+
 ## [1.10.0] - 2026-09-17
 
 ### Fixed
