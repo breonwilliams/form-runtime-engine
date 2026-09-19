@@ -37,7 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handler's comment promised that creating the lead would send it (to
   Google Sheets, per the Twilio guide); the dispatcher listens only to
   `pforms_submission_complete`, which a missed call never fires. The lead is
-  now dispatched to its form's webhook directly — signed, logged and
+  now dispatched to its form's webhook directly — which for a Twilio client
+  IS the client's **Webhook URL** (`register_virtual_form()` saves it as the
+  client form's webhook) — signed, logged and
   retried like any other. It does NOT fire `pforms_submission_complete`,
   which would also start FlowMint workflows bound to the form. Forms without
   a webhook are unaffected; filter `pforms_twilio_lead_webhook` turns it
