@@ -146,6 +146,48 @@ class PForms_Admin {
             'pforms-settings',
             'pforms_api_keys_section'
         );
+
+        // Uninstall: keep everything unless the owner opts in (uninstall.php).
+        register_setting(
+            'pforms_settings',
+            'pforms_delete_data_on_uninstall',
+            array(
+                'type'              => 'boolean',
+                'sanitize_callback' => 'rest_sanitize_boolean',
+                'default'           => false,
+            )
+        );
+
+        add_settings_section(
+            'pforms_uninstall_section',
+            __( 'When Promptless Forms is deleted', 'promptless-forms' ),
+            '__return_false',
+            'pforms-settings'
+        );
+
+        add_settings_field(
+            'pforms_delete_data_on_uninstall',
+            __( 'Remove all data', 'promptless-forms' ),
+            array( $this, 'render_delete_data_field' ),
+            'pforms-settings',
+            'pforms_uninstall_section',
+            array( 'label_for' => 'pforms_delete_data_on_uninstall' )
+        );
+    }
+
+    /**
+     * Render the uninstall opt-in.
+     */
+    public function render_delete_data_field() {
+        ?>
+        <label for="pforms_delete_data_on_uninstall">
+            <input type="checkbox" id="pforms_delete_data_on_uninstall" name="pforms_delete_data_on_uninstall" value="1" <?php checked( (bool) get_option( 'pforms_delete_data_on_uninstall', false ) ); ?> />
+            <?php esc_html_e( 'Remove all data when Promptless Forms is deleted', 'promptless-forms' ); ?>
+        </label>
+        <p class="description">
+            <?php esc_html_e( 'Off: deleting the plugin keeps entries, uploaded files, forms and settings, so reinstalling picks up where you left off. On: deleting the plugin permanently removes all of them, including the files visitors uploaded. Deactivating never removes anything.', 'promptless-forms' ); ?>
+        </p>
+        <?php
     }
 
     /**

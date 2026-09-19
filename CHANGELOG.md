@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Deleting the plugin keeps the site's data unless you opt in.** Up to
+  1.10.0, `uninstall.php` dropped the entry tables and the saved forms on
+  every deletion, with no way to keep them — and still left the two Twilio
+  tables and several options behind. It now follows the stack's rule
+  ("never delete user data without explicit consent"; WooCommerce makes the
+  same choice): housekeeping always goes (transients, the connector's
+  settings, call log and application-password grants, capability grants);
+  entries, uploaded files, forms, settings and API keys stay. **Settings →
+  When Promptless Forms is deleted → Remove all data** (option
+  `pforms_delete_data_on_uninstall`, off) removes everything: all six tables
+  including Twilio's, the Media Library files uploaded through forms, and
+  every `pforms_*` option. `tests/Unit/UninstallTest.php` runs the real
+  `uninstall.php` against a recording database both ways.
+
 ### Fixed
 
 Found by the 2026-09-19 pressure test (a township site built through the

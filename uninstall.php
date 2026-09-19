@@ -2,11 +2,28 @@
 /**
  * Uninstall Promptless Forms.
  *
- * This file runs when the plugin is uninstalled (deleted) from WordPress.
- * It removes all plugin data including database tables and options.
+ * This file runs when the plugin is deleted from the Plugins screen (not on
+ * deactivation).
  *
- * NOTE: Uses direct database queries and filesystem operations for complete cleanup.
- * This runs once during plugin deletion and must reliably remove all plugin data.
+ * KEEPS the site's data unless the owner opted in. Entries, uploaded files,
+ * forms, settings and API keys stay, so reinstalling picks up where the site
+ * left off — the stack's data-protection rule ("never delete user data without
+ * explicit consent", Promptless WP docs/operations/DATA_PROTECTION.md) and the
+ * same choice WooCommerce makes. Only housekeeping always goes: caches,
+ * transients, the connector's call log and settings (including its
+ * application-password grants) and the plugin's capability grants.
+ *
+ * With **Settings → Remove all data when Promptless Forms is deleted** ticked
+ * (option pforms_delete_data_on_uninstall), everything goes: the six tables
+ * (entries, entry meta, entry files, webhook log, Twilio clients and
+ * messages), the Media Library files uploaded through forms, the saved forms
+ * and every Promptless Forms option.
+ *
+ * Up to 1.10.0 this file dropped the entry tables and the saved forms on
+ * every deletion, with no way to keep them, and left the Twilio tables and
+ * several options behind.
+ *
+ * NOTE: Uses direct database queries and filesystem operations; runs once.
  *
  * @package FormRuntimeEngine
  *
@@ -55,75 +72,78 @@ if ( ! defined( 'PForms_PLUGIN_DIR' ) ) {
 require_once PForms_PLUGIN_DIR . 'includes/class-fre-autoloader.php';
 
 /**
- * Clean up all plugin data.
+ * Clean up after the plugin on one site: housekeeping always, data only with
+ * the owner's opt-in.
  */
 function pforms_uninstall_cleanup() {
     global $wpdb;
 
-    // Delete database tables.
-    // Define allowed table names for validation.
-    $allowed_tables = array(
-        'fre_entries'     => $wpdb->prefix . 'fre_entries',
-        'fre_entry_meta'  => $wpdb->prefix . 'fre_entry_meta',
-        'fre_entry_files' => $wpdb->prefix . 'fre_entry_files',
-        'fre_webhook_log' => $wpdb->prefix . 'fre_webhook_log',
-    );
+    // --- Always: housekeeping, no user data. -------------------------------
 
-    foreach ( $allowed_tables as $key => $table ) {
-        // Validate table name matches expected pattern before dropping.
-        if ( $table === $wpdb->prefix . $key ) {
-            $wpdb->query( "DROP TABLE IF EXISTS `{$table}`" );
-        }
-    }
-
-    // Delete options.
-    delete_option( 'pforms_db_version' );
-    delete_option( 'pforms_plugin_version' );
-    delete_option( 'pforms_migration_error' );
-    delete_option( 'pforms_email_failures' );
-
-    // Delete database-stored forms.
-    // Previously leaked on uninstall — explicitly cleaned since the forms
-    // repository extraction.
-    delete_option( 'pforms_client_forms' );
-
-    // Delete transients.
     $wpdb->query(
         "DELETE FROM {$wpdb->options}
         WHERE option_name LIKE '_transient_pforms_%'
         OR option_name LIKE '_transient_timeout_pforms_%'"
     );
 
-    // Revoke the plugin's custom capability from every role.
-    // Loaded lazily so uninstall still succeeds if the class is missing for
-    // any reason (e.g., partial file deletion before cleanup runs).
+    // Capability grants track the plugin's presence; activation grants them
+    // again.
     if ( class_exists( 'PForms_Capabilities' ) ) {
         PForms_Capabilities::revoke_all_capabilities();
     }
 
-    // Remove connector settings (toggles + per-user configuration markers).
+    // The connector's switches and application-password grants: access, not
+    // content — never left behind for a plugin that is gone.
     if ( class_exists( 'PForms_Connector_Settings' ) ) {
         PForms_Connector_Settings::delete_all();
     }
-
-    // Remove the connector call log.
     if ( class_exists( 'PForms_Connector_Log' ) ) {
         PForms_Connector_Log::clear();
     } else {
         delete_option( 'pforms_connector_call_log' );
     }
 
-    // Clean up any connector rate-limit transients.
+    wp_cache_flush();
+
+    // --- Only with consent: the site's data. ------------------------------
+
+    if ( ! get_option( 'pforms_delete_data_on_uninstall' ) ) {
+        return;
+    }
+
+    // Files uploaded through forms are private Media Library items recorded
+    // against their entries; remove them before the table that lists them.
+    $files_table = $wpdb->prefix . 'fre_entry_files';
+    if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $files_table ) ) === $files_table ) {
+        $attachment_ids = $wpdb->get_col( "SELECT DISTINCT attachment_id FROM `{$files_table}` WHERE attachment_id IS NOT NULL AND attachment_id > 0" );
+        foreach ( $attachment_ids as $attachment_id ) {
+            wp_delete_attachment( (int) $attachment_id, true );
+        }
+    }
+
+    $allowed_tables = array(
+        'fre_entries'         => $wpdb->prefix . 'fre_entries',
+        'fre_entry_meta'      => $wpdb->prefix . 'fre_entry_meta',
+        'fre_entry_files'     => $wpdb->prefix . 'fre_entry_files',
+        'fre_webhook_log'     => $wpdb->prefix . 'fre_webhook_log',
+        'fre_twilio_clients'  => $wpdb->prefix . 'fre_twilio_clients',
+        'fre_twilio_messages' => $wpdb->prefix . 'fre_twilio_messages',
+    );
+    foreach ( $allowed_tables as $key => $table ) {
+        if ( $table === $wpdb->prefix . $key ) {
+            $wpdb->query( "DROP TABLE IF EXISTS `{$table}`" );
+        }
+    }
+
+    // Every Promptless Forms option: forms, settings, API keys, Twilio
+    // settings, secrets, versions — and the opt-in itself.
     $wpdb->query(
         "DELETE FROM {$wpdb->options}
-        WHERE option_name LIKE '_transient_pforms_connector_rate_%'
-        OR option_name LIKE '_transient_timeout_pforms_connector_rate_%'"
+        WHERE option_name LIKE 'pforms\\_%'
+        OR option_name = 'fre_style_settings'"
     );
 
-    // Delete uploaded files.
     pforms_delete_upload_directory();
-
-    // Clear any cached data.
     wp_cache_flush();
 }
 
