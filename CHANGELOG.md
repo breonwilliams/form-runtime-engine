@@ -24,10 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `uninstall.php` against a recording database both ways.
 
 ### Fixed
-- **Plugin Check reported three new warnings on the release build**, on the
-  required-file check and the opt-in uninstall. Both read input that is
-  already authenticated or a fixed table name; the reason is now recorded
-  where each happens.
 
 - **The connector's schema route answered 404 on installs from the release
   ZIP.** The ZIP leaves `docs/FRE_KNOWLEDGE_MAP.md` out (a wordpress.org
@@ -141,6 +137,13 @@ Each confirmed in the code and live on Local before changing it.
   and a skipped question submits option one. The knowledge map and the
   preflight's `select` hint now say to give every required select a
   placeholder.
+
+### Fixed — found in the release check (2026-09-19)
+
+- **Plugin Check reported three new warnings on the release build**, on the
+  required-file check and the opt-in uninstall. Both read input that is
+  already authenticated or a fixed table name; the reason is now recorded
+  where each happens.
 
 ## [1.10.0] - 2026-09-17
 
