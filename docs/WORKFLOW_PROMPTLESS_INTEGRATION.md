@@ -69,7 +69,7 @@ If the form needs webhook integration (Zapier, Make, Google Sheets), set `webhoo
 
 Cowork uses `wordpress_deploy_content` (Promptless again) to update the relevant page sections — typically the contact page, the bottom of the home page, and any service page that needs a quote request — with rich text content that includes the shortcode returned in Stage 4.
 
-The shortcode is just text (e.g. `[fre_form id="contact"]`). It can be placed inside a Promptless rich text section. WordPress automatically resolves the shortcode at render time, calling into the Form Runtime Engine's renderer.
+The shortcode is just text (e.g. `[pforms_form id="contact"]`). It can be placed inside a Promptless rich text section. WordPress automatically resolves the shortcode at render time, calling into the Form Runtime Engine's renderer.
 
 Crucially, neither plugin needs to know about the other for this to work. The integration is `do_shortcode()`, a WordPress core mechanism. The Form Engine's frontend CSS reads from the AISB design tokens (per `docs/AISB_TOKEN_CONTRACT.md`), so the form visually inherits the brand styling from Promptless's Global Settings automatically.
 
@@ -122,7 +122,7 @@ The cost is two entries in `claude_desktop_config.json` instead of one, and two 
 
 ## 5. Operational notes
 
-**Order of operations matters when using both connectors on the same page.** Always create forms (Form Engine) before deploying the Promptless section that references them. The shortcode `[fre_form id="contact"]` resolves to nothing visible if the form doesn't exist when the page renders.
+**Order of operations matters when using both connectors on the same page.** Always create forms (Form Engine) before deploying the Promptless section that references them. The shortcode `[pforms_form id="contact"]` resolves to nothing visible if the form doesn't exist when the page renders.
 
 **Connector visibility.** The two MCP servers each have their own `connector_enabled` toggle (one in Promptless's "Claude Connection" admin page, one in the Form Engine's). Disabling one does not affect the other. If a client says "we don't want forms managed by AI but the page-building part is fine," disable the Form Engine connector and leave Promptless enabled.
 

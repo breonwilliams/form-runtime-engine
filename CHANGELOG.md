@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+Found by the 2026-09-19 pressure test (a township site built through the
+four connectors on Local).
+
+- **The rulebook served to AI assistants told them to embed forms with a
+  shortcode that does not exist.** `docs/FRE_KNOWLEDGE_MAP.md` — served live
+  at `/fre/v1/connector/schema` — said the embed is `[fre_form id="…"]`;
+  since the 1.8.0 rename only `[pforms_form]` and `[promptless_form]` are
+  registered, so a form placed that way rendered as literal text. The same
+  document named the old `fre_submission_complete` hook, the
+  `fre_webhook_file_url` filter and the `fre_manage_forms` capability, none
+  of which exist (the upgrader removes the old capability). Fixed there and
+  in the connector spec, the README (which also showed
+  `fre_register_form()` and the removed `[client_form]`), the capability
+  and setup guides and the Promptless integration guide.
+  `tests/Unit/RetiredNamesInDocsTest.php` fails the build if one of those
+  documents, or the rulebook the preflight returns, names a retired
+  identifier, or if the knowledge map shows a shortcode that is not
+  registered. Dated assessment and audit reports are left as history.
+
+### Changed
+
+- **Required-field messages no longer repeat the field label.** They read
+  "{label} is required." / "{label} must be checked.", which breaks on a
+  label that is a question or a sentence ("Tell us what it is is
+  required.", "I understand this request becomes a public record. must be
+  checked."). The message shows beside its own field and a screen reader
+  announces it with the label, so it is now "This field is required.",
+  "Check this box to continue.", "Choose at least one option." and "Choose
+  a file to upload." Format messages ("Email must be a valid email
+  address.") are unchanged.
+- **Guidance for required selects.** A required single `select` without a
+  `placeholder` preselects its first option, so `required` can never fail
+  and a skipped question submits option one. The knowledge map and the
+  preflight's `select` hint now say to give every required select a
+  placeholder.
+
 ## [1.10.0] - 2026-09-17
 
 ### Fixed

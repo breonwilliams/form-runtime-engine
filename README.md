@@ -49,7 +49,7 @@ A lightweight WordPress form plugin for creating and managing forms. Create form
 }
 ```
 
-5. Save and use the shortcode: `[fre_form id="contact"]`
+5. Save and use the shortcode: `[pforms_form id="contact"]`
 
 ### Method 2: PHP Code
 
@@ -57,7 +57,7 @@ Add this to your theme's `functions.php` or a custom plugin:
 
 ```php
 add_action( 'fre_init', function() {
-    fre_register_form( 'contact', array(
+    pforms_register_form( 'contact', array(
         'title'  => 'Contact Us',
         'fields' => array(
             array(
@@ -84,7 +84,7 @@ add_action( 'fre_init', function() {
 });
 ```
 
-Display with shortcode: `[fre_form id="contact"]` or `[client_form id="contact"]`
+Display with shortcode: `[pforms_form id="contact"]` or `[promptless_form id="contact"]`
 
 ## Field Types
 
@@ -443,7 +443,7 @@ When **AI Section Builder Modern** is active, forms automatically inherit brand 
 ## Shortcode Attributes
 
 ```
-[fre_form id="contact" class="custom-class" ajax="true"]
+[pforms_form id="contact" class="custom-class" ajax="true"]
 ```
 
 | Attribute | Default | Description |
@@ -472,7 +472,7 @@ Use these in notification settings:
 ```php
 // Register forms here (NOT init or plugins_loaded)
 add_action( 'fre_init', function( $plugin ) {
-    fre_register_form( 'my_form', $config );
+    pforms_register_form( 'my_form', $config );
 });
 
 // After a form is registered
@@ -538,7 +538,7 @@ add_filter( 'fre_webhook_request_args', function( $args, $url, $payload, $entry_
 fre(): Form_Runtime_Engine
 
 // Register a form (use within fre_init hook)
-fre_register_form( string $form_id, array $config ): bool
+pforms_register_form( string $form_id, array $config ): bool
 
 // Get form configuration from registry
 fre_get_form( string $form_id ): ?array

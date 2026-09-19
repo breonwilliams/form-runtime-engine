@@ -436,7 +436,7 @@ class PForms_Connector_API {
                 'select'   => array(
                     'required_properties' => array( 'key', 'type', 'label', 'options' ),
                     'optional_properties' => array( 'placeholder', 'required', 'multiple', 'default', 'description' ),
-                    'notes'               => 'Dropdown. `options` must be non-empty. Options may be strings or {value,label} objects. Placeholder renders as the empty first option.',
+                    'notes'               => 'Dropdown. `options` must be non-empty. Options may be strings or {value,label} objects. Placeholder renders as the empty first option. Give every REQUIRED single select a placeholder: without one the browser preselects the first option, so required can never fail and a visitor who skips the question submits option one.',
                 ),
                 'radio'    => array(
                     'required_properties' => array( 'key', 'type', 'label', 'options' ),

@@ -255,13 +255,10 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
         // Single checkbox validation.
         if ( empty( $options ) ) {
             if ( ! empty( $field['required'] ) && empty( $value ) ) {
+                // Label-free: see PForms_Field_Type_Abstract::validate().
                 return new WP_Error(
                     'required_field',
-                    sprintf(
-                        /* translators: %s: field label */
-                        __( '%s must be checked.', 'promptless-forms' ),
-                        $this->get_label( $field )
-                    )
+                    __( 'Check this box to continue.', 'promptless-forms' )
                 );
             }
             return true;
@@ -269,13 +266,10 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
 
         // Checkbox group validation.
         if ( ! empty( $field['required'] ) && $this->is_empty( $value ) ) {
+            // Label-free: see PForms_Field_Type_Abstract::validate().
             return new WP_Error(
                 'required_field',
-                sprintf(
-                    /* translators: %s: field label */
-                    __( '%s requires at least one selection.', 'promptless-forms' ),
-                    $this->get_label( $field )
-                )
+                __( 'Choose at least one option.', 'promptless-forms' )
             );
         }
 

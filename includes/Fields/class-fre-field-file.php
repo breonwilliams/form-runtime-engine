@@ -131,13 +131,10 @@ class PForms_Field_File extends PForms_Field_Type_Abstract {
         // Check required.
         if ( ! empty( $field['required'] ) ) {
             if ( empty( $files ) || empty( $files['name'] ) ) {
+                // Label-free: see PForms_Field_Type_Abstract::validate().
                 return new WP_Error(
                     'required_field',
-                    sprintf(
-                        /* translators: %s: field label */
-                        __( '%s is required.', 'promptless-forms' ),
-                        $this->get_label( $field )
-                    )
+                    __( 'Choose a file to upload.', 'promptless-forms' )
                 );
             }
 
@@ -153,11 +150,7 @@ class PForms_Field_File extends PForms_Field_Type_Abstract {
                 if ( ! $has_file ) {
                     return new WP_Error(
                         'required_field',
-                        sprintf(
-                            /* translators: %s: field label */
-                            __( '%s is required.', 'promptless-forms' ),
-                            $this->get_label( $field )
-                        )
+                        __( 'Choose a file to upload.', 'promptless-forms' )
                     );
                 }
             }
