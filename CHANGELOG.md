@@ -33,6 +33,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`PForms_Connector_API::generated_schema_document()`): every rule the
   preflight is built from, by section, and the form JSON Schema, which the
   release does ship. The full knowledge map is still served where it exists.
+- **Missed-call leads from Twilio never reached the form's webhook.** The
+  handler's comment promised that creating the lead would send it (to
+  Google Sheets, per the Twilio guide); the dispatcher listens only to
+  `pforms_submission_complete`, which a missed call never fires. The lead is
+  now dispatched to its form's webhook directly — which for a Twilio client
+  IS the client's **Webhook URL** (`register_virtual_form()` saves it as the
+  client form's webhook) — signed, logged and
+  retried like any other. It does NOT fire `pforms_submission_complete`,
+  which would also start FlowMint workflows bound to the form. Forms without
+  a webhook are unaffected; filter `pforms_twilio_lead_webhook` turns it
+  off. Verified on Local; `tests/Unit/TwilioLeadWebhookTest.php` pins it.
 
 Found by the 2026-09-19 pressure test (a township site built through the
 four connectors on Local).

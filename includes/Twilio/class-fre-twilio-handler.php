@@ -441,9 +441,16 @@ class PForms_Twilio_Handler {
      * Create an FRE lead entry for a missed call.
      *
      * Creates the entry in the standard pforms_entries table with source
-     * metadata, so it appears in the same lead list as form submissions.
-     * The pforms_entry_created action fires automatically, triggering
-     * webhook dispatch to Google Sheets.
+     * metadata, so it appears in the same lead list as form submissions,
+     * then sends the form's webhook (e.g. to Google Sheets) for it.
+     *
+     * The webhook is dispatched DIRECTLY. Until 2026-09-19 this comment said
+     * pforms_entry_created would trigger it, but the dispatcher listens only
+     * to pforms_submission_complete, so missed-call leads never reached the
+     * client's sheet. Firing pforms_submission_complete instead would also
+     * start any FlowMint workflow bound to the form — a missed call is not a
+     * submission — so only the webhook is sent. Filter
+     * `pforms_twilio_lead_webhook` to turn it off.
      *
      * @param array  $client       Client configuration record.
      * @param string $caller_phone Caller's phone number.
@@ -473,6 +480,20 @@ class PForms_Twilio_Handler {
             PForms_Logger::info(
                 sprintf( 'Twilio: Created lead entry #%d for %s (caller: %s)', $entry_id, $client['client_name'], $caller_phone )
             );
+
+            /**
+             * Whether a missed-call lead is sent to its form's webhook.
+             *
+             * @param bool  $send     Default true (only sends when the form has a webhook).
+             * @param int   $entry_id Lead entry ID.
+             * @param array $client   Twilio client record.
+             */
+            if ( class_exists( 'PForms_Webhook_Dispatcher' )
+                && apply_filters( 'pforms_twilio_lead_webhook', true, $entry_id, $client ) ) {
+                // The dispatcher logs, signs and schedules retries itself; a
+                // failed send never undoes the lead.
+                PForms_Webhook_Dispatcher::dispatch( $entry_id, $client['form_id'], $data );
+            }
 
             return $entry_id;
 
