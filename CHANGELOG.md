@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The connector's schema route answered 404 on installs from the release
+  ZIP.** The ZIP leaves `docs/FRE_KNOWLEDGE_MAP.md` out (a wordpress.org
+  compliance exclusion), and `/fre/v1/connector/schema` served only that
+  file — while the preflight tells every assistant to "ALWAYS WebFetch" it.
+  Without the file the route now serves a generated rulebook
+  (`PForms_Connector_API::generated_schema_document()`): every rule the
+  preflight is built from, by section, and the form JSON Schema, which the
+  release does ship. The full knowledge map is still served where it exists.
+
 Found by the 2026-09-19 pressure test (a township site built through the
 four connectors on Local).
 
