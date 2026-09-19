@@ -26,6 +26,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 class PForms_Admin {
 
     /**
+     * Hook suffixes of this plugin's admin screens, as add_menu_page() and
+     * add_submenu_page() return them. The asset loader compares against these
+     * — the way the Connector and Twilio screens already do — instead of
+     * guessing from the page name.
+     *
+     * @var string[]
+     */
+    private $page_hooks = array();
+
+    /**
      * Constructor.
      */
     public function __construct() {
@@ -57,7 +67,7 @@ class PForms_Admin {
      */
     public function add_menu_pages() {
         // Main menu.
-        add_menu_page(
+        $this->page_hooks[] = add_menu_page(
             __( 'Form Entries', 'promptless-forms' ),
             __( 'Form Entries', 'promptless-forms' ),
             PForms_Capabilities::MANAGE_FORMS,
@@ -68,7 +78,7 @@ class PForms_Admin {
         );
 
         // Entry detail page (hidden from menu).
-        add_submenu_page(
+        $this->page_hooks[] = add_submenu_page(
             null,
             __( 'Entry Details', 'promptless-forms' ),
             __( 'Entry Details', 'promptless-forms' ),
@@ -78,7 +88,7 @@ class PForms_Admin {
         );
 
         // Export page.
-        add_submenu_page(
+        $this->page_hooks[] = add_submenu_page(
             'pforms-entries',
             __( 'Export Entries', 'promptless-forms' ),
             __( 'Export', 'promptless-forms' ),
@@ -88,7 +98,7 @@ class PForms_Admin {
         );
 
         // Forms management page.
-        add_submenu_page(
+        $this->page_hooks[] = add_submenu_page(
             'pforms-entries',
             __( 'Manage Forms', 'promptless-forms' ),
             __( 'Forms', 'promptless-forms' ),
@@ -98,7 +108,7 @@ class PForms_Admin {
         );
 
         // Settings page.
-        add_submenu_page(
+        $this->page_hooks[] = add_submenu_page(
             'pforms-entries',
             __( 'Settings', 'promptless-forms' ),
             __( 'Settings', 'promptless-forms' ),
@@ -215,8 +225,12 @@ class PForms_Admin {
      * @param string $hook Current admin page hook.
      */
     public function enqueue_admin_assets( $hook ) {
-        // Only load on our pages.
-        if ( strpos( $hook, 'fre-' ) === false && strpos( $hook, 'pforms_' ) === false ) {
+        // Only load on our pages. Until 2026-09-19 this matched the page NAME
+        // against 'fre-' / 'pforms_', which the 1.8.0 rename to 'pforms-…'
+        // slugs stopped matching — so admin.js and admin.css loaded on no
+        // screen, and Save Form, Delete, Copy, Test Connection, Preview
+        // Payload, Regenerate and the entry actions all did nothing.
+        if ( ! in_array( $hook, $this->page_hooks, true ) ) {
             return;
         }
 
@@ -325,7 +339,7 @@ class PForms_Admin {
             <?php endif; ?>
 
             <form method="get">
-                <input type="hidden" name="page" value="fre-entries" />
+                <input type="hidden" name="page" value="pforms-entries" />
                 <?php
                 $list_table->search_box( __( 'Search Entries', 'promptless-forms' ), 'fre-search' );
                 $list_table->display();

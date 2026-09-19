@@ -307,10 +307,11 @@ class PForms_Entries_List_Table extends WP_List_Table {
             return '<span class="dashicons dashicons-yes" style="color:#46b450;" title="' . esc_attr__( 'Sent', 'promptless-forms' ) . '"></span>';
         }
 
-        if ( isset( $item['notification_sent'] ) && $item['notification_sent'] === '0' ) {
-            $title = ! empty( $item['notification_error'] )
-                ? $item['notification_error']
-                : __( 'Failed', 'promptless-forms' );
+        // Failed only when a send was attempted: every failure path records
+        // notification_error. The column defaults to 0, so a form with
+        // notifications off used to show every entry as Failed.
+        if ( ! empty( $item['notification_error'] ) ) {
+            $title = $item['notification_error'];
 
             return '<span class="dashicons dashicons-warning" style="color:#d63638;" title="' . esc_attr( $title ) . '"></span>';
         }

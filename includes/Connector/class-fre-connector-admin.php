@@ -1,8 +1,8 @@
 <?php
 /**
- * Claude Connection admin page.
+ * Connector admin page.
  *
- * Lives under Form Entries → Claude Connection. Exposes:
+ * Lives under Form Entries → Connector. Exposes:
  *   - Connector enable toggle (gate 1).
  *   - Entry-read toggle (gate 2).
  *   - Generate / Revoke Connection (App Password).

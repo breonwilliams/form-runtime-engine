@@ -321,11 +321,11 @@ class PForms_Entry_Detail {
                     if ( ! empty( $entry['notification_sent_at'] ) ) {
                         echo ' <small>(' . esc_html( date_i18n( 'M j, g:i a', strtotime( $entry['notification_sent_at'] ) ) ) . ')</small>';
                     }
-                } elseif ( isset( $entry['notification_sent'] ) && $entry['notification_sent'] === '0' ) {
+                } elseif ( ! empty( $entry['notification_error'] ) ) {
+                    // Failed only when a send was attempted — see the list
+                    // table's notification column.
                     echo '<span style="color:#d63638;">' . esc_html__( 'Failed', 'promptless-forms' ) . '</span>';
-                    if ( ! empty( $entry['notification_error'] ) ) {
-                        echo '<br><small>' . esc_html( $entry['notification_error'] ) . '</small>';
-                    }
+                    echo '<br><small>' . esc_html( $entry['notification_error'] ) . '</small>';
                 } else {
                     echo esc_html__( 'Not sent', 'promptless-forms' );
                 }

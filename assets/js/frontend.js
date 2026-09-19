@@ -526,7 +526,10 @@
          * @returns {*} Field value.
          */
         getFieldValue(fieldKey) {
-            const name = `pforms_field_${fieldKey}`;
+            // Inputs are named with PHP's sanitize_key() of the field key —
+            // lowercase, [a-z0-9_-] only — so a rule naming `Service` must look
+            // up `pforms_field_service`. The original spelling found nothing.
+            const name = `pforms_field_${String(fieldKey).toLowerCase().replace(/[^a-z0-9_\-]/g, '')}`;
 
             // Check for radio buttons.
             const radios = this.form.querySelectorAll(`input[name="${name}"][type="radio"]`);

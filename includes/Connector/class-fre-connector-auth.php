@@ -109,7 +109,7 @@ class PForms_Connector_Auth {
         if ( ! PForms_Connector_Settings::is_enabled() ) {
             return new WP_Error(
                 'connector_disabled',
-                __( 'The Claude Cowork connector is not enabled on this site. A site administrator can enable it under Form Entries → Claude Connection.', 'promptless-forms' ),
+                __( 'The Claude Cowork connector is not enabled on this site. A site administrator can enable it under Form Entries → Connector.', 'promptless-forms' ),
                 array( 'status' => 403 )
             );
         }
@@ -118,7 +118,7 @@ class PForms_Connector_Auth {
         if ( ! is_user_logged_in() ) {
             return new WP_Error(
                 'rest_not_logged_in',
-                __( 'Authentication required. Use a WordPress Application Password generated through the Claude Connection admin page.', 'promptless-forms' ),
+                __( 'Authentication required. Use a WordPress Application Password generated through the Connector admin page.', 'promptless-forms' ),
                 array( 'status' => 401 )
             );
         }
@@ -136,7 +136,7 @@ class PForms_Connector_Auth {
         if ( $requires_entry_read && ! PForms_Connector_Settings::is_entry_read_enabled() ) {
             return new WP_Error(
                 'entry_access_disabled',
-                __( 'Entry read access is not enabled for the connector. A site administrator can enable it under Form Entries → Claude Connection.', 'promptless-forms' ),
+                __( 'Entry read access is not enabled for the connector. A site administrator can enable it under Form Entries → Connector.', 'promptless-forms' ),
                 array( 'status' => 403 )
             );
         }

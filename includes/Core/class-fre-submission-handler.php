@@ -334,8 +334,9 @@ class PForms_Submission_Handler {
         // on the AJAX path, which doesn't apply here.
         $prefixed_data = $this->prefix_field_keys( $data, $form_config );
 
-        // Validate.
-        $validation = $this->validator->validate( $form_config, $prefixed_data );
+        // Validate. No file-presence check: a programmatic submission (the
+        // connector's test submit, an integration) has no uploads to carry.
+        $validation = $this->validator->validate( $form_config, $prefixed_data, array( 'files' => false ) );
         if ( is_wp_error( $validation ) ) {
             return $validation;
         }

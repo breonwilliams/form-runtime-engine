@@ -106,19 +106,7 @@ class PForms_Field_Radio extends PForms_Field_Type_Abstract {
         $html .= '</fieldset>';
 
         // Wrap without the label (legend is used instead).
-        $classes = array( 'fre-field', 'fre-field--' . esc_attr( $this->type ) );
-        if ( ! empty( $field['required'] ) ) {
-            $classes[] = 'fre-field--required';
-        }
-        if ( ! empty( $field['css_class'] ) ) {
-            $classes[] = esc_attr( $field['css_class'] );
-        }
-
-        $wrapper = sprintf(
-            '<div class="%s" data-field-key="%s">',
-            implode( ' ', $classes ),
-            esc_attr( $field['key'] )
-        );
+        $wrapper = $this->wrapper_open_tag( $field );
 
         $wrapper .= $html;
 

@@ -36,10 +36,15 @@ class PForms_Validator {
      *
      * @param array $form_config Form configuration.
      * @param array $data        Submitted data.
+     * @param array $options     Optional. `files` (bool, default true): check
+     *                           that required file fields received a file. A
+     *                           programmatic submission cannot carry uploads,
+     *                           so process_submission() turns it off.
      * @return bool|WP_Error True if valid, WP_Error with all errors otherwise.
      */
-    public function validate( array $form_config, array $data ) {
+    public function validate( array $form_config, array $data, array $options = array() ) {
         $this->errors = array();
+        $check_files  = ! isset( $options['files'] ) || $options['files'];
 
         foreach ( $form_config['fields'] as $field ) {
             $field_type = $this->get_field_instance( $field['type'] );
@@ -53,8 +58,18 @@ class PForms_Validator {
                 continue;
             }
 
-            // Skip file fields (handled separately).
+            // File fields: the upload step checks type, size and content, but
+            // only for files that were sent — so a REQUIRED file field left
+            // empty used to pass, and the entry was stored without it. Check
+            // presence here, where every other required field is checked,
+            // so the error shows under the field.
             if ( $field_type->is_file_field() ) {
+                if ( $check_files
+                    && ! empty( $field['required'] )
+                    && PForms_Conditions::field_is_visible( $field, $form_config, $data )
+                    && ! self::file_was_sent( $field_type->get_name( $field ) ) ) {
+                    $this->errors[ $field['key'] ] = __( 'Choose a file to upload.', 'promptless-forms' );
+                }
                 continue;
             }
 
@@ -221,6 +236,27 @@ class PForms_Validator {
         $this->field_instances[ $type ] = new $class_name();
 
         return $this->field_instances[ $type ];
+    }
+
+    /**
+     * Whether the request carries at least one file for an input name.
+     *
+     * @param string $name Input name.
+     * @return bool
+     */
+    private static function file_was_sent( $name ) {
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Only the presence of a name is read here.
+        if ( empty( $_FILES[ $name ]['name'] ) ) {
+            return false;
+        }
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Only the presence of a name is read here.
+        $names = (array) $_FILES[ $name ]['name'];
+        foreach ( $names as $file_name ) {
+            if ( is_string( $file_name ) && '' !== $file_name ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
