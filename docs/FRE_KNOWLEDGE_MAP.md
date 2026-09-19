@@ -209,10 +209,7 @@ Form-level behavior is controlled via the `settings` object:
   "theme_variant": "dark",
   "notification": { ... },
   "spam_protection": { ... },
-  "multistep": { ... },
-  "webhook_enabled": false,
-  "webhook_url": "",
-  "webhook_preset": "custom"
+  "multistep": { ... }
 }
 ```
 
@@ -293,8 +290,8 @@ When `false`, every field renders with an em-dash (`—`) placeholder for empty 
 }
 ```
 
-- `honeypot` — hidden field bots fill in. Default true. The field name is **dynamically generated per form** as `_fre_website_url_<hmac-suffix>` — do not hard-code it into test submissions. `formengine_test_submit` via the connector handles this correctly; the warning is for any direct REST consumer that might imitate form posts.
-- `timing_check` + `min_submission_time` — blocks submissions made faster than this many seconds after form load. Default 3 seconds. Submissions under this window are **silently rejected** (no error surfaced to the user). Relevant for automated test flows that call `formengine_test_submit` immediately after create — either pass `options.dry_run = true` or insert a small delay.
+- `honeypot` — hidden field bots fill in. Default true. The field name is **dynamically generated per form** as `_pforms_website_url_<hmac-suffix>` — do not hard-code it into test submissions. `formengine_test_submit` via the connector handles this correctly; the warning is for any direct REST consumer that might imitate form posts.
+- `timing_check` + `min_submission_time` — refuses a browser submission made sooner than this many seconds after the form loaded. Default 3 seconds. The visitor sees "Please wait a moment before submitting." (the honeypot and duplicate checks are the silent ones). `formengine_test_submit` is not affected — programmatic submissions skip the honeypot and timing checks.
 - `rate_limit` — max N submissions per W seconds per IP. Default max=5, window=3600 (1 hour). Omit for no rate limit.
 
 ### 7.5 Webhook
@@ -304,6 +301,8 @@ When `false`, every field renders with an em-dash (`—`) placeholder for empty 
 "webhook_url": "https://hooks.zapier.com/...",
 "webhook_preset": "zapier"
 ```
+
+These are **top-level fields of `formengine_create_form` / `formengine_update_form`**, beside `config` — not keys inside `config.settings`, where they are ignored. The dispatcher reads only the saved form record, so a form registered in PHP cannot have a webhook.
 
 - `webhook_url` — HTTPS endpoint that receives submission payload POSTed as JSON. SSRF-protected at send time (private IP ranges rejected).
 - `webhook_preset` — `"custom"` (default), `"google_sheets"`, `"zapier"`, `"make"`. Preset drives the smart default for option-label resolution: **`google_sheets` resolves option values to labels** in the payload (the destination is typically a human-reviewed lead tracker where labels are easier to scan), while **`zapier`, `make`, `custom` emit raw values** by default (those typically feed machine-readable integrations that prefer stable identifiers that don't break when option labels are renamed).
@@ -380,11 +379,11 @@ If the form has multiple distinct logical groups (e.g. "Contact info" and "Messa
 
 ### 8.11 Dynamic honeypot field name
 
-The spam-protection honeypot field name is **not static**. FRE generates a per-form name of the form `_fre_website_url_<hmac-suffix>` at render time. Never hard-code it into a test submission: the server rejects any submission that fills it. When using `formengine_test_submit` via this connector, the handling is correct automatically — this warning is for any direct REST consumer that might imitate form posts.
+The spam-protection honeypot field name is **not static**. FRE generates a per-form name of the form `_pforms_website_url_<hmac-suffix>` at render time. Never hard-code it into a test submission: the server rejects any submission that fills it. When using `formengine_test_submit` via this connector, the handling is correct automatically — this warning is for any direct REST consumer that might imitate form posts.
 
 ### 8.12 Timing check silent-reject window
 
-`settings.spam_protection.min_submission_time` defaults to 3 seconds. Submissions posted faster than that are **silently rejected** (no error surfaced). Relevant for automated test flows that call `formengine_test_submit` immediately after create — either pass `options.dry_run: true` or insert a small delay before the test submit.
+`settings.spam_protection.min_submission_time` defaults to 3 seconds. A browser submission posted sooner is refused with "Please wait a moment before submitting." `formengine_test_submit` skips the honeypot and timing checks, so it needs no delay after creating a form.
 
 ### 8.13 AISB token inheritance
 

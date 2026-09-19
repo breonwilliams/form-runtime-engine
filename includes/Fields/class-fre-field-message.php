@@ -72,25 +72,16 @@ class PForms_Field_Message extends PForms_Field_Type_Abstract {
 
         $safe_content = wp_kses( $content, $allowed_html );
 
-        // Build classes.
-        $classes = array( 'fre-field', 'fre-field--message' );
-        if ( ! empty( $field['css_class'] ) ) {
-            $classes[] = esc_attr( $field['css_class'] );
-        }
-
-        // Message style variant.
+        // Type classes, plus the style variant.
+        $type_classes = array( 'fre-field--message' );
         if ( ! empty( $field['style'] ) ) {
             $valid_styles = array( 'info', 'warning', 'success', 'error' );
             if ( in_array( $field['style'], $valid_styles, true ) ) {
-                $classes[] = 'fre-field--message-' . esc_attr( $field['style'] );
+                $type_classes[] = 'fre-field--message-' . $field['style'];
             }
         }
 
-        $html = sprintf(
-            '<div class="%s" data-field-key="%s">',
-            implode( ' ', $classes ),
-            esc_attr( $field['key'] )
-        );
+        $html = $this->wrapper_open_tag( $field, $type_classes );
 
         // Optional heading.
         if ( ! empty( $field['label'] ) ) {

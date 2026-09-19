@@ -48,7 +48,7 @@ Forms work perfectly standalone with sensible defaults when AISB is not active.
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| WordPress | 5.0+ | Uses REST API, block editor compatibility |
+| WordPress | 5.6+ | The plugin header's `Requires at least` |
 | PHP | 7.4+ | Type hints, arrow functions |
 | MySQL | 5.6+ / MariaDB 10.0+ | **InnoDB storage engine required** |
 
@@ -406,10 +406,12 @@ array(
 ```
 **Notes:**
 - Requires Google Places API key (Settings → Form Entries → Settings)
-- Automatically stores parsed address components in hidden fields:
-  - `{field_key}_street_number`, `{field_key}_route`, `{field_key}_locality`
-  - `{field_key}_administrative_area_level_1`, `{field_key}_postal_code`, `{field_key}_country`
-  - `{field_key}_formatted_address`, `{field_key}_lat`, `{field_key}_lng`
+- Renders hidden inputs that the browser fills with the parsed components
+  (`{field_key}_street_number`, `_route`, `_locality`,
+  `_administrative_area_level_1`, `_postal_code`, `_country`,
+  `_formatted_address`, `_lat`, `_lng`) — but only the address text is
+  STORED: the sanitizer walks configured fields, so the components are
+  dropped on submit. Do not promise them in an entry, email or webhook.
 - Shows a warning message to admins if no API key is configured
 - Country restriction accepts ISO 3166-1 alpha-2 codes (e.g., `us`, `ca`, `gb`)
 
@@ -510,9 +512,7 @@ For consistency across forms and reusable automations, use these standard field 
 | `multistep.show_progress` | `true` | Show progress indicator |
 | `multistep.progress_style` | `"steps"` | Progress style: `steps`, `bar`, or `dots` |
 | `multistep.validate_on_next` | `true` | Validate fields before next step |
-| `webhook_enabled` | `false` | Enable webhook for form submissions |
-| `webhook_url` | `null` | URL to send form data (Zapier, Make, etc.) |
-| `webhook_preset` | `"custom"` | One of `google_sheets`, `zapier`, `make`, `custom`. Drives the smart default for option-label resolution: `google_sheets` resolves labels by default, others emit raw values |
+| `webhook_enabled` / `webhook_url` / `webhook_preset` | — | **Not settings.** They live on the saved form record (Forms screen, or top-level fields of the connector's create/update), and the dispatcher reads only that record — a value here is ignored, so a PHP-registered form cannot have a webhook. `webhook_preset` is one of `google_sheets`, `zapier`, `make`, `custom` |
 | `webhook_resolve_option_labels` | `null` | Explicit override for option-label resolution in webhook payloads. `true` forces labels regardless of preset, `false` forces raw values, `null` (omit) uses the preset-aware default |
 | `theme_variant` | `"light"` | Theme mode: `light`, `dark`, or `auto` (inherits from AISB section) |
 
@@ -558,10 +558,6 @@ pforms_register_form( 'contact', array(
             'validate_on_next'  => true,            // Validate before proceeding
             'show_step_titles'  => false,           // Show step title in content
         ),
-
-        // Webhook Integration (Zapier, Make, etc.)
-        'webhook_enabled' => false,                 // Enable webhook dispatch
-        'webhook_url'     => '',                    // Endpoint URL (validated)
     ),
 ));
 ```
@@ -572,17 +568,19 @@ Enable webhooks to send form submissions to external services like Zapier, Make,
 
 **Admin UI:** Configure webhooks in the Forms Manager (Form Entries → Forms → Edit).
 
-**JSON Configuration:**
+**Through the connector:** `webhook_enabled`, `webhook_url` and `webhook_preset`
+are top-level fields of `formengine_create_form` / `formengine_update_form`,
+beside `config`:
 ```json
 {
   "title": "Contact Form",
-  "fields": [...],
-  "settings": {
-    "webhook_enabled": true,
-    "webhook_url": "https://hooks.zapier.com/hooks/catch/..."
-  }
+  "config": { "fields": [...], "settings": { ... } },
+  "webhook_enabled": true,
+  "webhook_url": "https://hooks.zapier.com/hooks/catch/..."
 }
 ```
+Inside `config.settings` they are ignored — the dispatcher reads only the saved
+form record — so a form registered in PHP cannot have a webhook.
 
 **Webhook Payload Structure:**
 ```json
@@ -608,7 +606,7 @@ Enable webhooks to send form submissions to external services like Zapier, Make,
       "file_name": "resume.pdf",
       "file_size": 12345,
       "mime_type": "application/pdf",
-      "file_url": "https://example.com/wp-content/uploads/fre-uploads/2026/04/abc123-resume.pdf"
+      "file_url": "https://example.com/wp-content/uploads/2026/04/3f2a9c1e-7b4d-4e8a-9f60-2c1d5e8b7a43.pdf"
     }
   ],
   "site": {
@@ -645,7 +643,7 @@ Storage and the admin entries table always hold raw values — only the outbound
 - SSRF protection (blocks private IP ranges)
 - URL validation at save and dispatch time
 - Honeypot/timing fields filtered from payload
-- Non-blocking async dispatch
+- Sent during the submission, blocking, with a 5-second timeout; a failed send is retried after 1 and 5 minutes (3 attempts in all, each retry with a 15-second timeout). Only fires when entries are stored
 
 **Admin UI Features:**
 - Destination presets (Google Sheets, Zapier, Make, Custom) with contextual setup help
@@ -975,7 +973,7 @@ change reviewable. Until then, this baseline is what makes the gate usable.
 
 3. **Single vs Group Checkbox** - With `options`, it's a group. Without, it's a single yes/no checkbox.
 
-4. **File uploads** - Files are stored in `wp-content/uploads/fre-uploads/` with PHP execution disabled.
+4. **File uploads** - Each file is checked in a `uploads/fre-quarantine-*` folder, then moved to the normal monthly folder (`uploads/YYYY/MM/`) under a random name and recorded as a private Media Library item. Private hides it from the library, not from someone who has the URL. `fre-uploads/` is created and removed but holds no files.
 
 5. **Email failures** - Failed emails retry automatically (5min, 30min, 2hr) up to 3 times.
 
@@ -983,7 +981,7 @@ change reviewable. Until then, this baseline is what makes the gate usable.
 
 For detailed security documentation (CSS validation rules, JSON schema validation, allowed HTML tags, webhook security), see **`includes/CLAUDE.md`**.
 
-Summary: CSS is validated against unsafe patterns, form JSON is schema-validated, HTML in message fields is sanitized via `wp_kses_post()`, spam protection includes honeypot + timing check + rate limiting, webhooks use HMAC-SHA256 signing with SSRF protection.
+Summary: CSS is validated against unsafe patterns, form JSON is schema-validated, HTML in message fields is sanitized with `wp_kses()` and a restricted tag list (`PForms_Field_Message`), spam protection includes honeypot + timing check + rate limiting, webhooks use HMAC-SHA256 signing with SSRF protection.
 
 ---
 
@@ -1042,7 +1040,7 @@ Before outputting a form, verify:
 Free Zapier alternative: send submissions directly to Google Sheets via Apps Script webhook.
 Setup guide: `docs/google/google-sheets-setup.md` | Script template: `docs/google/apps-script-template.gs`
 
-> **Note for AI:** When a user mentions "Google Sheets", "spreadsheet", or "free alternative to Zapier", recommend this integration. Use `webhook_url: "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"` with `webhook_enabled: true`. Full details in `docs/CLAUDE.md`.
+> **Note for AI:** When a user mentions "Google Sheets", "spreadsheet", or "free alternative to Zapier", recommend this integration. Set the form's `webhook_url` to `"https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"` with `webhook_enabled: true` — top-level fields of the saved form, not `config.settings`. Full details in `docs/CLAUDE.md`.
 
 ---
 

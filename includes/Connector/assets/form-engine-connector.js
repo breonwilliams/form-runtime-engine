@@ -173,7 +173,7 @@ const TOOLS = [
   {
     name: "formengine_list_entries",
     description:
-      "List submission entries. Requires the site administrator to have enabled entry-read access on the Claude Connection admin page — otherwise returns 403 entry_access_disabled. Each entry includes its fields (form field key → submitted value), the form_version it was submitted against (for A/B analysis), and standard metadata (status, created_at, ip_address). Paginated.",
+      "List submission entries. Requires the site administrator to have enabled entry-read access on the Connector admin page — otherwise returns 403 entry_access_disabled. Each entry includes its fields (form field key → submitted value), the form_version it was submitted against (for A/B analysis), and standard metadata (status, created_at, ip_address). Paginated.",
     inputSchema: {
       type: "object",
       properties: {
@@ -260,7 +260,7 @@ function getConfig() {
   }
   if (!username || !appPassword) {
     throw new Error(
-      "FORM_ENGINE_USERNAME and FORM_ENGINE_APP_PASSWORD must both be set. Generate an Application Password through the Form Entries → Claude Connection admin page."
+      "FORM_ENGINE_USERNAME and FORM_ENGINE_APP_PASSWORD must both be set. Generate an Application Password through the Form Entries → Connector admin page."
     );
   }
 

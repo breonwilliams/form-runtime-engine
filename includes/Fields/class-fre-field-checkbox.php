@@ -58,19 +58,7 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
         $name    = $this->get_name( $field );
         $checked = ! empty( $value ) ? ' checked' : '';
 
-        $classes = array( 'fre-field', 'fre-field--checkbox', 'fre-field--checkbox-single' );
-        if ( ! empty( $field['required'] ) ) {
-            $classes[] = 'fre-field--required';
-        }
-        if ( ! empty( $field['css_class'] ) ) {
-            $classes[] = esc_attr( $field['css_class'] );
-        }
-
-        $html = sprintf(
-            '<div class="%s" data-field-key="%s">',
-            implode( ' ', $classes ),
-            esc_attr( $field['key'] )
-        );
+        $html = $this->wrapper_open_tag( $field, array( 'fre-field--checkbox', 'fre-field--checkbox-single' ) );
 
         $html .= sprintf(
             '<label class="fre-field__checkbox-label" for="%s">',
@@ -204,19 +192,7 @@ class PForms_Field_Checkbox extends PForms_Field_Type_Abstract {
         $html .= '</fieldset>';
 
         // Wrapper.
-        $classes = array( 'fre-field', 'fre-field--checkbox', 'fre-field--checkbox-group' );
-        if ( ! empty( $field['required'] ) ) {
-            $classes[] = 'fre-field--required';
-        }
-        if ( ! empty( $field['css_class'] ) ) {
-            $classes[] = esc_attr( $field['css_class'] );
-        }
-
-        $wrapper = sprintf(
-            '<div class="%s" data-field-key="%s">',
-            implode( ' ', $classes ),
-            esc_attr( $field['key'] )
-        );
+        $wrapper = $this->wrapper_open_tag( $field, array( 'fre-field--checkbox', 'fre-field--checkbox-group' ) );
 
         $wrapper .= $html;
 

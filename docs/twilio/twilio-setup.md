@@ -58,7 +58,7 @@ All endpoints are under the `fre-twilio/v1` namespace. All validate Twilio webho
 |----------|--------|---------|
 | `/incoming-call` | POST | Twilio sends this when someone calls the number. Returns TwiML with `<Dial>` to forward to owner. |
 | `/call-status` | POST | Twilio sends this after the `<Dial>` completes. If `DialCallStatus` is not `completed`, triggers SMS auto-reply. |
-| `/incoming-sms` | POST | Twilio sends this when an SMS is received. Logs the message and forwards to owner via email. |
+| `/incoming-sms` | POST | Twilio sends this when an SMS is received. Logs the message and forwards it to the owner by text message. |
 | `/sms-status` | POST | Twilio sends this with SMS delivery status updates. Updates the message record. |
 
 ### TwiML Response Handling
@@ -182,7 +182,7 @@ This is the plugin's TwiML error response. Check the WordPress error log for `Tw
 
 ### SMS not being delivered
 1. Check A2P 10DLC campaign status in Twilio Console → Trust Hub
-2. Check rate limits — default is 10/hour, 50/day per number
+2. Check rate limits — default is 50 texts an hour per number and 500 a day for the whole site (`PForms_SMS_Sender::DEFAULT_HOURLY_LIMIT` / `DEFAULT_DAILY_LIMIT`)
 3. Check `fre_twilio_messages` table for status = 'failed'
 4. Check Twilio Console → Monitor → Messaging Logs for carrier rejection codes
 

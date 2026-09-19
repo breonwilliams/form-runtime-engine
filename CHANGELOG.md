@@ -28,7 +28,64 @@ four connectors on Local).
   identifier, or if the knowledge map shows a shortcode that is not
   registered. Dated assessment and audit reports are left as history.
 
+### Fixed — found writing the documentation (2026-09-19)
+
+Each confirmed in the code and live on Local before changing it.
+
+- **The Forms admin screens had no script or stylesheet since 1.8.0.** The
+  loader matched the screen name against `fre-` / `pforms_`; the 1.8.0
+  rename made every screen `pforms-…`, which matches neither. Save Form,
+  Delete, Copy, Test Connection, Preview Payload, Regenerate and the entry
+  actions all did nothing. It now compares against the hook suffixes
+  WordPress returned when the screens were registered, the way the
+  Connector and Twilio screens already did. `tests/Unit/AdminAssetsTest.php`.
+- **Search, Filter and Bulk actions on the entries screen went to a page
+  that doesn't exist** (`page=fre-entries`).
+- **A required field inside a hidden section blocked the form.** The
+  browser hides the section and switches off its fields' `required`; the
+  server checked only each field's own conditions and refused the
+  submission for a field the visitor couldn't see. A field is now hidden
+  whenever its section is, for validation and for the values stripped
+  before storage.
+- **`contains` on a checkbox group dropped the visitor's answer.** The
+  browser matched against the ticked values; the server compared the word
+  "Array", treated the dependent field as hidden and stripped it. Lists now
+  compare as the browser does.
+- **A rule on a field key with a capital letter never matched**, in the
+  browser or on the server: inputs are named with `sanitize_key()` of the
+  key, and both evaluators looked up the original spelling.
+- **Conditions and `column` did nothing on radio, checkbox and message
+  fields.** Those built their own wrapper without `data-conditions` or the
+  column class; every field type now opens its wrapper through
+  `wrapper_open_tag()`. `tests/Unit/ConditionsParityTest.php`.
+- **A required file field wasn't enforced on the server**, so an entry
+  could be stored without the file. The validator now checks presence
+  (browser submissions only; a programmatic submission cannot carry
+  uploads) and shows "Choose a file to upload." under the field.
+- **`ajax="false"` lost every submission.** The form posted to the page,
+  where nothing reads it. Forms always submit through admin-ajax now; the
+  attribute is accepted and ignored.
+- **The entry's Email status said Failed when no email was attempted** —
+  on every entry of a form with notifications off. Failed now means an
+  error was recorded; otherwise it's "Not sent".
+- **Rulebook and reference corrections.** Webhook keys are top-level fields
+  of the connector's create/update, not `config.settings` (where they were
+  documented and are ignored); the timing check is not silent — the visitor
+  sees "Please wait a moment before submitting." — and the connector's
+  test submissions skip it; the honeypot is `_pforms_website_url_…`; the
+  webhook hint no longer claims HTTPS is required (http is accepted);
+  messages name the **Connector** screen, not "Claude Connection";
+  CLAUDE.md now says WordPress 5.6+, that uploads go to the monthly uploads
+  folder, that address components are not stored, that webhooks are sent
+  during the submission, and that message HTML uses a restricted list; the
+  Twilio guide's rate limits (50 an hour per number, 500 a day per site)
+  and SMS forwarding are corrected.
+
 ### Changed
+
+- **Multi-step forms validate each step on Next unless turned off**, as
+  documented. A missing `multistep.validate_on_next` used to mean off, so
+  visitors reached the last step past invalid fields.
 
 - **Required-field messages no longer repeat the field label.** They read
   "{label} is required." / "{label} must be checked.", which breaks on a

@@ -47,6 +47,19 @@ class PForms_Conditions {
             $visible = self::evaluate_conditions( $field['conditions'], $form_config, $data );
         }
 
+        // A field inside a section is hidden whenever its section is. The
+        // browser hides the section and switches off its fields' required
+        // flags; the server used to check only the field's own conditions, so
+        // a required field in a hidden section failed validation — an error
+        // on a field the visitor could not see, and a form that could not be
+        // submitted (found writing the documentation, 2026-09-19).
+        if ( $visible && ! empty( $field['section'] ) ) {
+            $section = self::find_section( (string) $field['section'], $form_config );
+            if ( $section && ! empty( $section['conditions'] ) ) {
+                $visible = self::evaluate_conditions( $section['conditions'], $form_config, $data );
+            }
+        }
+
         /**
          * Filter a field's computed visibility.
          *
@@ -83,7 +96,7 @@ class PForms_Conditions {
         }
 
         foreach ( $form_config['fields'] as $field ) {
-            if ( empty( $field['key'] ) || empty( $field['conditions'] ) ) {
+            if ( empty( $field['key'] ) || ( empty( $field['conditions'] ) && empty( $field['section'] ) ) ) {
                 continue;
             }
 
@@ -171,10 +184,10 @@ class PForms_Conditions {
                 return $field_value !== $value;
 
             case 'contains':
-                return strpos( strtolower( (string) $field_value ), strtolower( (string) $value ) ) !== false;
+                return strpos( strtolower( self::as_text( $field_value ) ), strtolower( (string) $value ) ) !== false;
 
             case 'not_contains':
-                return strpos( strtolower( (string) $field_value ), strtolower( (string) $value ) ) === false;
+                return strpos( strtolower( self::as_text( $field_value ) ), strtolower( (string) $value ) ) === false;
 
             case 'is_empty':
             case 'empty':
@@ -245,11 +258,56 @@ class PForms_Conditions {
             return $data[ $field_key ];
         }
 
-        $prefixed = 'pforms_field_' . $field_key;
+        // The input is named with sanitize_key() of the field key (lowercase),
+        // so a rule naming `Service` has to look up `pforms_field_service`.
+        // Looking up the original spelling made every rule on a key with a
+        // capital letter read an empty value.
+        $prefixed = 'pforms_field_' . sanitize_key( $field_key );
         if ( array_key_exists( $prefixed, $data ) ) {
             return $data[ $prefixed ];
         }
 
         return '';
+    }
+
+    /**
+     * A field value as the text the browser's evaluator compares: a list of
+     * checked boxes joins with commas, exactly as JavaScript's String(array)
+     * does. `contains` on a checkbox group used to compare the word "Array",
+     * so the browser showed a dependent field that the server then treated as
+     * hidden and stripped — the visitor's answer was silently dropped.
+     *
+     * @param mixed $value Field value.
+     * @return string
+     */
+    private static function as_text( $value ) {
+        if ( is_array( $value ) ) {
+            return implode( ',', array_map( 'strval', $value ) );
+        }
+        if ( is_bool( $value ) ) {
+            return $value ? 'true' : 'false';
+        }
+        return (string) $value;
+    }
+
+    /**
+     * The section entry a field names, if the form has one.
+     *
+     * @param string $section_key Section key.
+     * @param array  $form_config Form configuration.
+     * @return array|null
+     */
+    private static function find_section( $section_key, array $form_config ) {
+        if ( empty( $form_config['fields'] ) || ! is_array( $form_config['fields'] ) ) {
+            return null;
+        }
+        foreach ( $form_config['fields'] as $candidate ) {
+            if ( isset( $candidate['type'], $candidate['key'] )
+                && 'section' === $candidate['type']
+                && (string) $candidate['key'] === $section_key ) {
+                return $candidate;
+            }
+        }
+        return null;
     }
 }

@@ -388,40 +388,7 @@ abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
      * @return string
      */
     protected function render_wrapper( array $field, $form_id, $input ) {
-        $classes = array( 'fre-field', 'fre-field--' . esc_attr( $this->type ) );
-
-        if ( ! empty( $field['required'] ) ) {
-            $classes[] = 'fre-field--required';
-        }
-
-        if ( ! empty( $field['css_class'] ) ) {
-            $classes[] = esc_attr( $field['css_class'] );
-        }
-
-        // Column layout class.
-        if ( ! empty( $field['column'] ) ) {
-            $column_class = $this->get_column_class( $field['column'] );
-            if ( $column_class ) {
-                $classes[] = $column_class;
-            }
-        }
-
-        // Build data attributes.
-        $data_attrs = sprintf( 'data-field-key="%s"', esc_attr( $field['key'] ) );
-
-        // Conditional logic data attribute.
-        if ( ! empty( $field['conditions'] ) ) {
-            $data_attrs .= sprintf(
-                ' data-conditions="%s"',
-                esc_attr( wp_json_encode( $field['conditions'] ) )
-            );
-        }
-
-        $html = sprintf(
-            '<div class="%s" %s>',
-            implode( ' ', $classes ),
-            $data_attrs
-        );
+        $html = $this->wrapper_open_tag( $field );
 
         // Label.
         if ( ! empty( $field['label'] ) ) {
@@ -450,6 +417,60 @@ abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
         $html .= '</div>';
 
         return $html;
+    }
+
+    /**
+     * The opening tag of a field's wrapper: the classes (type, required,
+     * css_class, column) and the data attributes (key, conditions) that the
+     * stylesheet and the conditional-logic script read.
+     *
+     * Every field type opens its wrapper here. Radio, checkbox and message
+     * used to build their own, without `data-conditions` or the column class,
+     * so a condition on one of them never hid it in the browser and `column`
+     * did nothing (found writing the documentation, 2026-09-19).
+     *
+     * @param array    $field         Field configuration.
+     * @param string[] $type_classes  Classes naming the type; defaults to
+     *                                `fre-field--{type}`.
+     * @return string
+     */
+    protected function wrapper_open_tag( array $field, array $type_classes = array() ) {
+        if ( empty( $type_classes ) ) {
+            $type_classes = array( 'fre-field--' . $this->type );
+        }
+        $classes = array_merge( array( 'fre-field' ), $type_classes );
+
+        if ( ! empty( $field['required'] ) ) {
+            $classes[] = 'fre-field--required';
+        }
+
+        if ( ! empty( $field['css_class'] ) ) {
+            $classes[] = $field['css_class'];
+        }
+
+        // Column layout class.
+        if ( ! empty( $field['column'] ) ) {
+            $column_class = $this->get_column_class( $field['column'] );
+            if ( $column_class ) {
+                $classes[] = $column_class;
+            }
+        }
+
+        $data_attrs = sprintf( 'data-field-key="%s"', esc_attr( $field['key'] ) );
+
+        // Conditional logic data attribute.
+        if ( ! empty( $field['conditions'] ) ) {
+            $data_attrs .= sprintf(
+                ' data-conditions="%s"',
+                esc_attr( wp_json_encode( $field['conditions'] ) )
+            );
+        }
+
+        return sprintf(
+            '<div class="%s" %s>',
+            esc_attr( implode( ' ', $classes ) ),
+            $data_attrs
+        );
     }
 
     /**

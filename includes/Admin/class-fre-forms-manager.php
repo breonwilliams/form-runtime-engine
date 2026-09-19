@@ -450,7 +450,7 @@ class PForms_Forms_Manager {
                                             placeholder="https://"
                                         >
                                         <p class="description">
-                                            <?php esc_html_e( 'Enter the full webhook URL. Must use HTTPS.', 'promptless-forms' ); ?>
+                                            <?php esc_html_e( 'Enter the full webhook URL. Use HTTPS: a plain http address is accepted, but entries are then sent unencrypted.', 'promptless-forms' ); ?>
                                         </p>
                                     </div>
 

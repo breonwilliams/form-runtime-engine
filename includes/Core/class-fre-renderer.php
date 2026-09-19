@@ -114,14 +114,20 @@ class PForms_Renderer {
         $has_file_field = $this->has_file_field( $form );
 
         // Build data attributes.
-        $data_attrs = sprintf( 'data-form-id="%s"', esc_attr( $form_id ) );
-        if ( $args['ajax'] ) {
-            $data_attrs .= ' data-ajax="true"';
-        }
+        // Always submitted through admin-ajax, the only submission handler.
+        // `ajax => false` (the shortcode's ajax="false") used to let the
+        // browser post the form to the page itself, where nothing reads it —
+        // the visitor saw the page reload and the submission was lost. The
+        // argument is accepted and ignored.
+        $data_attrs  = sprintf( 'data-form-id="%s"', esc_attr( $form_id ) );
+        $data_attrs .= ' data-ajax="true"';
         if ( $is_multistep ) {
             $data_attrs .= sprintf( ' data-steps="%d"', count( $form['steps'] ) );
             $multistep_settings = isset( $settings['multistep'] ) ? $settings['multistep'] : array();
-            if ( ! empty( $multistep_settings['validate_on_next'] ) ) {
+            // On unless turned off, as documented. A missing value used to
+            // mean off, so visitors could reach the last step past invalid
+            // fields and only then see the errors.
+            if ( ! isset( $multistep_settings['validate_on_next'] ) || ! empty( $multistep_settings['validate_on_next'] ) ) {
                 $data_attrs .= ' data-validate-steps="true"';
             }
         }
