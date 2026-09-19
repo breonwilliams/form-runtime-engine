@@ -245,11 +245,11 @@ class PForms_Validator {
      * @return bool
      */
     private static function file_was_sent( $name ) {
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Only the presence of a name is read here.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Missing -- Only the presence of a name is read; each caller authenticates first (the form post checks its nonce, the connector its credentials).
         if ( empty( $_FILES[ $name ]['name'] ) ) {
             return false;
         }
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Only the presence of a name is read here.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Missing -- Only the presence of a name is read; each caller authenticates first (the form post checks its nonce, the connector its credentials).
         $names = (array) $_FILES[ $name ]['name'];
         foreach ( $names as $file_name ) {
             if ( is_string( $file_name ) && '' !== $file_name ) {
