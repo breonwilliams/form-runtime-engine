@@ -383,6 +383,7 @@ class PForms_Entries_List_Table extends WP_List_Table {
             'mark_read'   => __( 'Mark as Read', 'promptless-forms' ),
             'mark_unread' => __( 'Mark as Unread', 'promptless-forms' ),
             'mark_spam'   => __( 'Mark as Spam', 'promptless-forms' ),
+            'not_spam'    => __( 'Mark as Not Spam', 'promptless-forms' ),
             'delete'      => __( 'Delete', 'promptless-forms' ),
         );
     }
@@ -421,6 +422,9 @@ class PForms_Entries_List_Table extends WP_List_Table {
                     break;
                 case 'mark_spam':
                     $entry_repo->mark_spam( $entry_id );
+                    break;
+                case 'not_spam':
+                    $entry_repo->mark_not_spam( $entry_id );
                     break;
                 case 'delete':
                     $entry_repo->delete( $entry_id );

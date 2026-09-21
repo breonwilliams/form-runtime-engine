@@ -831,12 +831,19 @@ class PForms_Renderer {
         $field_name = $honeypot->get_field_name( $form_id );
 
         // Hidden via CSS, not hidden input type (bots might skip hidden inputs).
+        //
+        // Nothing in the name, id or label may look like a real field: autofill
+        // matches words such as "website", "url", "email" or "phone", and a
+        // filled honeypot means the submission is treated as spam. The data-*
+        // attributes are the documented opt-outs of 1Password, LastPass,
+        // Bitwarden and Dashlane.
         return sprintf(
             '<div class="fre-form__hp" aria-hidden="true" style="position:absolute;left:-9999px;height:0;overflow:hidden;">
-                <label for="%1$s">Website (leave blank)</label>
-                <input type="text" name="%1$s" id="%1$s" value="" tabindex="-1" autocomplete="off" />
+                <label for="%1$s">%2$s</label>
+                <input type="text" name="%1$s" id="%1$s" value="" tabindex="-1" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-bwignore="true" data-form-type="other" />
             </div>',
-            esc_attr( $field_name )
+            esc_attr( $field_name ),
+            esc_html__( 'Leave this empty', 'promptless-forms' )
         );
     }
 

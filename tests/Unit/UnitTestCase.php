@@ -93,9 +93,12 @@ abstract class UnitTestCase extends TestCase {
             return trim( $string );
         });
 
-        Functions\when( 'wp_unslash' )->alias( function( $value ) {
-            return is_array( $value ) ? array_map( 'stripslashes_deep', $value ) : stripslashes( $value );
-        });
+        // Recursive, like core's wp_unslash() (stripslashes_deep() is not
+        // loaded in unit tests, so the array branch used to fatal).
+        $unslash = function( $value ) use ( &$unslash ) {
+            return is_array( $value ) ? array_map( $unslash, $value ) : ( is_string( $value ) ? stripslashes( $value ) : $value );
+        };
+        Functions\when( 'wp_unslash' )->alias( $unslash );
 
         Functions\when( 'esc_html' )->alias( function( $str ) {
             return htmlspecialchars( $str, ENT_QUOTES, 'UTF-8' );

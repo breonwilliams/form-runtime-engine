@@ -436,6 +436,22 @@ class PForms_Entry {
     }
 
     /**
+     * Mark entry as not spam (restore an entry the spam checks flagged).
+     *
+     * Restoring does not send the notification or run workflows: the
+     * submission is shown in Entries like any other, and anything that
+     * should follow it is done from there.
+     *
+     * @since 1.11.0
+     *
+     * @param int $entry_id Entry ID.
+     * @return bool True on success.
+     */
+    public function mark_not_spam( $entry_id ) {
+        return $this->update( $entry_id, array( 'is_spam' => 0 ) );
+    }
+
+    /**
      * Count entries for a form.
      *
      * @param string $form_id Form ID.
