@@ -66,7 +66,7 @@ Yes. Define a `steps` array in your form configuration and assign each field to 
 
 = Where are uploaded files stored? =
 
-Uploaded files are stored in `/wp-content/uploads/fre-uploads/` with PHP execution disabled. Filenames are randomized (UUIDs) to prevent guessing. File types are validated by extension AND magic byte signature.
+Uploaded files are added to the Media Library in the normal uploads folder (`/wp-content/uploads/YYYY/MM/`) under a random name, so they cannot be guessed. Before a file is saved, it waits in a protected holding folder while it is checked: the extension must be allowed, the real file type must match, the file header must be right, images must open, and the file may not contain PHP code. SVG files are also checked for scripts.
 
 == External Services ==
 

@@ -1,6 +1,6 @@
 # Form Runtime Engine — Connector Knowledge Map
 
-**Date:** 2026-04-21
+**Date:** 2026-09-21 (1.11.0: duplicates, uploads, honeypot)
 **Status:** Draft
 **Audience:** Any Claude (or other LLM) consumer session using the FRE connector to create, update, or read forms on a WordPress site. Also: plugin engineers maintaining the connector rules.
 **Companion docs:**
@@ -58,7 +58,7 @@ FRE supports thirteen field types. All accept the universal base properties in P
 | `select` | Dropdown | `options` (required, at least 1), `multiple`, `placeholder` (renders an empty first option — see the required-select rule below) |
 | `radio` | Radio button group | `options` (required, at least 1), `inline` (render horizontally) |
 | `checkbox` | Single boolean OR checkbox group | `options` (optional — present for group, omitted for single boolean), `inline` |
-| `file` | File upload | `allowed_types` (array of extensions), `max_size` (bytes, default 5MB), `multiple` |
+| `file` | File upload | `allowed_types` (array of extensions), `max_size` (bytes, default 5MB; the server's upload limit wins if lower), `multiple`. Design formats `ai`, `eps`, `dst` and `svg` work out of the box — `svg` only when listed here, and every SVG is checked for scripts. Notification emails attach files up to 10 MB in total and link the rest |
 | `hidden` | Hidden input | `default` (the hidden value) |
 | `message` | Inline instructional content | `content` (HTML, sanitized with `wp_kses_post`) OR `label`; `style` (info/warning/success/error) |
 | `section` | Visual section header to group fields | `label` (the header text) |
@@ -290,8 +290,8 @@ When `false`, every field renders with an em-dash (`—`) placeholder for empty 
 }
 ```
 
-- `honeypot` — hidden field bots fill in. Default true. The field name is **dynamically generated per form** as `_pforms_website_url_<hmac-suffix>` — do not hard-code it into test submissions. `formengine_test_submit` via the connector handles this correctly; the warning is for any direct REST consumer that might imitate form posts.
-- `timing_check` + `min_submission_time` — refuses a browser submission made sooner than this many seconds after the form loaded. Default 3 seconds. The visitor sees "Please wait a moment before submitting." (the honeypot and duplicate checks are the silent ones). `formengine_test_submit` is not affected — programmatic submissions skip the honeypot and timing checks.
+- `honeypot` — hidden field bots fill in. Default true. The field name is **dynamically generated per form** as `_pforms_hp_<hmac-suffix>` (1.11.0+; the older `_pforms_website_url_<hmac-suffix>` is still recognised) — do not hard-code it into test submissions. A submission that fills it is shown the normal success message and **kept as a spam entry** (no notification, webhook or workflow); the site owner can restore it with **Mark as Not Spam**. `formengine_test_submit` via the connector handles this correctly; the warning is for any direct REST consumer that might imitate form posts.
+- `timing_check` + `min_submission_time` — refuses a browser submission made sooner than this many seconds after the form loaded. Default 3 seconds. The visitor sees "Please wait a moment before submitting." (the honeypot is the silent one; a second copy of the same submission gets the first copy's success message once it is saved, or "Your first attempt is still being processed…" while it is not). `formengine_test_submit` is not affected — programmatic submissions skip the honeypot and timing checks.
 - `rate_limit` — max N submissions per W seconds per IP. Default max=5, window=3600 (1 hour). Omit for no rate limit.
 
 ### 7.5 Webhook
@@ -379,7 +379,7 @@ If the form has multiple distinct logical groups (e.g. "Contact info" and "Messa
 
 ### 8.11 Dynamic honeypot field name
 
-The spam-protection honeypot field name is **not static**. FRE generates a per-form name of the form `_pforms_website_url_<hmac-suffix>` at render time. Never hard-code it into a test submission: the server rejects any submission that fills it. When using `formengine_test_submit` via this connector, the handling is correct automatically — this warning is for any direct REST consumer that might imitate form posts.
+The spam-protection honeypot field name is **not static**. FRE generates a per-form name of the form `_pforms_hp_<hmac-suffix>` at render time (before 1.11.0: `_pforms_website_url_<hmac-suffix>`, still recognised for cached pages). Never hard-code it into a test submission: the server stores any submission that fills it as spam, and nothing downstream runs. When using `formengine_test_submit` via this connector, the handling is correct automatically — this warning is for any direct REST consumer that might imitate form posts.
 
 ### 8.12 Timing check silent-reject window
 
