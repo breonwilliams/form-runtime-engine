@@ -433,6 +433,12 @@ final class Promptless_Forms {
             array(
                 'url'   => admin_url( 'admin-ajax.php' ),
                 'nonce' => wp_create_nonce( 'pforms_ajax_nonce' ),
+                'i18n'  => array(
+                    /* translators: %s: allowed file types, e.g. "png, jpg, pdf" */
+                    'fileType' => __( 'This type of file is not accepted here. Allowed file types: %s', 'promptless-forms' ),
+                    /* translators: %s: size limit, e.g. "25 MB" */
+                    'fileSize' => __( 'This file is larger than %s. Please choose a smaller file.', 'promptless-forms' ),
+                ),
             )
         );
     }

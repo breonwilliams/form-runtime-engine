@@ -78,6 +78,7 @@ class PForms_Autoloader {
 
         // Upload classes.
         'PForms_Upload_Handler'      => 'Uploads/class-fre-upload-handler.php',
+        'PForms_Upload_Inspector'    => 'Uploads/class-fre-upload-inspector.php',
         'PForms_Mime_Validator'      => 'Uploads/class-fre-mime-validator.php',
 
         // Notification classes.
