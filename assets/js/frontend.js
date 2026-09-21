@@ -97,6 +97,15 @@
             // Handle form submission.
             this.form.addEventListener('submit', (e) => this.handleSubmit(e));
 
+            // A page restored from the back/forward cache keeps its JavaScript
+            // state, including a submit lock taken just before it navigated
+            // away. Without this the visitor comes back to a dead button.
+            window.addEventListener('pageshow', (e) => {
+                if (e.persisted) {
+                    this.setSubmitting(false);
+                }
+            });
+
             // Clear field errors on input.
             this.form.querySelectorAll('.fre-field__input, .fre-field__textarea, .fre-field__select').forEach(input => {
                 input.addEventListener('input', () => this.clearFieldError(input));
@@ -721,11 +730,22 @@
                 return;
             }
 
+            // Lock NOW, before anything is awaited.
+            //
+            // The lock used to be taken inside submitForm(), which runs only
+            // after the nonce refresh below. That refresh takes 0.5-2 seconds
+            // on a phone, so a second tap in that window passed the check
+            // above and sent the form a second time; both answers then
+            // stacked on screen. Found on a live site as a red "dangerous
+            // content" error next to a green "Thanks" (2026-09-21).
+            this.setSubmitting(true);
+
             // Clear previous messages.
             this.clearMessages();
             this.clearAllErrors();
 
-            // If not AJAX, let the form submit normally.
+            // If not AJAX, let the form submit normally. The lock stays set:
+            // the page is navigating away, and a second tap must not post again.
             if (!this.isAjax) {
                 return;
             }
@@ -758,24 +778,57 @@
                 }
             }
 
-            this.submitForm();
+            await this.submitForm();
         }
 
         /**
-         * Submit form via AJAX.
+         * Put the form into (or out of) its submitting state: the lock, the
+         * disabled button and the loading label, always together.
+         *
+         * @param {boolean} submitting Whether a submission is in flight.
          */
-        async submitForm() {
+        setSubmitting(submitting) {
+            this.isSubmitting = submitting;
+
             const submitBtn = this.form.querySelector('[type="submit"]');
+            if (!submitBtn) return;
+
             const submitText = submitBtn.querySelector('.fre-form__submit-text');
             const submitLoading = submitBtn.querySelector('.fre-form__submit-loading');
 
-            // Set submitting state.
-            this.isSubmitting = true;
-            submitBtn.disabled = true;
+            submitBtn.disabled = submitting;
+            if (submitText) submitText.style.display = submitting ? 'none' : '';
+            if (submitLoading) submitLoading.style.display = submitting ? 'inline-flex' : 'none';
+        }
 
-            if (submitText) submitText.style.display = 'none';
-            if (submitLoading) submitLoading.style.display = 'inline-flex';
+        /**
+         * Submit form via AJAX, including the one transparent retry after an
+         * expired nonce. The submitting state is released only when the
+         * whole exchange is over.
+         *
+         * The retry used to be started from inside the first request's error
+         * handler without being awaited, so the first request's `finally`
+         * re-enabled the button while the retry was still in flight: the
+         * double-tap window, reopened.
+         */
+        async submitForm() {
+            this.setSubmitting(true);
+            try {
+                while (await this.sendSubmission() === 'retry') {
+                    // handleError() asked for the single nonce retry.
+                }
+            } finally {
+                this.setSubmitting(false);
+            }
+        }
 
+        /**
+         * Send the submission once.
+         *
+         * @returns {Promise<string>} 'retry' when the caller should send again
+         *                            (fresh nonce received), otherwise 'done'.
+         */
+        async sendSubmission() {
             // Fix #4: Generate submission UUID for idempotency (reuse if retrying).
             if (!this.currentSubmissionId) {
                 this.currentSubmissionId = generateUUID();
@@ -792,6 +845,16 @@
             // file after a rejection they did not cause.
             this.form.querySelectorAll('input[type="file"]').forEach((input) => {
                 if (!input.name) return;
+                // A file on a field the visitor has hidden (by a condition, or
+                // in a hidden section) is not part of the submission. It used
+                // to be sent anyway, and a refused file the visitor could no
+                // longer see or remove blocked the form. The server skips such
+                // fields too; not sending them also saves the upload.
+                if (input.closest('.fre-field--hidden, .fre-section--hidden')) {
+                    formData.delete(input.name);
+                    formData.delete(input.name + '[]');
+                    return;
+                }
                 if (input.files && input.files.length) {
                     this.retainedFiles.set(input.name, Array.from(input.files));
                     return;
@@ -842,14 +905,14 @@
                     result = JSON.parse(raw);
                 } catch (parseError) {
                     this.handleTransportFailure(response.status, response.statusText, raw);
-                    return;
+                    return 'done';
                 }
 
                 // A JSON body that is not OUR envelope is equally unusable —
                 // some proxies return JSON error documents of their own.
                 if (!result || typeof result.success === 'undefined') {
                     this.handleTransportFailure(response.status, response.statusText, raw);
-                    return;
+                    return 'done';
                 }
 
                 if (result.success) {
@@ -878,26 +941,21 @@
                     // Handle redirect.
                     if (result.data.redirect) {
                         window.location.href = result.data.redirect;
-                        return;
+                        return 'done';
                     }
 
                     // Scroll to message.
                     this.scrollToMessages();
-                } else {
-                    this.handleError(result.data);
+                    return 'done';
                 }
+
+                return this.handleError(result.data) ? 'retry' : 'done';
             } catch (error) {
                 // fetch() itself rejected: the request never completed. The
                 // server may still have received and processed it, so this is
                 // deliberately NOT reported as a clean failure.
                 this.handleTransportFailure(null, error && error.message, null);
-            } finally {
-                // Reset button state.
-                this.isSubmitting = false;
-                submitBtn.disabled = false;
-
-                if (submitText) submitText.style.display = '';
-                if (submitLoading) submitLoading.style.display = 'none';
+                return 'done';
             }
         }
 
@@ -948,6 +1006,13 @@
             this.scrollToMessages();
         }
 
+        /**
+         * Show a failed submission's errors.
+         *
+         * @param {Object} data Error data from the server.
+         * @returns {boolean} True when the caller should send the submission
+         *                    again (the single retry after an expired nonce).
+         */
         handleError(data) {
             // Handle nonce expiration.
             if (data.code === 'nonce_expired') {
@@ -977,8 +1042,7 @@
                 if (!this.nonceRetryUsed) {
                     this.nonceRetryUsed = true;
                     this.clearMessages();
-                    this.submitForm();
-                    return;
+                    return true;
                 }
             }
 
@@ -999,6 +1063,7 @@
             // Show general error message.
             this.showMessage('error', data.message);
             this.scrollToMessages();
+            return false;
         }
 
         /**
@@ -1055,6 +1120,11 @@
         showMessage(type, message) {
             const container = this.form.querySelector('.fre-form__messages');
             if (!container) return;
+
+            // One outcome at a time. Messages used to be appended, so an error
+            // from one request and a success from another sat side by side and
+            // the visitor could not tell which was true.
+            container.innerHTML = '';
 
             const messageEl = document.createElement('div');
             messageEl.className = `fre-form__message fre-form__message--${type}`;

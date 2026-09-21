@@ -481,103 +481,38 @@ class PForms_Entry {
     }
 
     /**
-     * Check if duplicate submission within time window.
+     * Claim the duplicate window for this content, or report that it is taken.
      *
-     * Fix #8: Atomic timeout handling to prevent orphaned records.
-     * Fix #11: Uses atomic INSERT IGNORE for race condition protection.
-     * Fix #20: Uses SHA-256 instead of MD5.
+     * Kept for back-compat; the submission handler uses PForms_Submission_Lock
+     * directly so it can tell a RECEIVED duplicate from one still in flight.
+     * A true return here means only "someone holds this window" — callers
+     * must not treat it as proof that anything was stored.
+     *
+     * @deprecated 1.11.0 Use PForms_Submission_Lock::claim() with
+     *             PForms_Submission_Lock::duplicate_key().
      *
      * @param string $form_id Form ID.
      * @param array  $data    Submission data.
      * @param int    $window  Time window in seconds (default: 60).
-     * @return bool True if duplicate.
+     * @return bool True if the window was already held.
      */
     public function is_duplicate( $form_id, array $data, $window = 60 ) {
-        global $wpdb;
+        $lock = new PForms_Submission_Lock();
 
-        // Fix #20: Use SHA-256 instead of MD5.
-        $hash        = hash( 'sha256', $form_id . wp_json_encode( $data ) );
-        $key         = 'pforms_submission_' . $hash;
-        $option_name = '_transient_' . $key;
-        $timeout_key = '_transient_timeout_' . $key;
-        $expiry_time = time() + $window;
-
-        // Fix #8: Insert both the transient and timeout atomically in a single transaction.
-        // This prevents orphaned transients if the process crashes between operations.
-        $wpdb->query( 'START TRANSACTION' );
-
-        try {
-            // Fix #11: Use INSERT IGNORE for atomic duplicate checking.
-            // If the row already exists, INSERT IGNORE returns 0 affected rows.
-            $result = $wpdb->query( $wpdb->prepare(
-                "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload)
-                 VALUES (%s, %d, 'no')",
-                $option_name,
-                $expiry_time  // Store expiry time as value for self-documenting records.
-            ) );
-
-            if ( $result === 0 ) {
-                // Row already exists - check if it's expired.
-                $existing_expiry = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
-                    $option_name
-                ) );
-
-                if ( $existing_expiry !== null && (int) $existing_expiry < time() ) {
-                    // Expired - update it and allow submission.
-                    $wpdb->query( $wpdb->prepare(
-                        "UPDATE {$wpdb->options} SET option_value = %d WHERE option_name = %s",
-                        $expiry_time,
-                        $option_name
-                    ) );
-                    $wpdb->query( 'COMMIT' );
-                    return false;
-                }
-
-                // Not expired - this is a duplicate.
-                $wpdb->query( 'COMMIT' );
-                return true;
-            }
-
-            // Successfully inserted new record.
-            // Fix #8: Also insert timeout in same transaction for compatibility with WP transient cleanup.
-            $wpdb->query( $wpdb->prepare(
-                "INSERT INTO {$wpdb->options} (option_name, option_value, autoload)
-                 VALUES (%s, %d, 'no')
-                 ON DUPLICATE KEY UPDATE option_value = %d",
-                $timeout_key,
-                $expiry_time,
-                $expiry_time
-            ) );
-
-            $wpdb->query( 'COMMIT' );
-            return false;
-
-        } catch ( Exception $e ) {
-            $wpdb->query( 'ROLLBACK' );
-            PForms_Logger::error( 'Duplicate Check Error: ' . $e->getMessage() );
-            return false; // Fail open on error.
-        }
+        return true !== $lock->claim( PForms_Submission_Lock::duplicate_key( $form_id, $data ), (int) $window );
     }
 
     /**
-     * Clean up expired duplicate detection transients.
+     * Delete expired duplicate and idempotency guard rows.
      *
-     * This should be called periodically via WP Cron.
+     * @deprecated 1.11.0 Use PForms_Submission_Lock::cleanup_expired(), which
+     *             also runs on its own during submissions.
      *
-     * @return int Number of expired records cleaned.
+     * @return int Number of rows deleted.
      */
     public function cleanup_expired_duplicates() {
-        global $wpdb;
+        $lock = new PForms_Submission_Lock();
 
-        $result = $wpdb->query( $wpdb->prepare(
-            "DELETE FROM {$wpdb->options}
-             WHERE option_name LIKE %s
-             AND CAST(option_value AS UNSIGNED) < %d",
-            '_transient_pforms_submission_%',
-            time()
-        ) );
-
-        return $result !== false ? $result : 0;
+        return $lock->cleanup_expired();
     }
 }
