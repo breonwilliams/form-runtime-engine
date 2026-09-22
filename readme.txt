@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.10.1
+Stable tag: 1.11.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,13 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.11.0 =
+* Fixed: real photos, PDFs and Adobe Illustrator files were refused with "File contains potentially dangerous content." Uploads are now checked for what each file type can actually hide; program code is still refused, and every message says what to do. SVG (on fields that list it) and EPS files with a preview are accepted.
+* Fixed: a double tap, or a retry on a host with a persistent object cache, could show "Thanks" while nothing was saved. The button locks on the first tap, and a repeat is told "thanks" only once the first copy is saved.
+* Fixed: apostrophes gained a backslash (O\'Brien) in entries, emails, webhooks and workflows.
+* Changed: a submission caught by the honeypot is kept as a spam entry (no email, webhook or workflow) and can be restored with Mark as Not Spam. The honeypot field is renamed so password managers leave it alone.
+* Changed: notification emails attach up to 10 MB of files and link the rest; a file over the size or type limit is caught as soon as it is chosen.
+
 = 1.10.1 =
 * Changed: deleting the plugin keeps entries, uploaded files and forms unless "Remove all data" is turned on in Settings.
 * Changed: multi-step forms check each step's fields on Next.
@@ -116,12 +123,11 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 * Fixed: a chosen file was silently dropped when the form was repopulated after that rejection. Files are now kept in memory and re-attached to the retried request.
 * Fixed: a submission that had succeeded could be reported to the visitor as a failure when the response was not JSON (an edge timeout, a 502, a security appliance's block page), which led visitors to submit again and businesses to receive duplicates. The outcome is now reported as unknown with an in-place retry that the server's idempotency check recognises, and the real cause is logged to the browser console.
 
-= 1.8.7 =
-* Fixed: the submit button had no visible keyboard focus indicator on sites using the neo-brutalist button style — the ring was overridden and `outline: none` still applied, leaving less than the browser default (WCAG 2.4.7).
-* Fixed: validation errors are now announced by screen readers and correctly associated with their field, including radio and checkbox groups whose description pointed at an element that did not exist.
-
 
 == Upgrade Notice ==
+
+= 1.11.0 =
+Customers can upload real artwork again: most photos, PDFs and Illustrator files were refused as "dangerous content". Also stops a double tap from showing "Thanks" when nothing was saved. Recommended for all users.
 
 = 1.10.1 =
 Restores the admin screens' script and styles, fixes several conditional-logic and required-field bugs, and sends Twilio leads to the form's webhook. Deleting the plugin now keeps entries and forms unless you opt in under Settings.
@@ -138,6 +144,4 @@ Adds right-to-left stylesheets: forms on Arabic or Hebrew sites now mirror corre
 = 1.8.8 =
 Fixes lost submissions on sites with full-page caching ("Your session expired" on every attempt), files dropped on retry, and successful submissions reported as failures that led to duplicate entries. No settings or form data change. Recommended for all users.
 
-= 1.8.7 =
-Accessibility fixes: the submit button now shows a keyboard focus ring on every button style, and validation errors are announced by screen readers and tied to the right field. No settings or form data change.
 
