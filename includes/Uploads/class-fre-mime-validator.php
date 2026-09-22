@@ -60,8 +60,15 @@ class PForms_Mime_Validator {
             array( 0x25, 0x50, 0x44, 0x46 ),                                   // %PDF (modern AI)
             array( 0x25, 0x21, 0x50, 0x53 ),                                   // %!PS (legacy PostScript-based AI)
         ),
-        // EPS (Encapsulated PostScript) always starts with %!PS-Adobe.
-        'eps'  => array( array( 0x25, 0x21, 0x50, 0x53 ) ),                    // %!PS
+        // EPS: plain PostScript starts with %!PS-Adobe. An EPS saved WITH a
+        // preview image (Illustrator's default) is a "DOS EPS" binary wrapper
+        // starting C5 D0 D3 C6 — until 1.11.0 that header was missing here,
+        // and every such file was refused (measured: 17 of 17 real files).
+        // PForms_Upload_Inspector also checks the wrapper points at PostScript.
+        'eps'  => array(
+            array( 0x25, 0x21, 0x50, 0x53 ),                                   // %!PS
+            array( 0xC5, 0xD0, 0xD3, 0xC6 ),                                   // DOS EPS binary header
+        ),
         // DST (Tajima embroidery) starts with "LA:" header followed by metadata.
         // Some older DST files have alternate headers — the verify_magic_bytes
         // method gracefully passes when no signature matches if the entry's
@@ -179,6 +186,10 @@ class PForms_Mime_Validator {
         'eps'  => array( 'application/postscript', 'application/eps', 'image/eps', 'image/x-eps', 'application/octet-stream' ),
         // DST (Tajima) has no IANA-registered MIME; many clients emit octet-stream.
         'dst'  => array( 'application/octet-stream', 'application/x-tajima-dst' ),
+        // SVG is XML; libmagic reports it several ways depending on whether
+        // it has an XML declaration. The content is checked properly by
+        // PForms_Upload_Inspector, which parses it.
+        'svg'  => array( 'image/svg+xml', 'image/svg', 'text/xml', 'application/xml', 'text/plain', 'text/html' ),
     );
 
     /**
@@ -433,6 +444,10 @@ class PForms_Mime_Validator {
 
     /**
      * Scan file for dangerous patterns (Fix #6 & #12: Polyglot detection with overlapping chunks).
+     *
+     * @deprecated 1.11.0 No longer called. Its 2-3 byte patterns match compressed
+     *             image, PDF and Illustrator data by chance and refused most real
+     *             artwork. Uploads are inspected by PForms_Upload_Inspector.
      *
      * @param string $file_path Path to file.
      * @return bool|WP_Error True if safe, WP_Error if dangerous patterns found.

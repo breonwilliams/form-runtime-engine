@@ -73,6 +73,18 @@ class PForms_Upload_Handler {
     private const QUARANTINE_DIR = 'fre-quarantine';
 
     /**
+     * Blocked extensions a field may still accept by listing them explicitly
+     * in `allowed_types`. SVG was blocked outright until 1.11.0, so a print
+     * shop's logo field that allowed "svg" refused every SVG anyway. It is
+     * now accepted when the field asks for it, and parsed and checked for
+     * active content by PForms_Upload_Inspector. Nothing that can execute on
+     * the server may ever be added here.
+     *
+     * @var string[]
+     */
+    private const FIELD_ALLOWABLE_BLOCKED = array( 'svg' );
+
+    /**
      * Default maximum file size in bytes (10MB).
      *
      * @var int
@@ -150,12 +162,6 @@ class PForms_Upload_Handler {
      */
     private $default_max_size = self::DEFAULT_MAX_FILE_SIZE;
 
-    /**
-     * Default maximum total upload size (25MB).
-     *
-     * @var int
-     */
-    private $default_max_total_size = self::DEFAULT_MAX_TOTAL_SIZE;
 
     /**
      * MIME validator instance.
@@ -184,6 +190,7 @@ class PForms_Upload_Handler {
     public function process_uploads( array $form_config, $entry_id ) {
         $uploaded_files = array();
         $total_size     = 0;
+        $max_total      = $this->get_max_total_size( $form_config );
 
         // Fix #3: Track successfully uploaded files for rollback on failure.
         $successful_uploads = array();
@@ -221,12 +228,12 @@ class PForms_Upload_Handler {
                     $total_size += $file['size'];
 
                     // Check total size limit.
-                    if ( $total_size > $this->default_max_total_size ) {
+                    if ( $total_size > $max_total ) {
                         // Fix #3: Rollback all successful uploads before returning error.
                         $this->rollback_uploads( $successful_uploads );
                         return new WP_Error(
                             'total_size_exceeded',
-                            __( 'Total upload size exceeds maximum allowed.', 'promptless-forms' )
+                            $this->total_size_message( $max_total )
                         );
                     }
 
@@ -246,12 +253,12 @@ class PForms_Upload_Handler {
                 // Single file.
                 $total_size += $files['size'];
 
-                if ( $total_size > $this->default_max_total_size ) {
+                if ( $total_size > $max_total ) {
                     // Fix #3: Rollback all successful uploads before returning error.
                     $this->rollback_uploads( $successful_uploads );
                     return new WP_Error(
                         'total_size_exceeded',
-                        __( 'Total upload size exceeds maximum allowed.', 'promptless-forms' )
+                        $this->total_size_message( $max_total )
                     );
                 }
 
@@ -325,7 +332,8 @@ class PForms_Upload_Handler {
         }
 
         // Validate and sanitize filename first.
-        $sanitized_filename = $this->validate_and_sanitize_filename( $file['name'] );
+        $file_field         = new PForms_Field_File();
+        $sanitized_filename = $this->validate_and_sanitize_filename( $file['name'], $file_field->get_allowed_types( $field ) );
         if ( is_wp_error( $sanitized_filename ) ) {
             $this->log_upload_rejection( $file['name'], $sanitized_filename->get_error_code() );
             return $sanitized_filename;
@@ -351,7 +359,9 @@ class PForms_Upload_Handler {
         }
 
         // Generate secure filename.
-        $secure_filename = $this->generate_secure_filename( $file['name'] );
+        // Stored under the inspected extension: a PNG uploaded with a .jpg
+        // name is kept as .png, so its name, type and content agree.
+        $secure_filename = $this->generate_secure_filename( $file['name'], $quarantine_validation['ext'] );
 
         // Get upload directory.
         $upload_dir = wp_upload_dir();
@@ -422,10 +432,7 @@ class PForms_Upload_Handler {
             return $attachment_id;
         }
 
-        // Generate attachment metadata.
-        require_once ABSPATH . 'wp-admin/includes/image.php';
-        $attach_data = wp_generate_attachment_metadata( $attachment_id, $final_path );
-        wp_update_attachment_metadata( $attachment_id, $attach_data );
+        wp_update_attachment_metadata( $attachment_id, $this->build_attachment_metadata( $attachment_id, $final_path, $mime_type ) );
 
         return array(
             'attachment_id' => $attachment_id,
@@ -440,10 +447,11 @@ class PForms_Upload_Handler {
     /**
      * Validate and sanitize filename (Fix #2: Double extension validation, Fix #7: Unicode bypass).
      *
-     * @param string $filename Original filename.
+     * @param string $filename      Original filename.
+     * @param array  $allowed_types Extensions the field allows; lets a field opt in to FIELD_ALLOWABLE_BLOCKED types.
      * @return string|WP_Error Sanitized filename or error.
      */
-    private function validate_and_sanitize_filename( $filename ) {
+    private function validate_and_sanitize_filename( $filename, array $allowed_types = array() ) {
         // Strip null bytes.
         $filename = str_replace( chr( 0 ), '', $filename );
 
@@ -483,7 +491,7 @@ class PForms_Upload_Handler {
         }
 
         // Build pattern from blocked extensions.
-        $blocked_pattern = implode( '|', array_map( 'preg_quote', self::BLOCKED_EXTENSIONS ) );
+        $blocked_pattern = implode( '|', array_map( 'preg_quote', $this->blocked_extensions( $allowed_types ) ) );
 
         // Check for blocked extension anywhere in filename (catches double extensions).
         if ( preg_match( '/\.(' . $blocked_pattern . ')(\.|$)/i', $filename ) ) {
@@ -555,40 +563,58 @@ class PForms_Upload_Handler {
     }
 
     /**
-     * Validate file in quarantine directory (Fix #10: SVG validation).
+     * Validate the quarantined copy of an upload.
      *
      * @param string $file_path Path to quarantined file.
      * @param array  $field     Field configuration.
-     * @return bool|WP_Error True if valid, WP_Error otherwise.
+     * @return array|WP_Error Inspection result (ext, mime) or error.
      */
     private function validate_quarantined_file( $file_path, array $field ) {
-        // Get allowed types for this field.
-        $file_field    = new PForms_Field_File();
-        $allowed_types = $file_field->get_allowed_types( $field );
+        return $this->inspect_file( $file_path, strtolower( pathinfo( $file_path, PATHINFO_EXTENSION ) ), $field );
+    }
 
-        // Verify content matches extension using finfo.
-        $mime_validation = $this->mime_validator->validate( $file_path, $allowed_types );
-        if ( is_wp_error( $mime_validation ) ) {
-            return $mime_validation;
+    /**
+     * Inspect a file for a field: content, format and size.
+     *
+     * Runs twice per upload — on PHP's temporary file BEFORE the entry is
+     * written (so a refused file never creates and then deletes an entry),
+     * and again on the quarantined copy that is actually stored.
+     *
+     * @param string $path  File path.
+     * @param string $ext   Extension from the visitor's file name.
+     * @param array  $field Field configuration.
+     * @return array|WP_Error array( 'ext', 'mime' ) or error.
+     */
+    private function inspect_file( $path, $ext, array $field ) {
+        $file_field = new PForms_Field_File();
+        $inspector  = new PForms_Upload_Inspector( $this->mime_validator );
+        $result     = $inspector->inspect( $path, $ext, $file_field->get_allowed_types( $field ) );
+
+        /**
+         * Filter the result of inspecting an uploaded file.
+         *
+         * Return a WP_Error to refuse a file the built-in inspection accepted
+         * (for example, after calling a malware scanner), or an array with
+         * 'ext' and 'mime' to accept one it refused. The message of a
+         * returned WP_Error is shown to the visitor.
+         *
+         * @since 1.11.0
+         *
+         * @param array|WP_Error $result Inspection result.
+         * @param string         $path   File path.
+         * @param string         $ext    Extension from the visitor's file name.
+         * @param array          $field  Field configuration.
+         */
+        $result = apply_filters( 'pforms_upload_inspection', $result, $path, $ext, $field );
+        if ( is_wp_error( $result ) ) {
+            return $result;
         }
 
-        // Scan for dangerous patterns (polyglot detection).
-        $pattern_scan = $this->mime_validator->scan_for_dangerous_patterns( $file_path );
-        if ( is_wp_error( $pattern_scan ) ) {
-            return $pattern_scan;
-        }
-
-        // Verify magic bytes.
-        $ext = strtolower( pathinfo( $file_path, PATHINFO_EXTENSION ) );
-        $magic_validation = $this->mime_validator->verify_magic_bytes( $file_path, $ext );
-        if ( is_wp_error( $magic_validation ) ) {
-            return $magic_validation;
-        }
+        $ext = $result['ext'];
 
         // Enforce minimum file size for formats with short / easily-forged
-        // magic bytes (1.5.0). Defense-in-depth against polyglot uploads:
-        // a tiny "DST" file whose only validity signal is a 3-byte LA: header
-        // is suspicious regardless of the rest of the validation chain.
+        // magic bytes (1.5.0). A tiny "DST" file whose only validity signal
+        // is a 3-byte LA: header is suspicious regardless of the rest.
         /**
          * Filter the per-extension minimum file size enforcement table.
          *
@@ -602,46 +628,150 @@ class PForms_Upload_Handler {
          *
          * @param array $min_sizes Map of extension → minimum bytes.
          */
-        $min_sizes = (array) apply_filters( 'pforms_min_file_sizes', self::MIN_FILE_SIZES );
-        if ( isset( $min_sizes[ $ext ] ) ) {
-            $actual_size = filesize( $file_path );
-            if ( $actual_size !== false && $actual_size < (int) $min_sizes[ $ext ] ) {
-                return new WP_Error(
-                    'file_too_small',
-                    sprintf(
-                        /* translators: 1: file extension (e.g. AI, EPS, DST), 2: minimum size in human-readable form */
-                        __( 'File appears too small to be a valid %1$s file (minimum %2$s).', 'promptless-forms' ),
-                        strtoupper( $ext ),
-                        size_format( (int) $min_sizes[ $ext ] )
-                    )
-                );
-            }
-        }
-
-        // Fix #10: Validate SVG content for XSS if SVG uploads are enabled.
-        // The validate_svg() method existed but was never called.
-        if ( $ext === 'svg' || $ext === 'svgz' ) {
-            $svg_validation = $this->mime_validator->validate_svg( $file_path );
-            if ( is_wp_error( $svg_validation ) ) {
-                return $svg_validation;
-            }
-        }
-
-        // Validate file size.
-        $max_size = $file_field->get_max_size( $field );
-        $actual_size = filesize( $file_path );
-        if ( $actual_size > $max_size ) {
+        $min_sizes   = (array) apply_filters( 'pforms_min_file_sizes', self::MIN_FILE_SIZES );
+        $actual_size = filesize( $path );
+        if ( isset( $min_sizes[ $ext ] ) && false !== $actual_size && $actual_size < (int) $min_sizes[ $ext ] ) {
             return new WP_Error(
-                'file_too_large',
+                'file_too_small',
                 sprintf(
-                    /* translators: %s: max file size */
-                    __( 'File exceeds maximum size of %s.', 'promptless-forms' ),
-                    size_format( $max_size )
+                    /* translators: 1: file extension (e.g. AI, EPS, DST), 2: minimum size in human-readable form */
+                    __( 'This file is too small to be a real %1$s file (the minimum is %2$s). Please export it again.', 'promptless-forms' ),
+                    strtoupper( $ext ),
+                    size_format( (int) $min_sizes[ $ext ] )
                 )
             );
         }
 
-        return true;
+        $max_size = $file_field->get_max_size( $field );
+        if ( false !== $actual_size && $actual_size > $max_size ) {
+            return $this->too_large_error( $max_size );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Blocked extensions for a field: the fixed list, minus any type in
+     * FIELD_ALLOWABLE_BLOCKED that the field explicitly allows.
+     *
+     * @param array $allowed_types Extensions the field allows.
+     * @return string[]
+     */
+    private function blocked_extensions( array $allowed_types ) {
+        $opted_in = array_intersect( self::FIELD_ALLOWABLE_BLOCKED, array_map( 'strtolower', $allowed_types ) );
+        return array_values( array_diff( self::BLOCKED_EXTENSIONS, $opted_in ) );
+    }
+
+    /**
+     * Minimal attachment metadata for a form upload.
+     *
+     * Form uploads are private files for the business, never shown in the
+     * media library, so no thumbnails are made. Until 1.11.0 every upload
+     * went through wp_generate_attachment_metadata() inside the visitor's
+     * request: resizing a 12-megapixel photo into every registered size, and
+     * rendering PDF and Illustrator files through Ghostscript. That is slow on
+     * shared hosting, a timeout risk after the entry is already saved, and a
+     * server-side attack surface for crafted PDFs. Nothing in Promptless
+     * Forms or FlowMint reads the sub-sizes.
+     *
+     * @param int    $attachment_id Attachment ID.
+     * @param string $path          Stored file path.
+     * @param string $mime_type     Detected MIME type.
+     * @return array
+     */
+    private function build_attachment_metadata( $attachment_id, $path, $mime_type ) {
+        /**
+         * Generate full attachment metadata (thumbnails, PDF previews) for form uploads.
+         *
+         * Off by default since 1.11.0. Return true to restore the earlier
+         * behaviour, e.g. if a custom admin view displays thumbnails.
+         *
+         * @since 1.11.0
+         *
+         * @param bool   $generate      Whether to generate full metadata.
+         * @param int    $attachment_id Attachment ID.
+         * @param string $path          Stored file path.
+         */
+        if ( apply_filters( 'pforms_generate_attachment_metadata', false, $attachment_id, $path ) ) {
+            require_once ABSPATH . 'wp-admin/includes/image.php';
+            return (array) wp_generate_attachment_metadata( $attachment_id, $path );
+        }
+
+        $metadata = array( 'filesize' => (int) filesize( $path ) );
+        if ( 0 === strpos( (string) $mime_type, 'image/' ) ) {
+            $size = @getimagesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+            if ( $size ) {
+                $metadata['width']  = (int) $size[0];
+                $metadata['height'] = (int) $size[1];
+            }
+        }
+
+        return $metadata;
+    }
+
+    /**
+     * Maximum combined size of all files in one submission.
+     *
+     * Until 1.11.0 this was a fixed 25 MB, so a form with a 10 MB field and a
+     * 25 MB field refused a visitor who kept to both limits. It is now the
+     * larger of 25 MB and the sum of the form's per-field limits (a field
+     * that takes several files counts once per file the server accepts in
+     * one request).
+     *
+     * @param array $form_config Form configuration.
+     * @return int Bytes.
+     */
+    public function get_max_total_size( array $form_config ) {
+        $file_field  = new PForms_Field_File();
+        $per_request = max( 1, (int) ini_get( 'max_file_uploads' ) );
+        $sum         = 0;
+
+        foreach ( isset( $form_config['fields'] ) ? (array) $form_config['fields'] : array() as $field ) {
+            if ( isset( $field['type'] ) && 'file' === $field['type'] ) {
+                $sum += $file_field->get_max_size( $field ) * ( empty( $field['multiple'] ) ? 1 : $per_request );
+            }
+        }
+
+        /**
+         * Filter the maximum combined upload size for one submission.
+         *
+         * @since 1.11.0
+         *
+         * @param int   $max_total   Bytes.
+         * @param array $form_config Form configuration.
+         */
+        return (int) apply_filters( 'pforms_max_total_upload_size', max( self::DEFAULT_MAX_TOTAL_SIZE, $sum ), $form_config );
+    }
+
+    /**
+     * Visitor message for exceeding the combined size.
+     *
+     * @param int $max_total Bytes.
+     * @return string
+     */
+    private function total_size_message( $max_total ) {
+        return sprintf(
+            /* translators: %s: size, e.g. 35 MB */
+            __( 'Your files add up to more than %s. Please send fewer or smaller files.', 'promptless-forms' ),
+            size_format( $max_total )
+        );
+    }
+
+    /**
+     * Error for a file over its field's limit.
+     *
+     * @param int $max_bytes Limit.
+     * @return WP_Error
+     */
+    private function too_large_error( $max_bytes ) {
+        return new WP_Error(
+            'file_too_large',
+            sprintf(
+                /* translators: %s: max file size, e.g. 25 MB */
+                __( 'This file is larger than %s. Please choose a smaller file.', 'promptless-forms' ),
+                size_format( $max_bytes )
+            )
+        );
     }
 
     /**
@@ -680,8 +810,18 @@ class PForms_Upload_Handler {
      * @return bool|WP_Error True if valid, WP_Error otherwise.
      */
     public function validate_file( array $file, array $field ) {
+        // PHP's own upload outcome first. A file over the server's limit
+        // arrives with no temporary file; it used to fall through to the type
+        // check and reach the visitor as "Unable to verify file type."
+        if ( isset( $file['error'] ) && UPLOAD_ERR_OK !== (int) $file['error'] ) {
+            return new WP_Error( 'upload_error', $this->get_upload_error_message( (int) $file['error'] ) );
+        }
+
+        $file_field    = new PForms_Field_File();
+        $allowed_types = $file_field->get_allowed_types( $field );
+
         // Validate and sanitize filename first (catches double extensions).
-        $sanitized_filename = $this->validate_and_sanitize_filename( $file['name'] );
+        $sanitized_filename = $this->validate_and_sanitize_filename( $file['name'], $allowed_types );
         if ( is_wp_error( $sanitized_filename ) ) {
             return $sanitized_filename;
         }
@@ -690,16 +830,12 @@ class PForms_Upload_Handler {
         $ext = strtolower( pathinfo( $sanitized_filename, PATHINFO_EXTENSION ) );
 
         // Check blocked extensions.
-        if ( in_array( $ext, self::BLOCKED_EXTENSIONS, true ) ) {
+        if ( in_array( $ext, $this->blocked_extensions( $allowed_types ), true ) ) {
             return new WP_Error(
                 'blocked_extension',
                 __( 'File type not allowed.', 'promptless-forms' )
             );
         }
-
-        // Get allowed types for this field.
-        $file_field    = new PForms_Field_File();
-        $allowed_types = $file_field->get_allowed_types( $field );
 
         // Check extension against allowed types.
         if ( ! in_array( $ext, $allowed_types, true ) ) {
@@ -707,23 +843,25 @@ class PForms_Upload_Handler {
                 'extension_not_allowed',
                 sprintf(
                     /* translators: %s: allowed file types */
-                    __( 'Allowed file types: %s', 'promptless-forms' ),
+                    __( 'This type of file is not accepted here. Allowed file types: %s', 'promptless-forms' ),
                     implode( ', ', $allowed_types )
                 )
             );
         }
 
         // Validate file size.
-        $max_size = $file_field->get_max_size( $field );
-        $size_validation = $this->validate_file_size( $file, $max_size );
+        $size_validation = $this->validate_file_size( $file, $file_field->get_max_size( $field ) );
         if ( is_wp_error( $size_validation ) ) {
             return $size_validation;
         }
 
-        // Verify content matches extension using finfo.
-        $mime_validation = $this->mime_validator->validate( $file['tmp_name'], $allowed_types );
-        if ( is_wp_error( $mime_validation ) ) {
-            return $mime_validation;
+        // Full inspection before anything is stored. Until 1.11.0 only the
+        // content type was checked here and the rest ran after the entry was
+        // written, so a refused file created an entry and then deleted it.
+        $inspection = $this->inspect_file( $file['tmp_name'], $ext, $field );
+        if ( is_wp_error( $inspection ) ) {
+            $this->log_upload_rejection( $file['name'], $inspection->get_error_code() );
+            return $inspection;
         }
 
         return true;
@@ -743,7 +881,7 @@ class PForms_Upload_Handler {
                 'file_too_large',
                 sprintf(
                     /* translators: %s: max file size */
-                    __( 'File exceeds maximum size of %s.', 'promptless-forms' ),
+                    __( 'This file is larger than %s. Please choose a smaller file.', 'promptless-forms' ),
                     size_format( $max_bytes )
                 )
             );
@@ -755,7 +893,11 @@ class PForms_Upload_Handler {
             if ( $actual_size > $max_bytes ) {
                 return new WP_Error(
                     'file_too_large',
-                    __( 'File exceeds maximum size.', 'promptless-forms' )
+                    sprintf(
+                        /* translators: %s: max file size */
+                        __( 'This file is larger than %s. Please choose a smaller file.', 'promptless-forms' ),
+                        size_format( $max_bytes )
+                    )
                 );
             }
         }
@@ -769,8 +911,8 @@ class PForms_Upload_Handler {
      * @param string $original_filename Original filename.
      * @return string Secure filename.
      */
-    public function generate_secure_filename( $original_filename ) {
-        $ext = strtolower( pathinfo( $original_filename, PATHINFO_EXTENSION ) );
+    public function generate_secure_filename( $original_filename, $extension = '' ) {
+        $ext = '' !== (string) $extension ? strtolower( (string) $extension ) : strtolower( pathinfo( $original_filename, PATHINFO_EXTENSION ) );
 
         // Sanitize extension.
         $ext = preg_replace( '/[^a-z0-9]/', '', $ext );
@@ -788,19 +930,24 @@ class PForms_Upload_Handler {
      * @return string Error message.
      */
     private function get_upload_error_message( $error_code ) {
+        $server_limit = function_exists( 'wp_max_upload_size' ) ? size_format( wp_max_upload_size() ) : '';
+
         $messages = array(
-            UPLOAD_ERR_INI_SIZE   => __( 'File exceeds server upload limit.', 'promptless-forms' ),
-            UPLOAD_ERR_FORM_SIZE  => __( 'File exceeds form upload limit.', 'promptless-forms' ),
-            UPLOAD_ERR_PARTIAL    => __( 'File was only partially uploaded.', 'promptless-forms' ),
+            UPLOAD_ERR_INI_SIZE   => '' !== $server_limit
+                /* translators: %s: the server's upload limit, e.g. 64 MB */
+                ? sprintf( __( 'This file is larger than this website accepts (%s). Please choose a smaller file.', 'promptless-forms' ), $server_limit )
+                : __( 'This file is larger than this website accepts. Please choose a smaller file.', 'promptless-forms' ),
+            UPLOAD_ERR_FORM_SIZE  => __( 'This file is larger than this form accepts. Please choose a smaller file.', 'promptless-forms' ),
+            UPLOAD_ERR_PARTIAL    => __( 'The file did not finish uploading. Please check your connection and try again.', 'promptless-forms' ),
             UPLOAD_ERR_NO_FILE    => __( 'No file was uploaded.', 'promptless-forms' ),
-            UPLOAD_ERR_NO_TMP_DIR => __( 'Server configuration error.', 'promptless-forms' ),
-            UPLOAD_ERR_CANT_WRITE => __( 'Failed to write file.', 'promptless-forms' ),
-            UPLOAD_ERR_EXTENSION  => __( 'Upload blocked by server.', 'promptless-forms' ),
+            UPLOAD_ERR_NO_TMP_DIR => __( 'The website could not receive your file. Please try again later.', 'promptless-forms' ),
+            UPLOAD_ERR_CANT_WRITE => __( 'The website could not save your file. Please try again later.', 'promptless-forms' ),
+            UPLOAD_ERR_EXTENSION  => __( 'The website blocked this upload. Please try a different file.', 'promptless-forms' ),
         );
 
         return isset( $messages[ $error_code ] )
             ? $messages[ $error_code ]
-            : __( 'Unknown upload error.', 'promptless-forms' );
+            : __( 'Your file could not be uploaded. Please try again.', 'promptless-forms' );
     }
 
     /**

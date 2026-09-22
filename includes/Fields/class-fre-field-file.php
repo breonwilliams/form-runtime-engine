@@ -87,10 +87,16 @@ class PForms_Field_File extends PForms_Field_Type_Abstract {
             $attributes['name']    .= '[]';
         }
 
+        // The limit that really applies: the field's, or the server's when
+        // that is lower. The script checks files against it before upload,
+        // so a visitor on mobile data is not made to upload a file for
+        // minutes only to have it refused.
+        $max_size                    = $this->get_effective_max_size( $field );
+        $attributes['data-max-size'] = (string) $max_size;
+
         $input = sprintf( '<input%s />', $this->build_attributes( $attributes ) );
 
         // Add file info.
-        $max_size = $this->get_max_size( $field );
         $info     = sprintf(
             '<p class="fre-field__file-info">%s: %s. %s: %s</p>',
             esc_html__( 'Allowed types', 'promptless-forms' ),
@@ -187,12 +193,32 @@ class PForms_Field_File extends PForms_Field_Type_Abstract {
     }
 
     /**
-     * Get maximum file size for this field.
+     * The size limit a visitor is actually held to: the field's own limit,
+     * or the server's upload limit when that is lower.
+     *
+     * @since 1.11.0
      *
      * @param array $field Field configuration.
      * @return int Size in bytes.
      */
-    public function get_max_size( array $field ) {
+    public function get_effective_max_size( array $field ) {
+        $max = $this->get_max_size( $field );
+        if ( function_exists( 'wp_max_upload_size' ) ) {
+            $server = (int) wp_max_upload_size();
+            if ( $server > 0 && $server < $max ) {
+                $max = $server;
+            }
+        }
+        return $max;
+    }
+
+    /**
+     * Get maximum file size for this field, as configured.
+     *
+     * @param array $field Field configuration.
+     * @return int
+     */
+        public function get_max_size( array $field ) {
         if ( ! empty( $field['max_size'] ) ) {
             return (int) $field['max_size'];
         }

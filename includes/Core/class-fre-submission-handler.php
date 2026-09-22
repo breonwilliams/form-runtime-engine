@@ -90,6 +90,12 @@ class PForms_Submission_Handler {
                 : '';
 
             if ( empty( $form_id ) ) {
+                // A request larger than the server's post_max_size arrives
+                // with $_POST and $_FILES both EMPTY, so it looks like no form
+                // at all. Say what actually happened.
+                if ( $this->exceeds_post_max_size() ) {
+                    $this->send_error( 'request_too_large', $this->request_too_large_message() );
+                }
                 $this->send_error( 'invalid_form', __( 'Invalid form submission.', 'promptless-forms' ) );
             }
 
@@ -670,6 +676,31 @@ class PForms_Submission_Handler {
         ) );
 
         return $form_config;
+    }
+
+    /**
+     * Whether this request was larger than PHP's post_max_size.
+     *
+     * @return bool
+     */
+    private function exceeds_post_max_size() {
+        $length = isset( $_SERVER['CONTENT_LENGTH'] ) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
+        $limit  = wp_convert_hr_to_bytes( (string) ini_get( 'post_max_size' ) );
+
+        return empty( $_POST ) && $limit > 0 && $length > $limit;
+    }
+
+    /**
+     * Message for a submission larger than the server accepts.
+     *
+     * @return string
+     */
+    private function request_too_large_message() {
+        return sprintf(
+            /* translators: %s: the server's limit, e.g. 64 MB */
+            __( 'Your files are larger than this website can accept in one go (%s). Please send fewer or smaller files.', 'promptless-forms' ),
+            size_format( wp_convert_hr_to_bytes( (string) ini_get( 'post_max_size' ) ) )
+        );
     }
 
     /**

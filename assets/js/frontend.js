@@ -97,6 +97,18 @@
             // Handle form submission.
             this.form.addEventListener('submit', (e) => this.handleSubmit(e));
 
+            // Check a chosen file's type and size straight away, before a
+            // visitor on mobile data spends minutes uploading a file the
+            // server would refuse.
+            this.form.querySelectorAll('input[type="file"]').forEach((input) => {
+                input.addEventListener('change', () => {
+                    const message = this.fileInputError(input);
+                    if (message) {
+                        this.showFieldError(input.closest('.fre-field')?.dataset.fieldKey, message);
+                    }
+                });
+            });
+
             // A page restored from the back/forward cache keeps its JavaScript
             // state, including a submit lock taken just before it navigated
             // away. Without this the visitor comes back to a dead button.
@@ -372,6 +384,16 @@
                 // Skip disabled fields.
                 if (input.disabled) {
                     return;
+                }
+
+                // Chosen files: type and size against the field's limits.
+                if (input.type === 'file') {
+                    const message = this.fileInputError(input);
+                    if (message) {
+                        isValid = false;
+                        this.showFieldError(field?.dataset.fieldKey, message);
+                        return;
+                    }
                 }
 
                 // Check HTML5 validation.
@@ -730,6 +752,17 @@
                 return;
             }
 
+            // Refuse a wrong file type or an oversized file here, before the
+            // upload, with the same words the server would use.
+            const fileProblem = this.firstFileProblem();
+            if (fileProblem) {
+                e.preventDefault();
+                this.clearMessages();
+                this.showFieldError(fileProblem.input.closest('.fre-field')?.dataset.fieldKey, fileProblem.message);
+                fileProblem.input.focus();
+                return;
+            }
+
             // Lock NOW, before anything is awaited.
             //
             // The lock used to be taken inside submitForm(), which runs only
@@ -779,6 +812,64 @@
             }
 
             await this.submitForm();
+        }
+
+        /**
+         * Why a file input's chosen files would be refused, or '' if they
+         * would not. Mirrors the server's first checks (extension, size);
+         * the server still inspects every file's content.
+         *
+         * @param {HTMLInputElement} input File input.
+         * @returns {string} Message for the visitor, or ''.
+         */
+        fileInputError(input) {
+            if (!input.files || !input.files.length) return '';
+
+            const i18n = (window.pformsAjax && window.pformsAjax.i18n) || {};
+            const accepted = (input.getAttribute('accept') || '')
+                .split(',')
+                .map((type) => type.trim().toLowerCase().replace(/^\./, ''))
+                .filter(Boolean);
+            const maxSize = parseInt(input.dataset.maxSize || '0', 10);
+
+            for (const file of Array.from(input.files)) {
+                const ext = (file.name.split('.').pop() || '').toLowerCase();
+                if (accepted.length && !accepted.includes(ext)) {
+                    return (i18n.fileType || 'This type of file is not accepted here. Allowed file types: %s')
+                        .replace('%s', accepted.join(', '));
+                }
+                if (maxSize > 0 && file.size > maxSize) {
+                    return (i18n.fileSize || 'This file is larger than %s. Please choose a smaller file.')
+                        .replace('%s', this.formatBytes(maxSize));
+                }
+            }
+            return '';
+        }
+
+        /**
+         * The first visible file input whose files would be refused.
+         *
+         * @returns {{input: HTMLInputElement, message: string}|null}
+         */
+        firstFileProblem() {
+            for (const input of this.form.querySelectorAll('input[type="file"]')) {
+                if (input.closest('.fre-field--hidden, .fre-section--hidden')) continue;
+                const message = this.fileInputError(input);
+                if (message) return { input, message };
+            }
+            return null;
+        }
+
+        /**
+         * Human-readable size, matching WordPress's size_format() for MB/KB.
+         *
+         * @param {number} bytes Size in bytes.
+         * @returns {string}
+         */
+        formatBytes(bytes) {
+            if (bytes >= 1048576) return `${Math.round(bytes / 1048576)} MB`;
+            if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+            return `${bytes} B`;
         }
 
         /**
