@@ -516,6 +516,7 @@ class PForms_Email_Notification {
      */
     private function get_attachments( array $uploaded_files ) {
         $attachments = array();
+        $total       = 0;
 
         foreach ( $uploaded_files as $files ) {
             $file_list = isset( $files[0] ) ? $files : array( $files );
@@ -523,11 +524,55 @@ class PForms_Email_Notification {
             foreach ( $file_list as $file ) {
                 if ( ! empty( $file['file_path'] ) && file_exists( $file['file_path'] ) ) {
                     $attachments[] = $file['file_path'];
+                    $total        += (int) filesize( $file['file_path'] );
                 }
             }
         }
 
-        return $attachments;
+        /**
+         * Largest combined size of files attached to the notification email.
+         *
+         * Attachments grow by a third in transit, and most mail services
+         * refuse messages over 20-35 MB. Until 1.11.0 every upload was
+         * attached, so a 25 MB artwork file made the notification fail
+         * outright. Over this budget nothing is attached; the email still
+         * links to every file.
+         *
+         * @since 1.11.0
+         *
+         * @param int   $budget         Bytes. Default 10 MB. 0 never attaches.
+         * @param array $uploaded_files Uploaded files.
+         */
+        $budget = (int) apply_filters( 'pforms_notification_attachment_budget', 10 * MB_IN_BYTES, $uploaded_files );
+
+        return ( $budget > 0 && $total <= $budget ) ? $attachments : array();
+    }
+
+    /**
+     * Rebuild the uploaded-files list from an entry's stored file records,
+     * in the shape build_email_body() renders (field key → list of files).
+     *
+     * @param array $entry Entry from PForms_Entry::get().
+     * @return array
+     */
+    private function files_from_entry( array $entry ) {
+        $files = array();
+
+        foreach ( isset( $entry['files'] ) ? (array) $entry['files'] : array() as $row ) {
+            $row = (array) $row;
+            $url = ! empty( $row['attachment_id'] ) ? wp_get_attachment_url( (int) $row['attachment_id'] ) : '';
+            if ( ! $url ) {
+                continue;
+            }
+            $files[ $row['field_key'] ][] = array(
+                'file_name' => $row['file_name'],
+                'file_url'  => $url,
+                'file_path' => $row['file_path'],
+                'file_size' => (int) $row['file_size'],
+            );
+        }
+
+        return $files;
     }
 
     /**
@@ -650,14 +695,18 @@ class PForms_Email_Notification {
         $subject = $handler->parse_template( $notification['subject'], $entry_data, $form_config );
         $subject = $handler->sanitize_email_header( $subject );
 
-        // Build body.
-        $body = $handler->build_email_body( $form_config, $entry_data, array() );
+        // Build body, with links to the uploaded files rebuilt from the
+        // entry. Until 1.11.0 the retry was sent with no files at all, so
+        // the one email that finally arrived after a failure (often one
+        // caused by oversized attachments) gave no sign artwork was uploaded.
+        $files = $handler->files_from_entry( $entry );
+        $body  = $handler->build_email_body( $form_config, $entry_data, $files );
 
         // Build headers.
         $headers = $handler->build_headers( $form_config, $entry_data );
 
         // Send email.
-        $sent = wp_mail( $to, $subject, $body, $headers );
+        $sent = wp_mail( $to, $subject, $body, $headers, $handler->get_attachments( $files ) );
 
         // Update entry status.
         $handler->entry_repo->update( $entry_id, array(

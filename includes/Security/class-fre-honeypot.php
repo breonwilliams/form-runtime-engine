@@ -125,7 +125,36 @@ class PForms_Honeypot {
      */
     public function get_field_name( $form_id ) {
         $hash = hash_hmac( 'sha256', $form_id, $this->get_secret() );
+        return '_pforms_hp_' . substr( $hash, 0, 8 );
+    }
+
+    /**
+     * The honeypot field name used until 1.11.0.
+     *
+     * Its "website_url" wording is exactly what browser and password-manager
+     * autofill looks for, so a real visitor's phone could fill it — and a
+     * filled honeypot was silently discarded. Pages served from a full-page
+     * cache (Cloudflare keeps them up to a month) still carry this name, so it
+     * is still recognised.
+     *
+     * @since 1.11.0
+     *
+     * @param string $form_id Form ID.
+     * @return string
+     */
+    public function get_legacy_field_name( $form_id ) {
+        $hash = hash_hmac( 'sha256', $form_id, $this->get_secret() );
         return '_pforms_website_url_' . substr( $hash, 0, 8 );
+    }
+
+    /**
+     * Every honeypot field name this form may be submitted with.
+     *
+     * @param string $form_id Form ID.
+     * @return string[]
+     */
+    public function get_field_names( $form_id ) {
+        return array( $this->get_field_name( $form_id ), $this->get_legacy_field_name( $form_id ) );
     }
 
     /**
@@ -135,12 +164,12 @@ class PForms_Honeypot {
      * @return bool True if honeypot was triggered (spam detected).
      */
     public function is_triggered( $form_id ) {
-        $field_name = $this->get_field_name( $form_id );
-
-        // If the field has any value, it's likely a bot.
-        if ( isset( $_POST[ $field_name ] ) && ! empty( $_POST[ $field_name ] ) ) {
-            $this->log_spam_attempt( $form_id, 'honeypot' );
-            return true;
+        foreach ( $this->get_field_names( $form_id ) as $field_name ) {
+            // If the field has any value, it's likely a bot.
+            if ( isset( $_POST[ $field_name ] ) && ! empty( $_POST[ $field_name ] ) ) {
+                $this->log_spam_attempt( $form_id, 'honeypot' );
+                return true;
+            }
         }
 
         return false;
@@ -165,8 +194,10 @@ class PForms_Honeypot {
         }
 
         // Fix #13: Check if honeypot was initialized (JS ran).
-        $honeypot_field = $this->get_field_name( $form_id );
-        $honeypot_present = isset( $_POST[ $honeypot_field ] );
+        $honeypot_present = false;
+        foreach ( $this->get_field_names( $form_id ) as $honeypot_field ) {
+            $honeypot_present = $honeypot_present || isset( $_POST[ $honeypot_field ] );
+        }
 
         // If honeypot is present (even if empty), JS ran and validation passed above.
         if ( $honeypot_present ) {

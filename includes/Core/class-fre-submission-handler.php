@@ -132,14 +132,20 @@ class PForms_Submission_Handler {
             // Step 3: Check for duplicate submission.
             $this->check_duplicate_submission( $form_id, $form_config );
 
+            // WordPress adds slashes to every $_POST value ("O'Brien" arrives
+            // as "O\'Brien"). Until 1.11.0 values were stored with those
+            // slashes, so names and text showed a stray backslash in Entries,
+            // emails, webhooks and workflow output (Drive folder names).
+            $post = $this->posted_data();
+
             // Step 4: Validate input lengths (prevent memory exhaustion).
-            $length_check = $this->validator->validate_input_lengths( $_POST );
+            $length_check = $this->validator->validate_input_lengths( $post );
             if ( is_wp_error( $length_check ) ) {
                 $this->send_error( $length_check->get_error_code(), $length_check->get_error_message() );
             }
 
             // Step 5: Validate fields.
-            $validation = $this->validator->validate( $form_config, $_POST );
+            $validation = $this->validator->validate( $form_config, $post );
             if ( is_wp_error( $validation ) ) {
                 $this->send_validation_error( $validation );
             }
@@ -156,7 +162,7 @@ class PForms_Submission_Handler {
             $this->validate_file_uploads( $upload_config );
 
             // Step 7: Sanitize field values.
-            $sanitized_data = $this->sanitizer->sanitize( $form_config, $_POST );
+            $sanitized_data = $this->sanitizer->sanitize( $form_config, $post );
 
             // Step 7b: Strip orphan values from conditionally-hidden fields.
             // Frontend may keep stale values in DOM/state when a field's
@@ -503,7 +509,7 @@ class PForms_Submission_Handler {
                 'code'           => 'nonce_expired',
                 'message'        => __( 'Your session expired. The form has been refreshed.', 'promptless-forms' ),
                 'new_nonce'      => wp_create_nonce( 'pforms_submit_' . $form_id ),
-                'submitted_data' => $this->get_safe_repopulation_data( $_POST ),
+                'submitted_data' => $this->get_safe_repopulation_data( $this->posted_data() ),
             ) );
         }
     }
@@ -525,7 +531,13 @@ class PForms_Submission_Handler {
             $result   = $honeypot->validate( $form_id );
 
             if ( is_wp_error( $result ) ) {
-                // Silent fail for bots - return success but don't store.
+                // Bots see the normal success message. Until 1.11.0 the
+                // submission was then DISCARDED — and a real visitor whose
+                // phone autofilled the trap lost their enquiry without trace.
+                // It is now kept as a spam entry (no email, webhook or
+                // workflow) the owner can review and restore.
+                $this->store_as_spam( $form_id, $form_config );
+
                 // Fix #4 follow-up: release the idempotency claim so a
                 // genuine human whose submission was wrongly flagged as bot
                 // can retry without being wedged in 'processing' for 5 min.
@@ -598,9 +610,11 @@ class PForms_Submission_Handler {
         $data_to_hash = $_POST;
         unset( $data_to_hash['_wpnonce'], $data_to_hash['_pforms_timestamp'] );
 
-        // Remove honeypot field.
+        // Remove honeypot field (current and pre-1.11.0 names).
         $honeypot = new PForms_Honeypot();
-        unset( $data_to_hash[ $honeypot->get_field_name( $form_id ) ] );
+        foreach ( $honeypot->get_field_names( $form_id ) as $honeypot_name ) {
+            unset( $data_to_hash[ $honeypot_name ] );
+        }
 
         $key   = PForms_Submission_Lock::duplicate_key( $form_id, $data_to_hash );
         $claim = $this->lock->claim( $key, self::DUPLICATE_WINDOW );
@@ -671,7 +685,7 @@ class PForms_Submission_Handler {
                 if ( ! isset( $field['type'] ) || 'file' !== $field['type'] ) {
                     return true;
                 }
-                return PForms_Conditions::field_is_visible( $field, $form_config, $_POST );
+                return PForms_Conditions::field_is_visible( $field, $form_config, $this->posted_data() );
             }
         ) );
 
@@ -701,6 +715,84 @@ class PForms_Submission_Handler {
             __( 'Your files are larger than this website can accept in one go (%s). Please send fewer or smaller files.', 'promptless-forms' ),
             size_format( wp_convert_hr_to_bytes( (string) ini_get( 'post_max_size' ) ) )
         );
+    }
+
+    /**
+     * The submitted values without the slashes WordPress adds to $_POST.
+     *
+     * @return array
+     */
+    private function posted_data() {
+        return wp_unslash( $_POST );
+    }
+
+    /**
+     * Keep a submission the spam checks flagged as a spam entry.
+     *
+     * The entry and any files that pass inspection are stored with the spam
+     * flag and nothing else happens: no notification, no webhook, no
+     * `pforms_submission_complete` (so no workflow). The owner finds it under
+     * Entries → Include Spam and can restore it with "Mark as not spam".
+     *
+     * Capped per form per hour so a bot cannot fill the database; beyond the
+     * cap flagged submissions are discarded as before. Never throws: the
+     * visitor's response must not depend on it.
+     *
+     * @param string $form_id     Form ID.
+     * @param array  $form_config Form configuration.
+     */
+    private function store_as_spam( $form_id, array $form_config ) {
+        global $wpdb;
+
+        if ( empty( $form_config['settings']['store_entries'] ) ) {
+            return;
+        }
+
+        /**
+         * Maximum spam-flagged submissions kept per form per hour.
+         *
+         * @since 1.11.0
+         *
+         * @param int    $cap     Default 50. 0 keeps none (the pre-1.11.0 behaviour).
+         * @param string $form_id Form ID.
+         */
+        $cap = (int) apply_filters( 'pforms_spam_entries_per_hour', 50, $form_id );
+        if ( $cap <= 0 ) {
+            return;
+        }
+
+        try {
+            $recent = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}fre_entries WHERE form_id = %s AND is_spam = 1 AND created_at > %s",
+                $form_id,
+                gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) - HOUR_IN_SECONDS )
+            ) );
+            if ( $recent >= $cap ) {
+                return;
+            }
+
+            $post = $this->posted_data();
+            $data = PForms_Conditions::strip_hidden_field_values( $form_config, $this->sanitizer->sanitize( $form_config, $post ) );
+
+            $entry_id = $this->entry_repo->create( $form_id, $data, array( 'is_spam' => 1 ) );
+            if ( ! $entry_id || is_wp_error( $entry_id ) ) {
+                return;
+            }
+
+            $upload_config = $this->without_hidden_file_fields( $form_config );
+            if ( $this->has_file_uploads( $upload_config ) ) {
+                $files = $this->upload_handler->process_uploads( $upload_config, $entry_id );
+                if ( ! is_wp_error( $files ) ) {
+                    foreach ( $files as $field_key => $file_data ) {
+                        foreach ( isset( $file_data[0] ) ? $file_data : array( $file_data ) as $file ) {
+                            $this->entry_repo->add_file( $entry_id, $file, $field_key );
+                        }
+                    }
+                }
+            }
+        } catch ( Exception $e ) {
+            PForms_Logger::error( 'Could not keep spam-flagged submission: ' . $e->getMessage() );
+        }
     }
 
     /**
@@ -1100,7 +1192,7 @@ class PForms_Submission_Handler {
                 // Check if it's a very recently expired nonce by checking the next tick back.
                 // This handles edge cases around the 24-hour boundary.
                 $nonce_tick = ceil( time() / ( DAY_IN_SECONDS / 2 ) );
-                $expected_old = substr( wp_hash( ( $nonce_tick - 2 ) . '|' . $nonce_action . '|' . wp_get_session_token() . '|' . get_uid(), 'nonce' ), -12, 10 );
+                $expected_old = substr( wp_hash( ( $nonce_tick - 2 ) . '|' . $nonce_action . '|' . wp_get_session_token() . '|' . get_current_user_id(), 'nonce' ), -12, 10 );
 
                 // If not within grace period, reject.
                 if ( ! hash_equals( $expected_old, $old_nonce ) ) {
