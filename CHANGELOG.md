@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-09-21
+
+Found on 725 Print Lab's quote forms: a customer on a phone saw a red "File
+contains potentially dangerous content." and a green "Thanks" at once, and
+nothing arrived. PRs #18, #19, #20.
+
+### Added
+
+- `PForms_Upload_Inspector`: format-aware upload checks (see Fixed). Filters
+  `pforms_upload_inspection` (final say on a file), `pforms_max_total_upload_size`,
+  `pforms_generate_attachment_metadata` (default false: no thumbnails or PDF
+  previews for form uploads).
+- `PForms_Submission_Lock`: one owner for the idempotency and duplicate
+  guards, reading and writing its rows only through `$wpdb`.
+- **Mark as Not Spam** bulk action; `PForms_Entry::mark_not_spam()`.
+- Filters `pforms_notification_attachment_budget` (10 MB) and
+  `pforms_spam_entries_per_hour` (50).
+- `tests/uploads/`: fixtures, `matrix.php` and the measurement behind the
+  upload checks.
+
+### Changed
+
+- **A honeypot hit is kept as a spam entry**, with its files, instead of
+  discarded: no notification, webhook or `pforms_submission_complete` (so no
+  workflow). The visitor sees the same message. The field is renamed from
+  `_pforms_website_url_<hash>` to `_pforms_hp_<hash>` with a neutral label
+  and password-manager opt-out attributes; the old name is still recognised.
+- **Notification attachments stay within a size budget**; larger uploads are
+  linked, not attached, so a 25 MB file no longer makes the email fail. The
+  retry email carries the entry's files too.
+- The file field shows and the browser enforces the limit that really
+  applies (the lower of `max_size` and the server's), and refuses a wrong
+  type before uploading. The submission total follows the form's fields
+  (never below 25 MB).
+- Files on conditionally hidden fields are neither sent, validated nor stored.
+- `PForms_Entry::is_duplicate()` and `cleanup_expired_duplicates()` delegate
+  to the lock; `PForms_Mime_Validator::scan_for_dangerous_patterns()` is
+  deprecated and no longer called.
+
+### Fixed
+
+- **Real artwork was refused as "dangerous content".** The byte scan for
+  code-like strings (several 2-3 bytes long, such as `<%` and `$$`) matched
+  compressed image, PDF and Illustrator data by chance: 83% of 331 real files
+  and all 72 Illustrator exports were refused. EPS with a DOS preview header
+  failed its magic-byte check, and SVG was blocklisted even when a field
+  allowed it. Measured after: 0 of 440 valid files refused, 48 of 49 crafted
+  attacks refused (the one accepted is viewer-side PDF JavaScript, by design).
+- **"Thanks" shown when nothing was saved.** The duplicate guard wrote its
+  row with SQL and cleared it with `delete_transient()`, which under a
+  persistent object cache touches only the cache, so a retry within 60
+  seconds of a failed attempt got the success message. A duplicate now gets
+  success only once the first copy is stored.
+- **A double tap sent the form twice**: the lock was taken after the nonce
+  refresh. It is now taken on the first tap; one message replaces another;
+  the lock resets on a back/forward-cache restore.
+- A refused file created and then deleted an entry; the full inspection now
+  runs first. A file over the server limit, or a request over
+  `post_max_size`, gets a plain message instead of "Invalid form submission."
+- Values were stored with WordPress's added slashes (`O\'Brien`).
+- `ajax_refresh_nonce()` called `get_uid()`, which does not exist.
+
 ## [1.10.1] - 2026-09-19
 
 ### Changed
