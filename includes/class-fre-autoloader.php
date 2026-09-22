@@ -26,6 +26,7 @@ class PForms_Autoloader {
         'PForms_Renderer'            => 'Core/class-fre-renderer.php',
         'PForms_Shortcode'           => 'Core/class-fre-shortcode.php',
         'PForms_Submission_Handler'  => 'Core/class-fre-submission-handler.php',
+        'PForms_Submission_Lock'     => 'Core/class-fre-submission-lock.php',
         'PForms_Validator'           => 'Core/class-fre-validator.php',
         'PForms_Sanitizer'           => 'Core/class-fre-sanitizer.php',
         'PForms_Logger'              => 'Core/class-fre-logger.php',

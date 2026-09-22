@@ -59,7 +59,15 @@ class PForms_Submission_Handler {
         $this->sanitizer      = new PForms_Sanitizer();
         $this->upload_handler = new PForms_Upload_Handler();
         $this->entry_repo     = new PForms_Entry();
+        $this->lock           = new PForms_Submission_Lock();
     }
+
+    /**
+     * Submission lock (idempotency + duplicate guards).
+     *
+     * @var PForms_Submission_Lock
+     */
+    private $lock;
 
     /**
      * Handle form submission via AJAX.
@@ -131,7 +139,15 @@ class PForms_Submission_Handler {
             }
 
             // Step 6: Validate file uploads.
-            $this->validate_file_uploads( $form_config );
+            //
+            // Only for file fields the visitor can see. A file chosen and then
+            // hidden by a condition (e.g. "Design ready?" switched to "No, I
+            // need help") used to be validated and stored anyway: a refused
+            // file the visitor could no longer see or remove blocked the whole
+            // form. The server is authoritative on visibility, as it is for
+            // every other field (see PForms_Conditions).
+            $upload_config = $this->without_hidden_file_fields( $form_config );
+            $this->validate_file_uploads( $upload_config );
 
             // Step 7: Sanitize field values.
             $sanitized_data = $this->sanitizer->sanitize( $form_config, $_POST );
@@ -155,8 +171,8 @@ class PForms_Submission_Handler {
 
             // Step 9: Process file uploads.
             $uploaded_files = array();
-            if ( $entry_id && $this->has_file_uploads( $form_config ) ) {
-                $uploaded_files = $this->upload_handler->process_uploads( $form_config, $entry_id );
+            if ( $entry_id && $this->has_file_uploads( $upload_config ) ) {
+                $uploaded_files = $this->upload_handler->process_uploads( $upload_config, $entry_id );
 
                 if ( is_wp_error( $uploaded_files ) ) {
                     // Clean up entry if file upload fails.
@@ -176,6 +192,13 @@ class PForms_Submission_Handler {
                         $this->entry_repo->add_file( $entry_id, $file_data, $field_key );
                     }
                 }
+            }
+
+            // The submission is now durably received: the entry and its files
+            // are stored. From here a repeat of the same content may truthfully
+            // be told "we have your request".
+            if ( $entry_id ) {
+                $this->mark_duplicate_completed( $entry_id );
             }
 
             /**
@@ -230,6 +253,10 @@ class PForms_Submission_Handler {
              * @param array  $form_config    Form configuration.
              */
             $response = apply_filters( 'pforms_submission_response', $response, $entry_id, $sanitized_data, $form_config );
+
+            // With entry storage off there was no entry to mark above; reaching
+            // this point is the equivalent milestone.
+            $this->mark_duplicate_completed( (int) $entry_id );
 
             // Fix #4: Store response for idempotency before sending.
             $this->store_idempotency_response( $response );
@@ -493,7 +520,7 @@ class PForms_Submission_Handler {
 
             if ( is_wp_error( $result ) ) {
                 // Silent fail for bots - return success but don't store.
-                // Fix #4 follow-up: clear the idempotency transient so a
+                // Fix #4 follow-up: release the idempotency claim so a
                 // genuine human whose submission was wrongly flagged as bot
                 // can retry without being wedged in 'processing' for 5 min.
                 $this->clear_idempotency_token_on_exit();
@@ -542,11 +569,26 @@ class PForms_Submission_Handler {
     /**
      * Check for duplicate submission.
      *
+     * The same content sent twice within a minute (a reload and resubmit, a
+     * second device) is caught here. Since 1.11.0 the answer depends on what
+     * actually happened to the first copy:
+     *
+     *   - first copy RECEIVED  → the success message, truthfully: it arrived.
+     *   - first copy still being processed, or failed without releasing its
+     *     claim (a PHP fatal) → a visible "still processing" error. Never the
+     *     success message: nothing may have been saved.
+     *
+     * Before 1.11.0 every match got the success message, and on sites with a
+     * persistent object cache the claim of a FAILED attempt was never released
+     * (see PForms_Submission_Lock), so a retry after an error was told
+     * "Thanks" while nothing was saved.
+     *
      * @param string $form_id     Form ID.
      * @param array  $form_config Form configuration.
      */
     private function check_duplicate_submission( $form_id, array $form_config ) {
-        // Create hash from submitted data (excluding nonce and timestamp).
+        // Hash the submitted data (excluding nonce and timestamp). Unchanged
+        // from 1.10.x so claims written across an upgrade are recognised.
         $data_to_hash = $_POST;
         unset( $data_to_hash['_wpnonce'], $data_to_hash['_pforms_timestamp'] );
 
@@ -554,30 +596,89 @@ class PForms_Submission_Handler {
         $honeypot = new PForms_Honeypot();
         unset( $data_to_hash[ $honeypot->get_field_name( $form_id ) ] );
 
-        if ( $this->entry_repo->is_duplicate( $form_id, $data_to_hash ) ) {
-            // Return success to avoid revealing duplicate detection.
-            // Fix #4 follow-up: clear the idempotency transient so the
-            // user (who just sees "success") isn't told their next genuine
-            // submission attempt is "still being processed" for 5 min.
-            $this->clear_idempotency_token_on_exit();
+        $key   = PForms_Submission_Lock::duplicate_key( $form_id, $data_to_hash );
+        $claim = $this->lock->claim( $key, self::DUPLICATE_WINDOW );
 
-            wp_send_json_success( array(
-                'success' => true,
-                'message' => $form_config['settings']['success_message'],
-            ) );
+        if ( true === $claim ) {
+            // This request owns the window. Every non-success exit releases it
+            // (send_error / send_validation_error), so a retry after a
+            // recoverable error goes straight through.
+            $this->current_duplicate_key = $key;
+            return;
         }
 
-        // Fix #11 follow-up: is_duplicate() returned false, so THIS submission
-        // now owns the 60-second dedup window for this data hash. If a
-        // downstream step (validation, file upload, fatal exception) fails
-        // before the entry is stored, the dedup record stays in wp_options
-        // and silently rejects every retry within the next 60 seconds —
-        // even after the user fixes the underlying problem. Track the key
-        // here so the failure-exit path (clear_duplicate_token_on_exit()) can
-        // remove it. Hash computation must mirror PForms_Entry::is_duplicate()
-        // exactly so we delete the same row.
-        $hash                          = hash( 'sha256', $form_id . wp_json_encode( $data_to_hash ) );
-        $this->current_duplicate_key   = 'pforms_submission_' . $hash;
+        if ( PForms_Submission_Lock::STATE_COMPLETED === $claim['state'] ) {
+            PForms_Logger::info( sprintf( 'Duplicate submission for form "%s" matched a received submission; not stored again.', $form_id ) );
+
+            $response = array(
+                'success' => true,
+                'message' => $form_config['settings']['success_message'],
+            );
+            if ( ! empty( $form_config['settings']['redirect_url'] ) ) {
+                $response['redirect'] = esc_url( $form_config['settings']['redirect_url'] );
+            }
+
+            // A retry of THIS attempt should get the same answer.
+            $this->store_idempotency_response( $response );
+
+            wp_send_json_success( $response );
+        }
+
+        $this->send_error( 'submission_processing', self::processing_message() );
+    }
+
+    /**
+     * Record that the claimed duplicate window now belongs to a received
+     * submission. Called once the entry and its files are stored.
+     *
+     * @param int $entry_id Entry ID (0 when entry storage is off).
+     */
+    private function mark_duplicate_completed( $entry_id ) {
+        if ( empty( $this->current_duplicate_key ) || $this->duplicate_marked ) {
+            return;
+        }
+
+        $this->lock->update( $this->current_duplicate_key, array(
+            'state'    => PForms_Submission_Lock::STATE_COMPLETED,
+            'entry_id' => (int) $entry_id,
+        ) );
+        $this->duplicate_marked = true;
+    }
+
+    /**
+     * The form config with conditionally hidden file fields removed.
+     *
+     * Used for every upload step so a file attached to a field the visitor
+     * has hidden is neither validated nor stored.
+     *
+     * @param array $form_config Form configuration.
+     * @return array
+     */
+    private function without_hidden_file_fields( array $form_config ) {
+        if ( empty( $form_config['fields'] ) || ! is_array( $form_config['fields'] ) ) {
+            return $form_config;
+        }
+
+        $form_config['fields'] = array_values( array_filter(
+            $form_config['fields'],
+            function ( $field ) use ( $form_config ) {
+                if ( ! isset( $field['type'] ) || 'file' !== $field['type'] ) {
+                    return true;
+                }
+                return PForms_Conditions::field_is_visible( $field, $form_config, $_POST );
+            }
+        ) );
+
+        return $form_config;
+    }
+
+    /**
+     * The message shown when a submission is still being processed.
+     *
+     * @return string
+     */
+    private static function processing_message() {
+        return __( 'Your first attempt is still being processed. Please wait a few seconds, then try again.', 'promptless-forms' );
     }
 
     /**
@@ -729,66 +830,46 @@ class PForms_Submission_Handler {
     }
 
     /**
-     * Clear the in-progress idempotency transient on a non-success exit.
+     * Release this request's idempotency claim on a non-success exit.
      *
-     * Companion to set_transient() in check_idempotency_token() and
-     * store_idempotency_response(). The original Fix #4 implementation
-     * marked the token 'processing' at the start of handle_submission()
-     * and only updated it to 'completed' on the success path — leaving
-     * any failure (validation, spam check, file upload error, fatal
-     * exception) to leave the transient stuck in 'processing' for its
-     * full 5-minute lifetime. Subsequent retries from the same form
-     * load (which intentionally reuse the same submission UUID) would
-     * then hit the 'processing' branch and get the
-     * "Your submission is being processed. Please wait." response —
-     * effectively locking a real user out of resubmitting after any
-     * recoverable error.
+     * The claim is marked 'processing' at the start of handle_submission()
+     * and completed only on success. Releasing it on every failure exit
+     * lets a retry of the same attempt (the browser deliberately reuses the
+     * submission UUID) go straight through instead of being told the
+     * submission is still being processed.
      *
-     * Calling this on the error/silent-success exits restores the
-     * intended behavior: the original Fix #4 idempotency contract is
-     * preserved on success (cached response returned for retries) and
-     * the user can immediately retry after a recoverable failure.
-     *
-     * Safe to call multiple times — idempotent itself. No-op when the
-     * idempotency check never ran (e.g., early nonce failure) because
-     * current_idempotency_key is only populated after the transient
-     * has actually been set.
+     * Safe to call more than once. A no-op when this request never claimed
+     * the key (early nonce failure, or the claim belonged to another request).
      */
     private function clear_idempotency_token_on_exit() {
         if ( ! empty( $this->current_idempotency_key ) ) {
-            delete_transient( $this->current_idempotency_key );
+            $this->lock->release( $this->current_idempotency_key );
             $this->current_idempotency_key = '';
         }
     }
 
     /**
-     * Clear the in-progress duplicate-detection transient on a non-success exit.
+     * Release this request's duplicate-window claim on a non-success exit.
      *
-     * Companion to PForms_Entry::is_duplicate(), which inserts a 60-second
-     * transient keyed on the submission data hash to silently reject
-     * accidental double-submits. The original Fix #11 implementation
-     * created the transient but only "completed" it implicitly through
-     * the natural lifecycle of the entry — leaving any failure
-     * (validation, file upload, fatal exception) to leave the dedup
-     * record in wp_options for its full 60-second lifetime. The next
-     * retry from the same form (same $_POST hash) would then hit the
-     * "duplicate" branch, get a silent-success response, and never
-     * actually create an entry or fire the webhook — leaving the user
-     * with no visible indication that their genuine retry was dropped.
+     * The window must only persist for content that actually arrived.
+     * While a claim from a failed attempt survived, a corrected retry within
+     * the minute was treated as a duplicate — and until 1.11.0 answered with
+     * the success message while nothing was stored.
      *
-     * Calling this on the error/silent-success exits restores the
-     * intended behavior: the dedup window only persists when an entry
-     * actually exists, so retries after a recoverable failure go
-     * through immediately.
-     *
-     * Safe to call multiple times — idempotent itself. No-op when
-     * check_duplicate_submission() never ran or when is_duplicate()
-     * returned true (in which case THIS request didn't own the
-     * transient and must not delete someone else's dedup window).
+     * Safe to call more than once. A no-op when this request does not own
+     * the claim: another request's window must never be deleted from here.
      */
     private function clear_duplicate_token_on_exit() {
-        if ( ! empty( $this->current_duplicate_key ) ) {
-            delete_transient( $this->current_duplicate_key );
+        // Released through the lock (SQL), NOT delete_transient(): the claim
+        // was written with SQL, and on a site with a persistent object cache
+        // delete_transient() never reaches it. That mismatch is the 1.10.x
+        // "Thanks, but nothing saved" defect.
+        //
+        // Once the entry is stored the window is kept even on a later error
+        // (a notification step that throws, say): the submission DID arrive,
+        // so a retry is answered truthfully instead of being stored twice.
+        if ( ! empty( $this->current_duplicate_key ) && ! $this->duplicate_marked ) {
+            $this->lock->release( $this->current_duplicate_key );
             $this->current_duplicate_key = '';
         }
     }
@@ -817,32 +898,25 @@ class PForms_Submission_Handler {
             return false;
         }
 
-        $transient_key = 'pforms_idempotent_' . hash( 'sha256', $form_id . '_' . $submission_id );
+        $key   = PForms_Submission_Lock::idempotency_key( $form_id, $submission_id );
+        $claim = $this->lock->claim( $key, self::IDEMPOTENCY_PROCESSING_WINDOW );
 
-        // Check if this submission ID was already processed.
-        $cached = get_transient( $transient_key );
-
-        if ( $cached !== false ) {
-            // Submission was already processed - return cached response.
-            if ( is_array( $cached ) && isset( $cached['status'] ) ) {
-                if ( $cached['status'] === 'processing' ) {
-                    // Still processing - tell client to wait.
-                    wp_send_json_error( array(
-                        'code'    => 'submission_processing',
-                        'message' => __( 'Your submission is being processed. Please wait.', 'promptless-forms' ),
-                    ) );
-                }
-                return $cached['response'];
-            }
+        if ( true === $claim ) {
+            // Store the key so we can complete or release it on exit.
+            $this->current_idempotency_key = $key;
+            return false;
         }
 
-        // Mark as processing (5 minute window for slow submissions).
-        set_transient( $transient_key, array( 'status' => 'processing' ), 300 );
+        if ( PForms_Submission_Lock::STATE_COMPLETED === $claim['state'] && is_array( $claim['response'] ) ) {
+            // Already received - return the stored response.
+            return $claim['response'];
+        }
 
-        // Store the key so we can update it after successful submission.
-        $this->current_idempotency_key = $transient_key;
-
-        return false;
+        // Still processing - tell the client to wait. Not ours to release.
+        wp_send_json_error( array(
+            'code'    => 'submission_processing',
+            'message' => self::processing_message(),
+        ) );
     }
 
     /**
@@ -855,9 +929,9 @@ class PForms_Submission_Handler {
             return;
         }
 
-        // Store response for 1 hour (to handle retries).
-        set_transient( $this->current_idempotency_key, array(
-            'status'   => 'completed',
+        // Kept for an hour so a retry of this attempt gets the same answer.
+        $this->lock->update( $this->current_idempotency_key, array(
+            'state'    => PForms_Submission_Lock::STATE_COMPLETED,
             'response' => $response,
         ), HOUR_IN_SECONDS );
     }
@@ -870,10 +944,9 @@ class PForms_Submission_Handler {
     private $current_idempotency_key = '';
 
     /**
-     * Current duplicate-detection transient key owned by this request.
+     * Duplicate-window key this request claimed, or '' when it owns none.
      *
-     * Set by check_duplicate_submission() after is_duplicate() returns
-     * false (this request "owns" the 60-second window). Cleared by
+     * Set by check_duplicate_submission() when the claim succeeds. Cleared by
      * clear_duplicate_token_on_exit() on any non-success exit path so
      * the user can retry immediately after fixing a recoverable error
      * instead of being silently stonewalled for the rest of the window.
@@ -883,6 +956,24 @@ class PForms_Submission_Handler {
      * @var string
      */
     private $current_duplicate_key = '';
+
+    /**
+     * Whether this request has already marked its duplicate claim completed.
+     *
+     * @var bool
+     */
+    private $duplicate_marked = false;
+
+    /**
+     * Seconds the same content is treated as a duplicate.
+     */
+    const DUPLICATE_WINDOW = 60;
+
+    /**
+     * Seconds a claimed submission id stays "processing" before another
+     * request may take it over (covers a request that died mid-way).
+     */
+    const IDEMPOTENCY_PROCESSING_WINDOW = 300;
 
     /**
      * Log form configuration error with details (Fix #16).
