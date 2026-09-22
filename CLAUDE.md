@@ -57,7 +57,7 @@ Forms work perfectly standalone with sensible defaults when AISB is not active.
 This plugin requires **MySQL InnoDB storage engine** for transactional integrity:
 
 - **Entry creation** uses transactions to ensure atomic storage of entries and metadata
-- **Duplicate detection** uses atomic INSERT operations for race condition protection
+- **Duplicate detection** uses atomic INSERT operations for race condition protection (`PForms_Submission_Lock`; its rows are read, written and released only through `$wpdb`, never the transient API — see the class docblock)
 - If your database uses MyISAM tables, form submissions may fail or produce inconsistent data
 
 **Verification:** Most modern WordPress installations use InnoDB by default. You can verify by checking your `wp_options` table engine:
@@ -322,19 +322,25 @@ array(
 )
 ```
 
-**Built-in support for design formats** — `.ai` (Adobe Illustrator), `.eps` (Encapsulated PostScript), and `.dst` (Tajima embroidery) validate cleanly out of the box. Useful for screen-printing, embroidery, and agency clients without per-site MIME hacks. To accept them, just add the extensions to `allowed_types`:
+**Built-in support for design formats** — `.ai` (Adobe Illustrator), `.eps` (Encapsulated PostScript, with or without a preview), `.dst` (Tajima embroidery) and, since 1.11.0, `.svg` validate cleanly out of the box. Useful for screen-printing, embroidery, and agency clients without per-site MIME hacks. To accept them, just add the extensions to `allowed_types`:
 
 ```php
 array(
     'key'           => 'design_upload',
     'type'          => 'file',
     'label'         => 'Upload Design / Logo',
-    'allowed_types' => array( 'png', 'jpg', 'jpeg', 'pdf', 'ai', 'eps', 'dst' ),
+    'allowed_types' => array( 'png', 'jpg', 'jpeg', 'pdf', 'ai', 'eps', 'dst', 'svg' ),
     'max_size'      => 26214400,        // 25MB — design files run large
 )
 ```
 
+SVG is on the executable-content blocklist and is accepted **only** when a field lists `svg` in `allowed_types`; every SVG is then parsed and refused if it carries scripts, event handlers, `javascript:`/`data:` links, external entities, external `<use>` or HTML in a `foreignObject` (Illustrator's own editing data is allowed).
+
 For other custom formats (`.dwg` for architects, `.raw` / `.cr2` / `.nef` for photographers, `.pes` for Brother embroidery), register the extension via the `pforms_mime_map` filter — see Hooks Reference below. Defense-in-depth includes a per-format minimum file-size check (`.ai` ≥ 1KB, `.eps` ≥ 100B, `.dst` ≥ 500B by default; filterable via `pforms_min_file_sizes`) to block trivial polyglot uploads.
+
+**How uploads are checked (1.11.0+).** `PForms_Upload_Inspector` checks each file for what its format can actually hide, before the entry is written: the extension must be allowed; the detected type must match it (a file whose real type is another allowed type — a PNG named `.jpg` — is stored under the correct extension, as WordPress core does); the header must match; raster images must parse; no file may contain `<?php` or a PHAR stub; JPEG/PNG metadata and appended bytes may contain no PHP tag at all. Until 1.11.0 a byte scan for short patterns like `<%` and `$$` refused 83% of real artwork (every Illustrator export, every EPS with a preview). The measurement, fixtures and a repeatable matrix are in `tests/uploads/` (`php tests/uploads/matrix.php`).
+
+**Limits a visitor meets.** The field shows, and the browser enforces before uploading, the lower of `max_size` and the server's upload limit. The combined size of one submission may reach the sum of its file fields' limits (never less than 25 MB; `pforms_max_total_upload_size`). A file or request over the server's own limit gets a plain message, not "Invalid form submission". Files on a field hidden by `conditions` are neither sent nor stored. No thumbnails are generated for form uploads (`pforms_generate_attachment_metadata` restores it).
 
 ### hidden
 Hidden field.
@@ -506,7 +512,7 @@ For consistency across forms and reusable automations, use these standard field 
 | `notification.to` | `"{admin_email}"` | Recipient email(s) |
 | `notification.subject` | `"New Form Submission"` | Email subject line |
 | `hide_empty_fields` | `true` | Skip empty optional fields in notification email body. Set `false` to render every field with `—` placeholder for empty values |
-| `spam_protection.honeypot` | `true` | Enable honeypot field |
+| `spam_protection.honeypot` | `true` | Enable honeypot field. A submission that fills it gets the normal success message and is kept as a **spam entry** (Entries → Include Spam; restore with the Mark as Not Spam bulk action) — no notification, webhook or workflow. Capped per form per hour (`pforms_spam_entries_per_hour`, default 50) |
 | `spam_protection.timing_check` | `true` | Reject fast submissions |
 | `spam_protection.min_submission_time` | `3` | Minimum seconds before submission |
 | `multistep.show_progress` | `true` | Show progress indicator |
@@ -752,6 +758,15 @@ $types = apply_filters( 'pforms_field_types', array( 'text', 'email', ... ) );
 // Modify notification body before sending
 $body = apply_filters( 'pforms_notification_body', $body, $form_config, $entry_data, $entry_id );
 
+// (1.11.0) Largest combined size attached to the notification email, in
+// bytes. Default 10 MB; over it, files are linked (links are always in the
+// body) instead of attached, so the email is not refused by the mail server.
+$budget = apply_filters( 'pforms_notification_attachment_budget', 10 * MB_IN_BYTES, $uploaded_files );
+
+// (1.11.0) How many honeypot-flagged submissions to keep as spam entries,
+// per form per hour. 0 restores the pre-1.11.0 behaviour (discard).
+$cap = apply_filters( 'pforms_spam_entries_per_hour', 50, $form_id );
+
 // Modify webhook payload before sending (last hook before HTTP dispatch)
 $payload = apply_filters( 'pforms_webhook_payload', $payload, $entry_id, $form_id, $data );
 
@@ -806,10 +821,25 @@ $resolve = apply_filters( 'pforms_webhook_resolve_option_labels', $resolve, $for
 $mime_map = apply_filters( 'pforms_mime_map', $mime_map );
 
 // Extend the magic-byte signatures used by verify_magic_bytes(). Receives
-// the array for a given extension. Return an empty array to skip strict
-// signature verification for an extension and fall back to the
-// dangerous-pattern scan (useful for binary formats with no stable header).
+// the array for a given extension. Return an empty array to skip header
+// verification for an extension (useful for binary formats with no stable
+// header); the rest of PForms_Upload_Inspector still runs.
 $signatures = apply_filters( 'pforms_magic_bytes', $signatures, $extension );
+
+// (1.11.0) Final say on an uploaded file. Receives the inspector's result —
+// array( 'ext', 'mime' ) or a WP_Error — plus the file path, the extension
+// from the visitor's file name and the field. Return a WP_Error to refuse
+// (its message is shown to the visitor), e.g. after a malware-scanner call.
+$result = apply_filters( 'pforms_upload_inspection', $result, $path, $ext, $field );
+
+// (1.11.0) Largest combined upload size for one submission. Default: the
+// sum of the form's file-field limits, never below 25 MB.
+$max_total = apply_filters( 'pforms_max_total_upload_size', $max_total, $form_config );
+
+// (1.11.0) Generate full attachment metadata (thumbnails, PDF previews) for
+// form uploads. Default false: they are private files for the business, and
+// resizing / Ghostscript inside the visitor's request was slow and risky.
+$generate = apply_filters( 'pforms_generate_attachment_metadata', false, $attachment_id, $path );
 
 // Extend or tighten the per-extension minimum file-size enforcement.
 // Defense-in-depth against polyglot uploads with short magic bytes.
