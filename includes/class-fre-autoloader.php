@@ -88,6 +88,7 @@ class PForms_Autoloader {
         'PForms_Admin'               => 'Admin/class-fre-admin.php',
         'PForms_Entries_List_Table'  => 'Admin/class-fre-entries-list-table.php',
         'PForms_Entry_Detail'        => 'Admin/class-fre-entry-detail.php',
+        'PForms_Entry_Notification_Status' => 'Admin/class-fre-entry-notification-status.php',
         'PForms_CSV_Exporter'        => 'Admin/class-fre-csv-exporter.php',
         'PForms_Forms_Manager'       => 'Admin/class-fre-forms-manager.php',
 

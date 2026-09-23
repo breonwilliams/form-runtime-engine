@@ -1,6 +1,6 @@
 # Form Runtime Engine — Connector Knowledge Map
 
-**Date:** 2026-09-21 (1.11.0: duplicates, uploads, honeypot)
+**Date:** 2026-09-23 (1.12.0: what the Entries Email column reports)
 **Status:** Draft
 **Audience:** Any Claude (or other LLM) consumer session using the FRE connector to create, update, or read forms on a WordPress site. Also: plugin engineers maintaining the connector rules.
 **Companion docs:**
@@ -278,6 +278,17 @@ Email notifications sent on successful submission.
 ```
 
 When `false`, every field renders with an em-dash (`—`) placeholder for empty values. Useful when emails feed downstream tooling that expects a fixed table shape (e.g., a parser that pulls field values by row index). Required fields with empty values are always rendered — they signal a data integrity issue. Conditionally-hidden fields (whose `conditions` block evaluates false) are ALWAYS skipped regardless of this flag because they were never visible to the submitter.
+
+**The Entries screen's Email column reports this plugin only.** A tick means
+Promptless Forms handed a notification to the mail server; **Off** means the
+form's own notification is switched off, so it sent nothing; **Not sent** means
+it is on and nothing was recorded. It cannot see any other sender. When a
+workflow plugin sends the team email instead — the usual setup with FlowMint,
+so the team gets one email rather than two — that plugin can answer the
+`pforms_entry_notification_status` filter (1.12.0+) and the column shows its
+claim, attributed to it, never as a Promptless Forms tick. Before 1.12.0 the
+column showed a bare dash in that case, which reads as a delivery failure and
+caused exactly that false alarm on a live site.
 
 ### 7.4 Spam protection
 

@@ -316,18 +316,36 @@ class PForms_Entry_Detail {
             <li>
                 <strong><?php esc_html_e( 'Email Notification:', 'promptless-forms' ); ?></strong>
                 <?php
-                if ( ! empty( $entry['notification_sent'] ) ) {
-                    echo '<span style="color:#46b450;">' . esc_html__( 'Sent', 'promptless-forms' ) . '</span>';
-                    if ( ! empty( $entry['notification_sent_at'] ) ) {
-                        echo ' <small>(' . esc_html( date_i18n( 'M j, g:i a', strtotime( $entry['notification_sent_at'] ) ) ) . ')</small>';
-                    }
-                } elseif ( ! empty( $entry['notification_error'] ) ) {
-                    // Failed only when a send was attempted — see the list
-                    // table's notification column.
-                    echo '<span style="color:#d63638;">' . esc_html__( 'Failed', 'promptless-forms' ) . '</span>';
-                    echo '<br><small>' . esc_html( $entry['notification_error'] ) . '</small>';
-                } else {
-                    echo esc_html__( 'Not sent', 'promptless-forms' );
+                // One resolver for this and the Entries column, so the two
+                // never disagree. See PForms_Entry_Notification_Status.
+                $notification = PForms_Entry_Notification_Status::for_entry( $entry );
+
+                switch ( $notification['state'] ) {
+                    case PForms_Entry_Notification_Status::STATE_SENT:
+                        echo '<span style="color:#46b450;">' . esc_html( $notification['label'] ) . '</span>';
+                        if ( ! empty( $entry['notification_sent_at'] ) ) {
+                            echo ' <small>(' . esc_html( date_i18n( 'M j, g:i a', strtotime( $entry['notification_sent_at'] ) ) ) . ')</small>';
+                        }
+                        break;
+
+                    case PForms_Entry_Notification_Status::STATE_FAILED:
+                        echo '<span style="color:#d63638;">' . esc_html( $notification['label'] ) . '</span>';
+                        echo '<br><small>' . esc_html( $notification['description'] ) . '</small>';
+                        break;
+
+                    case PForms_Entry_Notification_Status::STATE_EXTERNAL:
+                        if ( '' !== $notification['url'] ) {
+                            echo '<a href="' . esc_url( $notification['url'] ) . '">' . esc_html( $notification['label'] ) . '</a>';
+                        } else {
+                            echo esc_html( $notification['label'] );
+                        }
+                        echo '<br><small>' . esc_html( PForms_Entry_Notification_Status::tooltip( $notification ) ) . '</small>';
+                        break;
+
+                    default:
+                        echo esc_html( $notification['label'] );
+                        echo '<br><small>' . esc_html( $notification['description'] ) . '</small>';
+                        break;
                 }
                 ?>
             </li>
