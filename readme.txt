@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.11.0
+Stable tag: 1.12.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,9 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.12.0 =
+* Fixed: on the Form Entries list, the Email column showed a dash that looked like a delivery failure when a form's own notification is turned off — the normal setup when a FlowMint workflow sends your team's email instead. It now says "Off", and where a workflow sends the email the column shows what the workflow did, with a link to it.
+
 = 1.11.0 =
 * Fixed: real photos, PDFs and Adobe Illustrator files were refused with "File contains potentially dangerous content." Uploads are now checked for what each file type can actually hide; program code is still refused, and every message says what to do. SVG (on fields that list it) and EPS files with a preview are accepted.
 * Fixed: a double tap, or a retry on a host with a persistent object cache, could show "Thanks" while nothing was saved. The button locks on the first tap, and a repeat is told "thanks" only once the first copy is saved.
@@ -118,13 +121,11 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 = 1.9.0 =
 * Added: right-to-left languages load right-to-left stylesheets, so a form on an Arabic or Hebrew site mirrors its labels, steps, buttons and admin screens.
 
-= 1.8.8 =
-* Fixed: on sites with full-page caching, every submission from a cached page was rejected with "Your session expired" because the security token baked into the cached HTML had long expired. The form now refreshes its token before submitting whenever its age is unknown, and a rejected submission is retried once, transparently, with the fresh token the server sends back. No duplicate entries: the retry reuses the same submission id.
-* Fixed: a chosen file was silently dropped when the form was repopulated after that rejection. Files are now kept in memory and re-attached to the retried request.
-* Fixed: a submission that had succeeded could be reported to the visitor as a failure when the response was not JSON (an edge timeout, a 502, a security appliance's block page), which led visitors to submit again and businesses to receive duplicates. The outcome is now reported as unknown with an in-place retry that the server's idempotency check recognises, and the real cause is logged to the browser console.
-
 
 == Upgrade Notice ==
+
+= 1.12.0 =
+Clears up the Form Entries "Email" column, which showed a dash that looked like a failed notification when the form's own email is turned off. No settings or form data change.
 
 = 1.11.0 =
 Customers can upload real artwork again: most photos, PDFs and Illustrator files were refused as "dangerous content". Also stops a double tap from showing "Thanks" when nothing was saved. Recommended for all users.
@@ -141,7 +142,5 @@ Form stylesheets now load only on pages that show a form, instead of on every pa
 = 1.9.0 =
 Adds right-to-left stylesheets: forms on Arabic or Hebrew sites now mirror correctly. No settings or form data change.
 
-= 1.8.8 =
-Fixes lost submissions on sites with full-page caching ("Your session expired" on every attempt), files dropped on retry, and successful submissions reported as failures that led to duplicate entries. No settings or form data change. Recommended for all users.
 
 
