@@ -743,6 +743,17 @@ do_action( 'pforms_submission_complete', $entry_id, $form_id, $sanitized_data );
 // After notification sent
 do_action( 'pforms_notification_sent', $sent, $entry_id, $form_config, $entry_data );
 
+// (1.12.0) What the Entries screen's Email column says about one entry.
+// That column reports ONLY this plugin's own notification, so on a site
+// where something else emails the team — a workflow engine, a CRM bridge —
+// it has nothing of its own to show. Return `state` = 'external' with a
+// `label` and a `source` to say you handled it; `url` should point at your
+// own record of the send. What you return is rendered ATTRIBUTED to your
+// `source` and never as this plugin's green "Sent" tick, because Promptless
+// Forms cannot verify a send it did not make. States: sent, failed, off,
+// not_sent, external.
+$status = apply_filters( 'pforms_entry_notification_status', $status, $entry );
+
 // Email permanently failed after retries
 do_action( 'pforms_email_permanently_failed', $entry_id, $form_config );
 
