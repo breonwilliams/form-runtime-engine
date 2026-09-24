@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-23
+
+### Added
+
+- Filter `pforms_entry_notification_status`: whatever actually sends a form's
+  team email can tell the Entries screen so. Return `state` = 'external' with
+  a `label` and a `source` (and optionally a `url` to your own record). What
+  you return is rendered ATTRIBUTED to your source and never as this plugin's
+  green "Sent" tick, because Promptless Forms cannot verify a send it did not
+  make. `PForms_Entry_Notification_Status` resolves and renders the five
+  states (sent, failed, off, not_sent, external) for the Entries list and the
+  entry detail view alike, so the two cannot disagree.
+
+### Fixed
+
+- **The Entries screen's Email column read as a delivery failure whenever
+  this plugin had nothing of its own to report.** A form whose own
+  notification is switched off showed a bare grey dash on every entry,
+  identical to "it was on and nothing happened". That is the correct setup on
+  a site where something else emails the team — a workflow engine, a CRM
+  bridge — so it was every entry, and a site owner read it as proof that
+  submissions were reaching nobody. They were: the emails had gone out.
+  A switched-off notification now says **Off**, in words rather than a dash
+  among ticks, and the tooltip says what it means.
+
 ## [1.11.0] - 2026-09-21
 
 Found on 725 Print Lab's quote forms: a customer on a phone saw a red "File
