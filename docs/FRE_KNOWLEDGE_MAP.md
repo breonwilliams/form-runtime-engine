@@ -1,6 +1,6 @@
 # Form Runtime Engine — Connector Knowledge Map
 
-**Date:** 2026-09-23 (1.12.0: what the Entries Email column reports)
+**Date:** 2026-10-12 (required selects always open on an empty option)
 **Status:** Draft
 **Audience:** Any Claude (or other LLM) consumer session using the FRE connector to create, update, or read forms on a WordPress site. Also: plugin engineers maintaining the connector rules.
 **Companion docs:**
@@ -67,7 +67,7 @@ FRE supports thirteen field types. All accept the universal base properties in P
 
 **Required-options rule:** `select` and `radio` MUST include an `options` array with at least one entry. `checkbox` may or may not — with options it renders as a group, without it renders as a single boolean.
 
-**Required-select rule:** give every `required` single `select` a `placeholder` (e.g. `"Choose one…"`). Without one the browser preselects the FIRST option, so `required` can never fail and a visitor who skips the question silently submits option one — a service-request form files every skipped report as its first category. The placeholder renders as an empty first option the visitor must change.
+**Required-select rule:** a `required` single `select` always opens on an empty first option the visitor must change. Give it a `placeholder` to word that option (e.g. `"Choose a category…"`); without one, Promptless Forms 1.12.1+ adds "Choose an option" itself. (Before 1.12.1 a required select with no placeholder had no empty option: the browser preselected the FIRST option, so `required` could never fail and a skipped question silently submitted option one.) An OPTIONAL select with no placeholder still preselects its first option, so if "no answer" must be possible there, give it a `placeholder`.
 
 **Message-field rule:** `message` fields must have either `label` or `content` (or both). They exist to display information; neither being present would make the field meaningless.
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A required dropdown could submit a value the visitor never picked. A
+  `required` single `select` with no `placeholder` rendered no empty option,
+  so the browser preselected the first real option and `required` could
+  never fail (video dry run, 2026-10). It now always opens on an empty first
+  option, worded by `placeholder` or "Choose an option", which the browser
+  and the server both refuse to submit. Optional selects are unchanged on
+  purpose: their value reaches FlowMint workflows, and an existing optional
+  dropdown keeps submitting what it did before. Pinned by
+  `tests/Unit/RequiredSelectPlaceholderTest.php`.
+
 ## [1.12.0] - 2026-09-23
 
 ### Added
