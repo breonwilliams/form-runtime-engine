@@ -255,7 +255,7 @@ array(
     'key'         => 'country',
     'type'        => 'select',
     'label'       => 'Country',
-    'placeholder' => 'Select a country',  // Empty first option
+    'placeholder' => 'Select a country',  // Empty first option (a required single select gets "Choose an option" when omitted, 1.12.1+)
     'multiple'    => false,               // Allow multiple selections
     'options'     => array(
         array( 'value' => 'us', 'label' => 'United States' ),

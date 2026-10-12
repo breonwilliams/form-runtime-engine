@@ -62,11 +62,28 @@ class PForms_Field_Select extends PForms_Field_Type_Abstract {
         // Build options HTML.
         $options_html = '';
 
-        // Placeholder option.
-        if ( ! empty( $field['placeholder'] ) ) {
+        // Placeholder option: an empty first option the visitor must change.
+        //
+        // A REQUIRED single select always gets one. Without it the browser
+        // preselects the first real option, so `required` can never fail and
+        // a visitor who skipped the question submits a value they never
+        // picked (video dry run, 2026-10; the knowledge map's required-select
+        // rule asked authors to add a placeholder, and generated forms did
+        // not). HTML calls this the select's "placeholder label option": with
+        // it selected, a required select is invalid until a choice is made.
+        //
+        // An OPTIONAL select is left as configured. Its value reaches
+        // FlowMint workflows, and turning "first option" into "empty" for an
+        // existing optional dropdown would change what those workflows
+        // receive.
+        $placeholder = isset( $field['placeholder'] ) ? (string) $field['placeholder'] : '';
+        if ( '' === $placeholder && ! empty( $field['required'] ) && empty( $field['multiple'] ) ) {
+            $placeholder = self::default_placeholder();
+        }
+        if ( '' !== $placeholder ) {
             $options_html .= sprintf(
                 '<option value="">%s</option>',
-                esc_html( $field['placeholder'] )
+                esc_html( $placeholder )
             );
         }
 
@@ -111,6 +128,15 @@ class PForms_Field_Select extends PForms_Field_Type_Abstract {
         );
 
         return $this->render_wrapper( $field, $form_id, $input );
+    }
+
+    /**
+     * The empty first option's label when a required select has none.
+     *
+     * @return string
+     */
+    public static function default_placeholder() {
+        return __( 'Choose an option', 'promptless-forms' );
     }
 
     /**
