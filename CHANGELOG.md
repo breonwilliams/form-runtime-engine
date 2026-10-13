@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   purpose: their value reaches FlowMint workflows, and an existing optional
   dropdown keeps submitting what it did before. Pinned by
   `tests/Unit/RequiredSelectPlaceholderTest.php`.
+- The relay reported failed calls as results. An HTTP error came back as
+  an ordinary tool result without MCP's `isError`, so a refused write read
+  as done. Failed calls now carry `isError: true`; a 429 adds
+  `rate_limited` and `retry_after_seconds`. Pinned by
+  `tests/relay-tool-errors.test.js`.
 
 ## [1.12.0] - 2026-09-23
 
