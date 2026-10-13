@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-10-12
+
 ### Fixed
 
 - A required dropdown could submit a value the visitor never picked. A

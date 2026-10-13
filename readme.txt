@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.12.0
+Stable tag: 1.12.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,10 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.12.1 =
+* Fixed: a required dropdown now opens on an empty "Choose an option" (or its placeholder), so a visitor can no longer submit a value they never picked. Optional dropdowns are unchanged.
+* Fixed: the AI connector now reports a refused or failed request as an error (including rate limits, with a retry time) instead of as a success.
+
 = 1.12.0 =
 * Fixed: on the Form Entries list, the Email column showed a dash that looked like a delivery failure when a form's own notification is turned off — the normal setup when a FlowMint workflow sends your team's email instead. It now says "Off", and where a workflow sends the email the column shows what the workflow did, with a link to it.
 
@@ -118,11 +122,10 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 = 1.9.1 =
 * Fixed: the form stylesheets loaded on every page of the site whenever Promptless WP's neo-brutalist style was on, not just on pages with a form. They now load only where a form renders, so pages without a form are lighter.
 
-= 1.9.0 =
-* Added: right-to-left languages load right-to-left stylesheets, so a form on an Arabic or Hebrew site mirrors its labels, steps, buttons and admin screens.
-
-
 == Upgrade Notice ==
+
+= 1.12.1 =
+Required dropdowns no longer preselect their first option, so a visitor must choose one. Connector errors are reported as errors. No settings or form data change.
 
 = 1.12.0 =
 Clears up the Form Entries "Email" column, which showed a dash that looked like a failed notification when the form's own email is turned off. No settings or form data change.
@@ -138,9 +141,3 @@ Behaviour change: a {field:...} token in a form's notification sender is now ign
 
 = 1.9.1 =
 Form stylesheets now load only on pages that show a form, instead of on every page when the neo-brutalist style is on. No settings or form data change.
-
-= 1.9.0 =
-Adds right-to-left stylesheets: forms on Arabic or Hebrew sites now mirror correctly. No settings or form data change.
-
-
-
