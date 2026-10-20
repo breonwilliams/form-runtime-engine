@@ -132,6 +132,19 @@
     --fre-ghost-hover-bg: var(--aisb-button-primary-hover-bg, var(--fre-primary-hover));
     --fre-ghost-hover-text: var(--aisb-button-primary-hover-text, var(--fre-button-text));
 
+    /* Accent for focus indicators and checked radios / checkboxes.
+
+       Both are non-text UI that WCAG 1.4.11 holds to 3:1 against what is
+       around them, so the raw primary cannot be used: a light brand colour
+       (a yellow, a pastel) is about 1.3:1 on white. Promptless WP's
+       surface-corrected link colour is the primary pushed to at least 4.5:1
+       against the card surface, which covers the field and the page. When
+       that token is absent (Promptless WP inactive, or its smart colours
+       turned off) the TEXT colour is used, which is readable on the form by
+       definition. Mirrored for dark below. */
+    --fre-accent-color: var(--aisb-smart-light-surface-link, var(--fre-text-color));
+    --fre-focus-color: var(--fre-accent-color);
+
     /* Spacing - inherit from AISB or use standalone defaults */
     --fre-spacing-xs: var(--aisb-section-space-xs, 0.5rem);
     --fre-spacing-sm: var(--aisb-section-space-sm, 1rem);
@@ -165,6 +178,10 @@
        Same worst-case-backdrop convention as --fre-text-muted and
        --fre-border-color above (demo-04 finding #16, 2026-07-27). */
     --fre-ghost-color: var(--aisb-smart-dark-surface-link, var(--aisb-smart-dark-ghost-button, var(--fre-primary-color)));
+
+    /* See --fre-accent-color above: dark surface link, else the dark text. */
+    --fre-accent-color: var(--aisb-smart-dark-surface-link, var(--fre-text-color));
+    --fre-focus-color: var(--fre-accent-color);
 
     /* Status color text in dark mode.
 
@@ -623,18 +640,23 @@
 .fre-field__input:focus,
 .fre-field__textarea:focus,
 .fre-field__select:focus {
-    outline: none;
     border-color: var(--fre-primary-color);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fre-primary-color) 20%, transparent);
 }
 
-/* Fallback for browsers without color-mix support */
-@supports not (color: color-mix(in srgb, red 50%, blue)) {
-    .fre-field__input:focus,
-    .fre-field__textarea:focus,
-    .fre-field__select:focus {
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-    }
+/* The focus indicator: a 2px solid outline, offset so it sits on the page or
+   card rather than on the field, in a colour held to 3:1 (--fre-focus-color).
+   It used to be the 1px border turning primary plus a 3px ring of primary at
+   20%, which measured 1.29:1 against white: under WCAG 1.4.11's 3:1 and easy
+   to miss. The border change stays as a second cue. :focus-visible matches
+   every keyboard focus and every focus of a text field, so a typing visitor
+   always sees it. */
+.fre-field__input:focus-visible,
+.fre-field__textarea:focus-visible,
+.fre-field__select:focus-visible,
+.fre-field__checkbox:focus-visible,
+.fre-field__radio:focus-visible {
+    outline: 2px solid var(--fre-focus-color);
+    outline-offset: 2px;
 }
 
 .fre-field__input:disabled,
@@ -686,6 +708,31 @@
     padding: 8px;
 }
 
+/* The browser's "Choose file" button, styled as the form's secondary button
+   (the same tokens as Previous) instead of the system default. The input
+   itself takes focus, so its focus indicator is the field outline above. */
+.fre-field__file::file-selector-button {
+    margin-inline-end: 12px;
+    padding: 6px 16px;
+    font-family: var(--fre-button-font);
+    font-size: inherit;
+    font-weight: var(--fre-button-weight);
+    text-transform: var(--fre-button-transform);
+    letter-spacing: var(--fre-button-letter-spacing);
+    color: var(--fre-ghost-color);
+    background-color: transparent;
+    border: 2px solid var(--fre-ghost-color);
+    border-radius: var(--fre-border-radius-button);
+    cursor: pointer;
+    transition: background-color var(--fre-transition-fast), color var(--fre-transition-fast), border-color var(--fre-transition-fast);
+}
+
+.fre-field__file:hover::file-selector-button {
+    background-color: var(--fre-ghost-hover-bg);
+    border-color: var(--fre-ghost-hover-bg);
+    color: var(--fre-ghost-hover-text);
+}
+
 .fre-field__file-info {
     margin: 6px 0 0;
     font-size: 0.875em;
@@ -720,6 +767,9 @@
 .fre-field__radio {
     margin: 4px 10px 0 0;
     flex-shrink: 0;
+    /* The brand accent, held to 3:1 so the checked state is visible
+       (--fre-accent-color). Without it the browser draws its own blue. */
+    accent-color: var(--fre-accent-color);
 }
 
 .fre-field__checkbox-text,
@@ -780,12 +830,12 @@
 .fre-field--has-error .fre-field__input:focus,
 .fre-field--has-error .fre-field__textarea:focus,
 .fre-field--has-error .fre-field__select:focus {
-    /* Previously hardcoded `rgba(220, 53, 69, 0.15)` — a Bootstrap-era
-       red unrelated to the rest of FRE's tokens. Now derives from the
-       --fre-error-color token via the --fre-error-focus-ring variable,
-       so it stays in sync if a site customizes --aisb-color-error and
-       gets a stronger 30% opacity in dark mode for visibility. */
-    box-shadow: 0 0 0 3px var(--fre-error-focus-ring);
+    /* The red error border stays while the field is focused. Focus itself is
+       the same --fre-focus-color outline as any field (above), so it reads
+       as a SECOND, different signal. It used to be a 20% red ring next to a
+       border that was already red, so tabbing into an invalid field changed
+       almost nothing. */
+    border-color: var(--fre-error-color);
 }
 
 /* ==========================================================================
@@ -884,7 +934,7 @@
 }
 
 .fre-form__submit-button:focus-visible {
-    outline: 3px solid var(--fre-primary-color, currentColor);
+    outline: 3px solid var(--fre-focus-color, currentColor);
     outline-offset: 3px;
 }
 
@@ -1233,6 +1283,14 @@
     border-top: 1px solid var(--fre-border-color);
 }
 
+/* The last step's submit keeps its .fre-form__submit wrapper, whose top margin
+   spaces it from the fields on a single-step form. Inside the nav row that
+   margin pushed Submit 18px below Previous. The row already provides the
+   spacing (margin + padding + border above it). */
+.fre-step__nav .fre-form__submit {
+    margin-top: 0;
+}
+
 .fre-step__nav:has(.fre-step__prev):not(:has(.fre-step__next)):not(:has(.fre-step__submit)) {
     justify-content: flex-start;
 }
@@ -1298,7 +1356,7 @@
 }
 
 .fre-btn:focus-visible {
-    outline: 3px solid var(--fre-primary-color, currentColor);
+    outline: 3px solid var(--fre-focus-color, currentColor);
     outline-offset: 3px;
 }
 

@@ -216,7 +216,18 @@ class PForms_Email_Notification {
             $template
         );
 
-        // System variables.
+        return self::replace_system_variables( $template, $form_config );
+    }
+
+    /**
+     * Replace the system variables ({admin_email}, {site_name}, {site_url},
+     * {form_title}) in a template. Field tokens are left alone.
+     *
+     * @param string $template    Template.
+     * @param array  $form_config Form configuration (for {form_title}).
+     * @return string
+     */
+    private static function replace_system_variables( $template, array $form_config = array() ) {
         $replacements = array(
             '{admin_email}' => get_option( 'admin_email' ),
             '{site_name}'   => get_bloginfo( 'name' ),
@@ -224,7 +235,27 @@ class PForms_Email_Notification {
             '{form_title}'  => isset( $form_config['title'] ) ? $form_config['title'] : '',
         );
 
-        return str_replace( array_keys( $replacements ), array_values( $replacements ), $template );
+        return str_replace( array_keys( $replacements ), array_values( $replacements ), (string) $template );
+    }
+
+    /**
+     * The sender address a from_email value produces, or '' when it does not
+     * produce a usable address.
+     *
+     * System variables are resolved; submitted data never is (a field token
+     * yields ''). Used by the save-time validator and by build_headers(), so a
+     * value the validator accepts is exactly a value that sends.
+     *
+     * @param string $template    The configured from_email.
+     * @param array  $form_config Form configuration.
+     * @return string A valid address, or ''.
+     */
+    public static function resolve_sender_address( $template, array $form_config = array() ) {
+        if ( self::has_field_token( $template ) ) {
+            return '';
+        }
+        $address = sanitize_email( self::replace_system_variables( trim( (string) $template ), $form_config ) );
+        return is_email( $address ) ? $address : '';
     }
 
     /**
@@ -436,25 +467,55 @@ class PForms_Email_Notification {
 
         $from_template        = isset( $notification['from_email'] ) ? (string) $notification['from_email'] : '';
         $from_has_field_token = self::has_field_token( $from_template );
+        $form_label           = isset( $form_config['id'] ) ? $form_config['id'] : '';
 
-        if ( ! isset( $notification['from_email'] ) ) {
-            $from_email = get_option( 'admin_email' );
-        } elseif ( $from_has_field_token ) {
+        // An empty or invalid from_email sends from the site's admin email,
+        // keeping from_name, exactly as an unset one does. With no From header
+        // wp_mail() sends as "WordPress <wordpress@domain>" and drops
+        // from_name, which reads as spam and looked broken to the site owner:
+        // that is what an empty or invalid value did up to 1.12.2
+        // (Sparrowmere dry run, 2026-10). Unusable non-empty values are logged.
+        //
+        // A submitted-field token keeps its own, older path: no From header,
+        // so the site's configured sender applies. That path was chosen during
+        // a client outage (the provider refused unverified From domains, and a
+        // "force From" mail plugin had been masking it); it is logged here and
+        // refused at save since 1.10.0.
+        $from_email = get_option( 'admin_email' );
+
+        if ( $from_has_field_token ) {
             $from_email = '';
             PForms_Logger::warning(
                 sprintf(
                     'Notification from_email "%s" on form "%s" contains a submitted-field token; ignored. The sender cannot come from submitted data (providers reject unverified From domains). WordPress\'s default sender is used; the submitter is set as Reply-To when reply_to is empty. Put {field:...} in reply_to instead.',
                     $from_template,
-                    isset( $form_config['id'] ) ? $form_config['id'] : ''
+                    $form_label
                 )
             );
-        } else {
-            // System tokens only: entry data is deliberately NOT passed.
-            $from_email = sanitize_email( $this->parse_template( $from_template, array(), $form_config ) );
+        } elseif ( '' !== trim( $from_template ) ) {
+            $resolved = self::resolve_sender_address( $from_template, $form_config );
+            if ( '' !== $resolved ) {
+                $from_email = $resolved;
+            } else {
+                PForms_Logger::warning(
+                    sprintf(
+                        'Notification from_email "%s" on form "%s" is not an email address; the site\'s admin email is used as the sender instead.',
+                        $from_template,
+                        $form_label
+                    )
+                );
+            }
         }
 
         if ( is_email( $from_email ) ) {
             $headers[] = "From: {$from_name} <{$from_email}>";
+        } elseif ( ! $from_has_field_token ) {
+            PForms_Logger::warning(
+                sprintf(
+                    'Form "%s": no usable sender address (the site admin email is not valid either); WordPress\'s default sender will be used.',
+                    $form_label
+                )
+            );
         }
 
         // Reply-To header.
