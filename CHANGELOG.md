@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.2] - 2026-10-19
+
+Accessibility fixes found by checking the Sparrowmere video's talking points
+against the 1.12.1 code.
+
+### Fixed
+
+- **"Next" focused the last invalid field, not the first.** Focus was moved
+  inside the validation loop, so every invalid field took it in turn and the
+  last one kept it. Validation now reports every problem and focuses the
+  first in document order (`validateFields()`, shared with submit).
+- **Focus was lost after Next and Previous.** The button the visitor pressed
+  is hidden with its step, so focus fell back to the document and nothing
+  announced the new step. Focus now moves to the step's title, or, with
+  titles off, to the step itself, which is a group labelled "Step N of M"
+  (`role="group"`, `aria-labelledby` / `aria-label`). The active progress
+  step carries `aria-current="step"`, moved on every change.
+- **Submit used the browser's validation bubble.** With no `novalidate`, a
+  single-step form and the last step of a multi-step form showed the
+  browser's own message, while "Next" showed the plugin's inline, announced
+  errors. The script now sets `novalidate` (so a page whose script never
+  loads keeps the browser's checks) and runs the same inline validation on
+  submit, across every step: with "validate on next" off, a problem on an
+  earlier step now opens that step, where the browser used to refuse to
+  submit without saying why. Server-side validation is unchanged.
+- **Email and tel fields had no `autocomplete` token** unless the author set
+  one (WCAG 1.3.5). The field TYPE now supplies `email` / `tel`; an author's
+  value, including `off`, wins, and nothing is inferred from a field's name.
+
+Pinned by `tests/Unit/StepNavigationAccessibilityTest.php` (markup); the
+`frontend.js` behaviour was verified in a browser, including forms inside a
+Promptless WP popup, conditional fields, and the honeypot.
+
 ## [1.12.1] - 2026-10-12
 
 ### Fixed

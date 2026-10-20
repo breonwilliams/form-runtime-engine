@@ -18,6 +18,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
 
     /**
+     * Autocomplete token used when the author has not set one, by field TYPE.
+     *
+     * Only types whose purpose the type itself states: an email field holds
+     * an email address and a tel field a telephone number (WCAG 1.3.5
+     * Identify Input Purpose). Nothing is inferred from a field's name or
+     * label; a text field called "name" could be a pet's name. An author's
+     * own `autocomplete` value, including "off", always wins.
+     *
+     * @var array<string, string>
+     */
+    const DEFAULT_AUTOCOMPLETE = array(
+        'email' => 'email',
+        'tel'   => 'tel',
+    );
+
+    /**
      * Field type slug.
      *
      * @var string
@@ -562,6 +578,8 @@ abstract class PForms_Field_Type_Abstract implements PForms_Field_Type {
 
         if ( ! empty( $field['autocomplete'] ) ) {
             $attributes['autocomplete'] = $field['autocomplete'];
+        } elseif ( isset( self::DEFAULT_AUTOCOMPLETE[ $this->type ] ) ) {
+            $attributes['autocomplete'] = self::DEFAULT_AUTOCOMPLETE[ $this->type ];
         }
 
         return $attributes;

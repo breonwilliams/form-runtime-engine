@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.12.1
+Stable tag: 1.12.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,12 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.12.2 =
+* Fixed: when "Next" finds problems on a step, focus now goes to the first one, not the last.
+* Fixed: after Next or Previous, focus moves to the new step (its title, or "Step 2 of 3"), and the progress indicator marks the current step for screen readers.
+* Fixed: a single-step form and the last step of a multi-step form now show the same announced inline errors as "Next", instead of the browser's pop-up bubble. Every submission is still checked on the server.
+* Fixed: email and phone fields tell the browser what they hold, so it can offer to fill them in. A value you set yourself still wins.
+
 = 1.12.1 =
 * Fixed: a required dropdown now opens on an empty "Choose an option" (or its placeholder), so a visitor can no longer submit a value they never picked. Optional dropdowns are unchanged.
 * Fixed: the AI connector now reports a refused or failed request as an error (including rate limits, with a retry time) instead of as a success.
@@ -119,10 +125,10 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 * Fixed: a form could send its notification From the visitor's address (a {field:...} token in the sender), which mail providers such as Resend reject, so the email never arrived. The sender now never comes from submitted data; the submitter goes in Reply-To. Existing forms configured that way change sender on update.
 * Fixed: the connector described a Reply-To default that does not exist.
 
-= 1.9.1 =
-* Fixed: the form stylesheets loaded on every page of the site whenever Promptless WP's neo-brutalist style was on, not just on pages with a form. They now load only where a form renders, so pages without a form are lighter.
-
 == Upgrade Notice ==
+
+= 1.12.2 =
+Accessibility fixes for multi-step and single-step forms: focus goes to the first error and to each new step, errors are always announced inline, and email and phone fields support autofill. No settings or form data change.
 
 = 1.12.1 =
 Required dropdowns no longer preselect their first option, so a visitor must choose one. Connector errors are reported as errors. No settings or form data change.
@@ -138,6 +144,3 @@ Restores the admin screens' script and styles, fixes several conditional-logic a
 
 = 1.10.0 =
 Behaviour change: a {field:...} token in a form's notification sender is now ignored, so those notifications use your site's configured sender (the submitter moves to Reply-To). Set the sender to an address on your verified mail domain.
-
-= 1.9.1 =
-Form stylesheets now load only on pages that show a form, instead of on every page when the neo-brutalist style is on. No settings or form data change.

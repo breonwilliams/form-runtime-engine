@@ -426,17 +426,39 @@ class PForms_Renderer {
                 $step_classes[] = 'fre-step--active';
             }
 
+            // Each step is a labelled group: by its visible title when titles
+            // are shown, otherwise "Step N of M". frontend.js moves focus to
+            // the title (or to the group) after Next/Previous, so the label is
+            // what a screen reader announces on arrival.
+            $shows_title = ! empty( $step['title'] ) && ! empty( $settings['multistep']['show_step_titles'] );
+            $title_id    = sprintf( 'fre-%s-step-%d-title', $form['id'], $step_index + 1 );
+            $step_label  = $shows_title
+                ? sprintf( 'aria-labelledby="%s"', esc_attr( $title_id ) )
+                : sprintf(
+                    'aria-label="%s"',
+                    esc_attr(
+                        sprintf(
+                            /* translators: 1: current step number, 2: total number of steps */
+                            __( 'Step %1$d of %2$d', 'promptless-forms' ),
+                            $step_index + 1,
+                            $total_steps
+                        )
+                    )
+                );
+
             $html .= sprintf(
-                '<div class="%s" data-step="%d" data-step-key="%s">',
+                '<div class="%s" data-step="%d" data-step-key="%s" role="group" %s>',
                 implode( ' ', $step_classes ),
                 $step_index + 1,
-                esc_attr( $step_key )
+                esc_attr( $step_key ),
+                $step_label
             );
 
             // Step title (optional).
-            if ( ! empty( $step['title'] ) && ! empty( $settings['multistep']['show_step_titles'] ) ) {
+            if ( $shows_title ) {
                 $html .= sprintf(
-                    '<h4 class="fre-step__title">%s</h4>',
+                    '<h4 class="fre-step__title" id="%s">%s</h4>',
+                    esc_attr( $title_id ),
                     esc_html( $step['title'] )
                 );
             }
@@ -701,10 +723,13 @@ class PForms_Renderer {
                     $step_classes[] = 'fre-progress__step--active';
                 }
 
+                // aria-current marks the active step for assistive technology;
+                // the class alone is visual. frontend.js moves it on Next/Back.
                 $html .= sprintf(
-                    '<div class="%s" data-step="%d">',
+                    '<div class="%s" data-step="%d"%s>',
                     implode( ' ', $step_classes ),
-                    $index + 1
+                    $index + 1,
+                    0 === $index ? ' aria-current="step"' : ''
                 );
 
                 if ( $style === 'steps' ) {
