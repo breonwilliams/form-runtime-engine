@@ -87,6 +87,16 @@
          * Initialize event listeners.
          */
         init() {
+            // Validation is the plugin's from here on: inline errors tied to
+            // their fields (aria-invalid + aria-describedby) and focus on the
+            // first problem. Without this the browser's own bubble ran on
+            // submit, so a single-step form and the last step of a multi-step
+            // form behaved differently from "Next". Set by JavaScript, not in
+            // the markup, so a page whose script never loads keeps the
+            // browser's checks. The server validates every submission either
+            // way.
+            this.form.noValidate = true;
+
             // Restore saved data on page load.
             this.restoreData();
 
@@ -156,7 +166,7 @@
                 stepEl.addEventListener('click', () => {
                     const stepNum = parseInt(stepEl.dataset.step, 10);
                     if (stepNum < this.currentStep) {
-                        this.goToStep(stepNum);
+                        this.goToStep(stepNum, { focus: true });
                     }
                 });
                 stepEl.style.cursor = 'pointer';
@@ -274,7 +284,7 @@
                 return;
             }
 
-            this.goToStep(this.currentStep + 1);
+            this.goToStep(this.currentStep + 1, { focus: true });
         }
 
         /**
@@ -282,15 +292,20 @@
          */
         goToPrevStep() {
             if (this.currentStep <= 1) return;
-            this.goToStep(this.currentStep - 1);
+            this.goToStep(this.currentStep - 1, { focus: true });
         }
 
         /**
          * Go to a specific step.
          *
-         * @param {number} stepNum - Step number (1-indexed).
+         * @param {number}  stepNum       - Step number (1-indexed).
+         * @param {Object}  [options]
+         * @param {boolean} [options.focus] Move focus to the new step. The
+         *        visitor's Next/Previous button disappears with the step it
+         *        belongs to, so without this focus is lost to the document
+         *        and a screen reader announces nothing about the new step.
          */
-        goToStep(stepNum) {
+        goToStep(stepNum, options = {}) {
             if (stepNum < 1 || stepNum > this.totalSteps) return;
 
             // Hide current step.
@@ -316,6 +331,27 @@
 
             // Re-evaluate conditions for the new step.
             this.evaluateAllConditions();
+
+            if (options.focus && newStepEl) {
+                this.focusStep(newStepEl);
+            }
+        }
+
+        /**
+         * Put focus at the start of a step: its title when titles are shown,
+         * otherwise the step itself, which the renderer labels "Step N of M"
+         * (role="group"). Either is announced, then Tab continues into the
+         * step's first field.
+         *
+         * @param {HTMLElement} stepEl Step element.
+         */
+        focusStep(stepEl) {
+            const target = stepEl.querySelector('.fre-step__title') || stepEl;
+            if (!target.hasAttribute('tabindex')) {
+                target.setAttribute('tabindex', '-1');
+            }
+            // The form is already scrolling into view; do not fight it.
+            target.focus({ preventScroll: true });
         }
 
         /**
@@ -343,9 +379,11 @@
             progress.querySelectorAll('.fre-progress__step').forEach(stepEl => {
                 const stepIndex = parseInt(stepEl.dataset.step, 10);
                 stepEl.classList.remove('fre-progress__step--active', 'fre-progress__step--completed');
+                stepEl.removeAttribute('aria-current');
 
                 if (stepIndex === stepNum) {
                     stepEl.classList.add('fre-progress__step--active');
+                    stepEl.setAttribute('aria-current', 'step');
                 } else if (stepIndex < stepNum) {
                     stepEl.classList.add('fre-progress__step--completed');
                 }
@@ -363,7 +401,7 @@
         }
 
         /**
-         * Validate the current step's fields.
+         * Validate the current step's fields, focusing the first problem.
          *
          * @returns {boolean} True if valid.
          */
@@ -371,42 +409,62 @@
             const currentStepEl = this.form.querySelector(`.fre-step[data-step="${this.currentStep}"]`);
             if (!currentStepEl) return true;
 
-            let isValid = true;
-            const inputs = currentStepEl.querySelectorAll('input, textarea, select');
+            const firstInvalid = this.validateFields(currentStepEl);
+            if (firstInvalid) {
+                firstInvalid.focus();
+                return false;
+            }
+            return true;
+        }
 
-            inputs.forEach(input => {
-                // Skip hidden conditional fields.
+        /**
+         * Check every visible field inside a container and show its error.
+         *
+         * Reports EVERY problem, so the visitor sees them all at once, and
+         * returns the FIRST in document order for the caller to focus. Focus
+         * used to be moved inside the loop, so it ended on the LAST invalid
+         * field and a keyboard or screen reader user started at the bottom.
+         *
+         * Hidden conditional fields and sections, disabled controls and the
+         * honeypot (which sits outside any .fre-field) are not checked.
+         *
+         * @param {HTMLElement} container Form or step element.
+         * @returns {HTMLElement|null} First invalid control, or null.
+         */
+        validateFields(container) {
+            let firstInvalid = null;
+
+            container.querySelectorAll('.fre-field input, .fre-field textarea, .fre-field select').forEach(input => {
                 const field = input.closest('.fre-field');
-                if (field && field.classList.contains('fre-field--hidden')) {
+                if (!field || input.closest('.fre-field--hidden, .fre-section--hidden')) {
+                    return;
+                }
+                if (input.disabled || input.type === 'hidden') {
                     return;
                 }
 
-                // Skip disabled fields.
-                if (input.disabled) {
-                    return;
-                }
+                let message = '';
 
                 // Chosen files: type and size against the field's limits.
                 if (input.type === 'file') {
-                    const message = this.fileInputError(input);
-                    if (message) {
-                        isValid = false;
-                        this.showFieldError(field?.dataset.fieldKey, message);
-                        return;
-                    }
+                    message = this.fileInputError(input);
                 }
 
-                // Check HTML5 validation.
-                if (!input.checkValidity()) {
-                    isValid = false;
-                    this.showFieldError(input.closest('.fre-field')?.dataset.fieldKey, input.validationMessage);
-                    if (isValid === false) {
-                        input.focus();
+                // The browser's constraint checks (required, type, pattern,
+                // lengths), shown as the plugin's own inline error.
+                if (!message && !input.checkValidity()) {
+                    message = input.validationMessage;
+                }
+
+                if (message) {
+                    this.showFieldError(field.dataset.fieldKey, message);
+                    if (!firstInvalid) {
+                        firstInvalid = input;
                     }
                 }
             });
 
-            return isValid;
+            return firstInvalid;
         }
 
         /**
@@ -760,6 +818,26 @@
                 this.clearMessages();
                 this.showFieldError(fileProblem.input.closest('.fre-field')?.dataset.fieldKey, fileProblem.message);
                 fileProblem.input.focus();
+                return;
+            }
+
+            // The same inline errors "Next" shows, for the whole form (the
+            // form is novalidate, see init()). A multi-step form is checked
+            // across every step: with validate_on_next off an earlier step can
+            // still hold a problem, and the browser used to refuse to submit
+            // without saying why, because the field was on a hidden step. The
+            // server repeats every check.
+            this.clearAllErrors();
+            const firstInvalid = this.validateFields(this.form);
+            if (firstInvalid) {
+                e.preventDefault();
+                this.clearMessages();
+                const stepEl = firstInvalid.closest('.fre-step');
+                const stepNum = stepEl ? parseInt(stepEl.dataset.step, 10) : this.currentStep;
+                if (this.isMultistep && stepNum !== this.currentStep) {
+                    this.goToStep(stepNum);
+                }
+                firstInvalid.focus();
                 return;
             }
 
