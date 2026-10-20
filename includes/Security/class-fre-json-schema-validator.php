@@ -378,6 +378,17 @@ class PForms_JSON_Schema_Validator {
         if ( is_array( $settings ) && isset( $settings['notification']['from_email'] )
             && PForms_Email_Notification::has_field_token( $settings['notification']['from_email'] ) ) {
             $result['errors'][] = __( 'settings.notification.from_email cannot contain a {field:...} token: the sender must be an address on a domain your mail provider has verified. Put the submitter in settings.notification.reply_to instead, e.g. "{field:email}".', 'promptless-forms' );
+        } elseif ( is_array( $settings ) && isset( $settings['notification']['from_email'] )
+            && '' !== trim( (string) $settings['notification']['from_email'] )
+            && '' === PForms_Email_Notification::resolve_sender_address( $settings['notification']['from_email'] ) ) {
+            // Any other value must BE an address once system variables are
+            // resolved ({admin_email} is; {site_url} is not). An empty value
+            // means "not set" and sends from the admin email.
+            $result['errors'][] = sprintf(
+                /* translators: %s: the configured from_email value */
+                __( 'settings.notification.from_email "%s" is not an email address. Use an address on a domain your mail provider has verified, or {admin_email}, or leave it empty to send from the site\'s admin email.', 'promptless-forms' ),
+                (string) $settings['notification']['from_email']
+            );
         }
 
         if ( ! is_array( $settings ) ) {

@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.3] - Unreleased
+
+Fixes from the Promptless Forms video dry run (Sparrowmere, 2026-10). Not
+released yet: ships with the rest of the dry run's findings.
+
+### Fixed
+
+- **The focus indicator was too faint.** Field focus was the 1px border
+  turning primary plus a 3px ring of primary at 20%, 1.29:1 against white
+  (WCAG 1.4.11 asks 3:1), and on a field with an error it changed almost
+  nothing. Every field, radio and checkbox now shows a 2px outline, offset
+  2px, in `--fre-focus-color`; invalid fields keep their red border and get
+  the same outline, so focus stays distinct from the error. The colour is
+  Promptless WP's surface-corrected link colour (the primary pushed to 4.5:1
+  on the card), else the text colour, never the raw primary, which a light
+  brand fails. The step and submit buttons' outlines use it too.
+- **Submit sat 18px below Previous on a multi-step form's last step.** Its
+  wrapper's single-step top margin applied inside the nav row; it is zeroed
+  there.
+- **Radios and checkboxes were the browser's blue.** They take
+  `--fre-accent-color` (same contrast-safe colour) through `accent-color`.
+- **The file field's button was the browser default.** It is styled as the
+  form's secondary button (`::file-selector-button`, ghost tokens).
+- **An empty or invalid `from_email` sent as "WordPress".** The From header
+  was added only for a valid address, so `""`, a bare word or `{site_url}`
+  sent none and `wp_mail()` used "WordPress <wordpress@domain>", dropping
+  `from_name`. Such values now send from the site's admin email with
+  `from_name`, as an unset one does, and a non-empty invalid value is logged.
+  Saving a `from_email` that is not an address after system tokens resolve is
+  refused (empty means "not set"). A submitted-field token keeps its existing
+  path (no From header, so the site's configured sender applies).
+
+Pinned by `tests/Unit/FormControlStylesTest.php` and
+`tests/Unit/NotificationHeadersTest.php`.
+
 ## [1.12.2] - 2026-10-19
 
 Accessibility fixes found by checking the Sparrowmere video's talking points

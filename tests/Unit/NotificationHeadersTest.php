@@ -11,6 +11,10 @@
  *
  *   - from_email resolves system tokens only; a field token is ignored and no
  *     From header is sent, so WordPress's configured sender applies;
+ *   - since 1.12.3 an empty or invalid (non-token) from_email sends from the
+ *     site's admin email with the configured from_name, as an unset one does. Before, it sent no From header at all, so
+ *     wp_mail() used "WordPress <wordpress@domain>" and dropped from_name
+ *     (Sparrowmere dry run, 2026-10). Saving an invalid from_email is refused;
  *   - reply_to resolves field tokens exactly as before;
  *   - a legacy form with a field token in from_email and no reply_to gets that
  *     token as its Reply-To, so replies still reach the submitter;
@@ -150,6 +154,40 @@ class NotificationHeadersTest extends UnitTestCase {
 		$this->assertSame( 'Forms <admin@example.com>', $this->header( $headers, 'From' ) );
 	}
 
+	/**
+	 * Every value the issue measured as sending as "WordPress" now sends from
+	 * the admin email with the configured name.
+	 *
+	 * @return array
+	 */
+	public function unusable_sender_provider() {
+		return array(
+			'empty'                    => array( '' ),
+			'whitespace'               => array( '   ' ),
+			'a bare word'              => array( 'website' ),
+			'a token that is not mail' => array( '{site_url}' ),
+		);
+	}
+
+	/**
+	 * @dataProvider unusable_sender_provider
+	 * @param string $from_email Configured from_email.
+	 */
+	public function test_an_unusable_from_email_sends_from_the_admin_email_with_the_name( $from_email ) {
+		$headers = $this->headers( array( 'from_name' => 'Sparrowmere Gardens', 'from_email' => $from_email ) );
+
+		$this->assertSame( 'Sparrowmere Gardens <admin@example.com>', $this->header( $headers, 'From' ) );
+	}
+
+	public function test_resolve_sender_address() {
+		$this->assertSame( 'admin@example.com', \PForms_Email_Notification::resolve_sender_address( '{admin_email}' ) );
+		$this->assertSame( 'forms@example.com', \PForms_Email_Notification::resolve_sender_address( ' forms@example.com ' ) );
+		$this->assertSame( '', \PForms_Email_Notification::resolve_sender_address( '' ) );
+		$this->assertSame( '', \PForms_Email_Notification::resolve_sender_address( 'website' ) );
+		$this->assertSame( '', \PForms_Email_Notification::resolve_sender_address( '{site_url}' ) );
+		$this->assertSame( '', \PForms_Email_Notification::resolve_sender_address( '{field:email}' ) );
+	}
+
 	public function test_field_tokens_still_resolve_in_from_name() {
 		$headers = $this->headers( array( 'from_name' => '{field:name} via {site_name}', 'from_email' => 'forms@example.com' ) );
 
@@ -197,6 +235,34 @@ class NotificationHeadersTest extends UnitTestCase {
 		$result = \PForms_JSON_Schema_Validator::validate(
 			$this->config_with( array( 'from_email' => '{admin_email}', 'reply_to' => '{field:email}', 'subject' => 'From {field:email}' ) )
 		);
+
+		$this->assertTrue( $result['valid'], implode( ' ', $result['errors'] ) );
+	}
+
+	/**
+	 * @return array
+	 */
+	public function invalid_saved_sender_provider() {
+		return array(
+			'a bare word'              => array( 'website' ),
+			'a token that is not mail' => array( '{site_url}' ),
+			'a broken address'         => array( 'hello@' ),
+		);
+	}
+
+	/**
+	 * @dataProvider invalid_saved_sender_provider
+	 * @param string $from_email Configured from_email.
+	 */
+	public function test_saving_a_from_email_that_is_not_an_address_is_refused( $from_email ) {
+		$result = \PForms_JSON_Schema_Validator::validate( $this->config_with( array( 'from_email' => $from_email ) ) );
+
+		$this->assertFalse( $result['valid'] );
+		$this->assertStringContainsString( 'is not an email address', implode( ' ', $result['errors'] ) );
+	}
+
+	public function test_saving_an_empty_from_email_is_allowed_and_means_unset() {
+		$result = \PForms_JSON_Schema_Validator::validate( $this->config_with( array( 'from_name' => 'Sparrowmere Gardens', 'from_email' => '' ) ) );
 
 		$this->assertTrue( $result['valid'], implode( ' ', $result['errors'] ) );
 	}

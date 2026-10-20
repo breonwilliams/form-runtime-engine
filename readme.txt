@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.12.2
+Stable tag: 1.12.3
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,12 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.12.3 =
+* Fixed: a clear, high-contrast focus outline on every field, including fields showing an error, in the site's brand colour (or the text colour when that is too light).
+* Fixed: on a multi-step form's last step, Submit now lines up with Previous.
+* Fixed: radio buttons and checkboxes use the site's brand colour, and the file field's button matches the form's buttons.
+* Fixed: an empty or invalid sender address no longer sends notifications as "WordPress"; the site's admin email is used with your sender name, and an invalid address is refused when the form is saved.
+
 = 1.12.2 =
 * Fixed: when "Next" finds problems on a step, focus now goes to the first one, not the last.
 * Fixed: after Next or Previous, focus moves to the new step (its title, or "Step 2 of 3"), and the progress indicator marks the current step for screen readers.
@@ -121,11 +127,10 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 * Fixed: conditions on radio buttons, checkboxes and mixed-case keys; a required field in a hidden section blocked the form; required files were not enforced on the server; ajax="false" lost submissions.
 * Fixed: Twilio missed-call leads now reach the form's webhook.
 
-= 1.10.0 =
-* Fixed: a form could send its notification From the visitor's address (a {field:...} token in the sender), which mail providers such as Resend reject, so the email never arrived. The sender now never comes from submitted data; the submitter goes in Reply-To. Existing forms configured that way change sender on update.
-* Fixed: the connector described a Reply-To default that does not exist.
-
 == Upgrade Notice ==
+
+= 1.12.3 =
+Clearer focus outlines, brand-coloured radios, checkboxes and file buttons, an aligned Submit button on multi-step forms, and notifications that never send as "WordPress". No settings or form data change.
 
 = 1.12.2 =
 Accessibility fixes for multi-step and single-step forms: focus goes to the first error and to each new step, errors are always announced inline, and email and phone fields support autofill. No settings or form data change.
@@ -141,6 +146,3 @@ Customers can upload real artwork again: most photos, PDFs and Illustrator files
 
 = 1.10.1 =
 Restores the admin screens' script and styles, fixes several conditional-logic and required-field bugs, and sends Twilio leads to the form's webhook. Deleting the plugin now keeps entries and forms unless you opt in under Settings.
-
-= 1.10.0 =
-Behaviour change: a {field:...} token in a form's notification sender is now ignored, so those notifications use your site's configured sender (the submitter moves to Reply-To). Set the sender to an address on your verified mail domain.
