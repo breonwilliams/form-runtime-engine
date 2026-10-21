@@ -1093,10 +1093,14 @@
                     this.nonceRetryUsed = false;
                     this.retainedFiles.clear();
 
-                    // Show success message.
+                    // Show success message. It goes into the role="alert"
+                    // messages container, which announces it, and the
+                    // `.fre-form__message--success` node it adds is what
+                    // Promptless WP's popup close-on-submit watches for.
                     this.showMessage('success', result.data.message);
 
-                    // Reset form.
+                    // Reset form (also when it is about to be hidden: the
+                    // visitor's answers should not linger in the page).
                     this.form.reset();
 
                     // Reset multi-step form to first step.
@@ -1107,14 +1111,28 @@
                     // Re-evaluate conditions after reset.
                     this.evaluateAllConditions();
 
-                    // Handle redirect.
+                    // By default the confirmation REPLACES the form
+                    // (settings.after_submit "confirmation"). Shown above an
+                    // emptied form, the message read as "nothing was sent"
+                    // or as an invitation to send again (Sparrowmere dry
+                    // run, 2026-10, on a page and in a popup). Forms meant
+                    // to be refilled opt into "reset" and keep the form.
+                    const showConfirmation = this.form.dataset.afterSubmit !== 'reset';
+                    if (showConfirmation) {
+                        this.showConfirmation();
+                    }
+
+                    // Handle redirect. With the confirmation shown the
+                    // visitor no longer sees an empty form flash first.
                     if (result.data.redirect) {
                         window.location.href = result.data.redirect;
                         return 'done';
                     }
 
-                    // Scroll to message.
-                    this.scrollToMessages();
+                    // Scroll to message (the confirmation already did).
+                    if (!showConfirmation) {
+                        this.scrollToMessages();
+                    }
                     return 'done';
                 }
 
@@ -1414,6 +1432,32 @@
         /**
          * Scroll to messages container.
          */
+        /**
+         * Replace the form with its success message.
+         *
+         * Everything in the form but its title and the messages container is
+         * hidden (`.fre-form--submitted`, display: none, so it also leaves
+         * the accessibility tree). Focus moves to the messages container:
+         * the Submit button that held it has just been hidden, and without
+         * this a keyboard user would be dropped at the top of the page. The
+         * container is the role="alert" region the message was written to,
+         * the same alert + focus pattern as the GOV.UK success banner.
+         */
+        showConfirmation() {
+            const container = this.form.querySelector('.fre-form__messages');
+            this.form.classList.add('fre-form--submitted');
+            if (!container) return;
+
+            container.setAttribute('tabindex', '-1');
+            container.focus({ preventScroll: true });
+
+            const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const rect = container.getBoundingClientRect();
+            if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                container.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+            }
+        }
+
         scrollToMessages() {
             const container = this.form.querySelector('.fre-form__messages');
             if (container) {

@@ -40,6 +40,7 @@ class PForms_Registry {
         'submit_button_text' => 'Submit',
         'success_message'    => 'Thank you for your submission.',
         'redirect_url'       => null,
+        'after_submit'       => 'confirmation',
         'show_title'         => false,
         'notification'       => array(
             'enabled'   => true,

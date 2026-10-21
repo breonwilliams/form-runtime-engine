@@ -98,7 +98,20 @@ class PForms_JSON_Schema_Validator {
         'webhook_enabled',
         'webhook_url',
         'appearance',
+        'after_submit',
     );
+
+    /**
+     * What a successful submit shows (settings.after_submit, since 1.12.3).
+     *
+     * 'confirmation' (the default): the success message replaces the form.
+     * 'reset': the message shows above the emptied form, for forms meant to
+     * be filled again (a newsletter strip). Kept in one place so the
+     * validator, the renderer and the connector rulebook agree.
+     *
+     * @var string[]
+     */
+    const AFTER_SUBMIT_VALUES = array( 'confirmation', 'reset' );
 
     /**
      * Validate form configuration.
@@ -394,6 +407,18 @@ class PForms_JSON_Schema_Validator {
         if ( ! is_array( $settings ) ) {
             $result['warnings'][] = __( 'Settings should be an object.', 'promptless-forms' );
             return $result;
+        }
+
+        // A typo here would otherwise fall back to the default silently, and
+        // a form meant to be refilled would hide after its first entry.
+        if ( array_key_exists( 'after_submit', $settings )
+            && ! in_array( $settings['after_submit'], self::AFTER_SUBMIT_VALUES, true ) ) {
+            $result['errors'][] = sprintf(
+                /* translators: 1: the configured value, 2: allowed values */
+                __( 'settings.after_submit "%1$s" is not valid. Use one of: %2$s ("confirmation" replaces the form with the success message; "reset" shows the message above an emptied form, for forms meant to be filled again).', 'promptless-forms' ),
+                is_scalar( $settings['after_submit'] ) ? (string) $settings['after_submit'] : gettype( $settings['after_submit'] ),
+                implode( ', ', self::AFTER_SUBMIT_VALUES )
+            );
         }
 
         // Check for unknown settings.

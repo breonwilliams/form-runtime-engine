@@ -357,6 +357,12 @@
           "format": "uri",
           "description": "URL to redirect to after successful submission. Null/absent means no redirect."
         },
+        "after_submit": {
+          "type": "string",
+          "enum": ["confirmation", "reset"],
+          "default": "confirmation",
+          "description": "What a successful submit shows. \"confirmation\" (default): the success message replaces the form and receives focus. \"reset\": the message shows above the emptied form, for forms meant to be filled again (a newsletter strip, a sign-in sheet). Any other value is refused at save."
+        },
         "show_title": { "type": "boolean", "default": false },
         "css_class": { "type": "string" },
         "store_entries": { "type": "boolean", "default": true },
