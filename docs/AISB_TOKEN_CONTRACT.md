@@ -14,7 +14,7 @@ Form Runtime Engine is designed to **inherit brand styling from Promptless WP wh
 
 This document is the **public contract** between the two plugins. It is the authoritative list of `--aisb-*` tokens that Form Runtime Engine reads. No other tokens are consumed, and every token listed here has a documented fallback so the form engine never breaks when the plugin is absent, deactivated, or an older version that does not yet emit a given token.
 
-Because this relationship is implicit in CSS — there is no PHP-level coupling between the two plugins — renaming, removing, or changing the semantics of any token listed here will silently break form styling on every site that runs both plugins. Maintainers on either side MUST treat this contract as a versioned API.
+This relationship is almost entirely implicit in CSS. The one PHP-level read is listed under **Stored settings read in PHP** below. Renaming, removing, or changing the semantics of any token listed here will silently break form styling on every site that runs both plugins. Maintainers on either side MUST treat this contract as a versioned API.
 
 ---
 
@@ -128,6 +128,20 @@ Promptless WP emits these only when Neo-Brutalist mode is enabled in Global Sett
 | `--aisb-neo-shadow-offset-button-hover` | Button hover drop-shadow offset | `3px` |
 
 ---
+
+## Stored settings read in PHP
+
+Places where CSS cannot reach, so Form Runtime Engine reads Promptless WP's
+stored `aisb_global_settings` option directly, only when
+`AISB_MODERN_VERSION` is defined (`includes/Integration/class-fre-design-system.php`):
+
+| Key | Used for | Fallback |
+|-----|----------|----------|
+| `neo_brutalist_cards`, `neo_brutalist_buttons` | Registering the neo-brutalist stylesheet | `off` |
+| `primary_color` (since 1.12.3) | Notification email header band and links, darkened until white reaches 4.5:1 (`PForms_Design_System::email_accent_color()`, filter `pforms_email_accent_color`) | `#0073aa` |
+
+Renaming or re-typing these keys on the producer side is a breaking change
+for this consumer, exactly as for a token.
 
 ## Context Hook
 

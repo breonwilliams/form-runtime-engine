@@ -32,6 +32,123 @@ class PForms_Design_System {
     }
 
     /**
+     * Notification email accent when Promptless WP is not active (or has no
+     * usable primary colour): the colour the template always used.
+     */
+    const EMAIL_ACCENT_FALLBACK = '#0073aa';
+
+    /**
+     * White header text and accent links on the white body must reach this
+     * against the accent (WCAG 1.4.3, normal-size text).
+     */
+    const EMAIL_ACCENT_MIN_CONTRAST = 4.5;
+
+    /**
+     * Accent colour for the notification email (header band and links).
+     *
+     * Emails cannot read CSS custom properties, so the brand comes from the
+     * stored Promptless WP settings at send time: its primary colour, darkened
+     * toward black (hue kept) until white text on it, and it as link text on
+     * white, reach 4.5:1. A yellow primary therefore becomes a deep olive, not
+     * a band the white heading vanishes into. Without Promptless WP, or with
+     * no valid primary, the email keeps #0073aa. Sparrowmere dry run
+     * (2026-10): the band was WordPress blue on a moss-and-paper site.
+     *
+     * @since 1.12.3
+     * @return string Lower-case #rrggbb.
+     */
+    public static function email_accent_color() {
+        $color = self::EMAIL_ACCENT_FALLBACK;
+
+        if ( defined( 'AISB_MODERN_VERSION' ) ) {
+            $settings = get_option( 'aisb_global_settings', array() );
+            $primary  = is_array( $settings ) && isset( $settings['primary_color'] )
+                ? self::normalize_hex( $settings['primary_color'] )
+                : null;
+            if ( null !== $primary ) {
+                $color = self::darken_until_contrast( $primary, self::EMAIL_ACCENT_MIN_CONTRAST );
+            }
+        }
+
+        /**
+         * Filter the notification email accent colour.
+         *
+         * Whatever is returned is used for the header band (white text) and
+         * the links (on white); keep it at 4.5:1 against white.
+         *
+         * @since 1.12.3
+         * @param string $color Lower-case #rrggbb.
+         */
+        $filtered = self::normalize_hex( apply_filters( 'pforms_email_accent_color', $color ) );
+
+        return null !== $filtered ? $filtered : $color;
+    }
+
+    /**
+     * Normalise a hex colour to lower-case #rrggbb, or null when invalid.
+     *
+     * @param mixed $value Candidate colour.
+     * @return string|null
+     */
+    public static function normalize_hex( $value ) {
+        if ( ! is_string( $value ) || ! preg_match( '/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i', trim( $value ), $m ) ) {
+            return null;
+        }
+        $hex = strtolower( $m[1] );
+        if ( 3 === strlen( $hex ) ) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        return '#' . $hex;
+    }
+
+    /**
+     * WCAG contrast ratio between a colour and white.
+     *
+     * @param string $hex #rrggbb.
+     * @return float
+     */
+    public static function contrast_with_white( $hex ) {
+        $lum = 0.0;
+        foreach ( array( 0.2126, 0.7152, 0.0722 ) as $i => $weight ) {
+            $c    = hexdec( substr( $hex, 1 + 2 * $i, 2 ) ) / 255;
+            $c    = $c <= 0.03928 ? $c / 12.92 : pow( ( $c + 0.055 ) / 1.055, 2.4 );
+            $lum += $weight * $c;
+        }
+        return 1.05 / ( $lum + 0.05 );
+    }
+
+    /**
+     * Mix a colour toward black in small steps until white reaches $ratio
+     * against it. Black always does (21:1), so this terminates.
+     *
+     * @param string $hex   #rrggbb.
+     * @param float  $ratio Minimum contrast with white.
+     * @return string #rrggbb
+     */
+    private static function darken_until_contrast( $hex, $ratio ) {
+        $rgb = array(
+            hexdec( substr( $hex, 1, 2 ) ),
+            hexdec( substr( $hex, 3, 2 ) ),
+            hexdec( substr( $hex, 5, 2 ) ),
+        );
+
+        for ( $step = 0; $step <= 20; $step++ ) {
+            $keep      = 1 - $step / 20;
+            $candidate = sprintf(
+                '#%02x%02x%02x',
+                (int) round( $rgb[0] * $keep ),
+                (int) round( $rgb[1] * $keep ),
+                (int) round( $rgb[2] * $keep )
+            );
+            if ( self::contrast_with_white( $candidate ) >= $ratio ) {
+                return $candidate;
+            }
+        }
+
+        return '#000000';
+    }
+
+    /**
      * Check if AI Section Builder Modern plugin is active.
      *
      * @return bool True if AISB is active.

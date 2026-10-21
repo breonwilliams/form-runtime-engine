@@ -202,26 +202,23 @@ class PForms_Entries_List_Table extends WP_List_Table {
             }
         }
 
+        // Lead with the person (name, then email), then the first other
+        // answers; internal `_` keys are never shown. See PForms_Entry_Summary.
         $summary = array();
-        $count   = 0;
 
-        foreach ( $fields as $key => $value ) {
-            if ( $count >= 2 ) {
-                break;
+        foreach ( PForms_Entry_Summary::pick( $fields, $field_map ) as $part ) {
+            $displays = array();
+            foreach ( $part['keys'] as $key ) {
+                $displays[] = $this->summary_display_value( $key, $fields[ $key ], $field_map );
             }
+            $display = trim( implode( ' ', $displays ) );
 
-            // Resolve to human-readable display value when we know the field's options.
-            // For unknown fields (no form_config or orphan keys), fall back to plain stringification.
-            if ( isset( $field_map[ $key ] ) ) {
-                $display = PForms_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $key ] );
-                $label   = ! empty( $field_map[ $key ]['label'] )
-                    ? $field_map[ $key ]['label']
-                    : ucfirst( str_replace( '_', ' ', $key ) );
+            if ( null !== $part['label'] ) {
+                $label = $part['label'];
+            } elseif ( ! empty( $field_map[ $part['keys'][0] ]['label'] ) ) {
+                $label = $field_map[ $part['keys'][0] ]['label'];
             } else {
-                $display = is_array( $value )
-                    ? implode( ', ', array_map( 'strval', $value ) )
-                    : (string) $value;
-                $label   = ucfirst( str_replace( '_', ' ', $key ) );
+                $label = ucfirst( str_replace( '_', ' ', $part['keys'][0] ) );
             }
 
             // Truncate long values for the summary line.
@@ -229,28 +226,58 @@ class PForms_Entries_List_Table extends WP_List_Table {
                 $display = substr( $display, 0, 47 ) . '...';
             }
 
-            if ( $display !== '' ) {
-                if ( $count === 0 ) {
-                    // First field: make it the clickable title.
-                    $summary[] = sprintf(
-                        '<a class="row-title" href="%s"><strong>%s:</strong> %s</a>',
-                        esc_url( $view_url ),
-                        esc_html( $label ),
-                        esc_html( $display )
-                    );
-                } else {
-                    // Subsequent fields: regular text.
-                    $summary[] = sprintf(
-                        '<strong>%s:</strong> %s',
-                        esc_html( $label ),
-                        esc_html( $display )
-                    );
-                }
-                $count++;
+            if ( '' === $display ) {
+                continue;
+            }
+
+            if ( empty( $summary ) ) {
+                // First part: make it the clickable title.
+                $summary[] = sprintf(
+                    '<a class="row-title" href="%s"><strong>%s:</strong> %s</a>',
+                    esc_url( $view_url ),
+                    esc_html( $label ),
+                    esc_html( $display )
+                );
+            } else {
+                // Subsequent parts: regular text.
+                $summary[] = sprintf(
+                    '<strong>%s:</strong> %s',
+                    esc_html( $label ),
+                    esc_html( $display )
+                );
             }
         }
 
+        if ( empty( $summary ) ) {
+            return sprintf(
+                '<a class="row-title" href="%s"><em>%s</em></a>',
+                esc_url( $view_url ),
+                esc_html__( 'No data', 'promptless-forms' )
+            );
+        }
+
         return implode( '<br>', $summary );
+    }
+
+    /**
+     * Human-readable value of one stored answer for the summary line.
+     *
+     * Resolves option values to their labels when the field's config is
+     * known; otherwise plain stringification (orphan keys, deleted forms).
+     *
+     * @param string $key       Field key.
+     * @param mixed  $value     Stored value.
+     * @param array  $field_map Field configs by key.
+     * @return string
+     */
+    private function summary_display_value( $key, $value, array $field_map ) {
+        if ( isset( $field_map[ $key ] ) ) {
+            return (string) PForms_Field_Type_Abstract::resolve_display_value( $value, $field_map[ $key ] );
+        }
+
+        return is_array( $value )
+            ? implode( ', ', array_map( 'strval', $value ) )
+            : (string) $value;
     }
 
     /**

@@ -38,9 +38,29 @@ released yet: ships with the rest of the dry run's findings.
   Saving a `from_email` that is not an address after system tokens resolve is
   refused (empty means "not set"). A submitted-field token keeps its existing
   path (no From header, so the site's configured sender applies).
+- **The entries list titled each entry by its first two answers.** A form
+  that asks about the project first and for the person last listed every
+  lead as "What kind of project is it?: Patio or hardscape", so nobody could
+  tell who was who. The summary now leads with the person: a name field
+  (`autocomplete: name`, or a `name`/`full_name` key; a first + last pair
+  shows joined as "Name"), then the first email field, then the first other
+  answers in form order (`PForms_Entry_Summary`).
+- **The entry page showed "pforms form version | 1" as an answer.** The
+  internal `_pforms_form_version` stamp printed in Submission Data. Keys
+  starting with `_` are skipped there, in the list summary and in the
+  all-forms CSV export (which printed it too); the version shows in Entry
+  Details as "Form version".
+- **The notification email was WordPress blue on every site.** The header
+  band and links take Promptless WP's stored primary colour, darkened (hue
+  kept) until white text on it and it as link text on white reach 4.5:1;
+  `#0073aa` without Promptless WP. The "Received on" line is solid white
+  (80% white measured 3.9:1 even on the old blue). New
+  `pforms_email_accent_color` filter. The token contract records the PHP
+  read of `aisb_global_settings`.
 
-Pinned by `tests/Unit/FormControlStylesTest.php` and
-`tests/Unit/NotificationHeadersTest.php`.
+Pinned by `tests/Unit/FormControlStylesTest.php`,
+`tests/Unit/NotificationHeadersTest.php`, `tests/Unit/EntrySummaryTest.php`
+and `tests/Unit/EmailAccentTest.php`.
 
 ## [1.12.2] - 2026-10-19
 

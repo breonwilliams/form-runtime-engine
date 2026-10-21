@@ -11,6 +11,10 @@
  * @var array $entry_data     Submitted field values.
  * @var array $fields         Field configurations.
  * @var array $uploaded_files Uploaded files data.
+ *
+ * $accent (since 1.12.3) is the site's brand colour when Promptless WP is
+ * active, darkened until white text on it and it as link text on white reach
+ * 4.5:1; #0073aa otherwise. See PForms_Design_System::email_accent_color().
  */
 
 // Prevent direct access.
@@ -20,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $site_name  = get_bloginfo( 'name' );
 $form_title = ! empty( $form_config['title'] ) ? $form_config['title'] : __( 'New Form Submission', 'promptless-forms' );
+$accent     = class_exists( 'PForms_Design_System' ) ? PForms_Design_System::email_accent_color() : '#0073aa';
 
 /**
  * Empty-field display behavior.
@@ -56,11 +61,11 @@ $hide_empty_fields = (bool) apply_filters( 'pforms_email_hide_empty_fields', $hi
     <div style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 
         <!-- Header -->
-        <div style="background-color: #0073aa; padding: 20px 30px;">
+        <div style="background-color: <?php echo esc_attr( $accent ); ?>; padding: 20px 30px;">
             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
                 <?php echo esc_html( $form_title ); ?>
             </h1>
-            <p style="margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">
+            <p style="margin: 8px 0 0; color: #ffffff; font-size: 14px;">
                 <?php
                 printf(
                     /* translators: %s: date and time */
@@ -121,10 +126,10 @@ $hide_empty_fields = (bool) apply_filters( 'pforms_email_hide_empty_fields', $hi
                                 // Consistent em-dash placeholder for any empty field that reaches the render stage.
                                 echo '<span style="color: #999999;">&mdash;</span>';
                             } elseif ( $field['type'] === 'email' ) {
-                                echo '<a href="mailto:' . esc_attr( $display_value ) . '" style="color: #0073aa; text-decoration: none;">' . esc_html( $display_value ) . '</a>';
+                                echo '<a href="mailto:' . esc_attr( $display_value ) . '" style="color: ' . esc_attr( $accent ) . '; text-decoration: none;">' . esc_html( $display_value ) . '</a>';
                             } elseif ( $field['type'] === 'tel' ) {
                                 $tel_digits = preg_replace( '/[^0-9+]/', '', $display_value );
-                                echo '<a href="tel:' . esc_attr( $tel_digits ) . '" style="color: #0073aa; text-decoration: none;">' . esc_html( $display_value ) . '</a>';
+                                echo '<a href="tel:' . esc_attr( $tel_digits ) . '" style="color: ' . esc_attr( $accent ) . '; text-decoration: none;">' . esc_html( $display_value ) . '</a>';
                             } elseif ( $field['type'] === 'textarea' ) {
                                 echo nl2br( esc_html( $display_value ) );
                             } else {
@@ -155,7 +160,7 @@ $hide_empty_fields = (bool) apply_filters( 'pforms_email_hide_empty_fields', $hi
                             <td style="padding: 12px 0 12px 15px; border-bottom: 1px solid #eeeeee; vertical-align: top;">
                                 <?php foreach ( $file_list as $file ) : ?>
                                     <div style="margin-bottom: 8px;">
-                                        <a href="<?php echo esc_url( $file['file_url'] ); ?>" style="color: #0073aa; text-decoration: none; font-weight: 500;">
+                                        <a href="<?php echo esc_url( $file['file_url'] ); ?>" style="color: <?php echo esc_attr( $accent ); ?>; text-decoration: none; font-weight: 500;">
                                             <?php echo esc_html( $file['file_name'] ); ?>
                                         </a>
                                         <span style="color: #999999; font-size: 12px; margin-left: 8px;">
@@ -182,7 +187,7 @@ $hide_empty_fields = (bool) apply_filters( 'pforms_email_hide_empty_fields', $hi
                 ?>
             </p>
             <p style="margin: 8px 0 0; color: #999999; font-size: 12px;">
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-entries' ) ); ?>" style="color: #0073aa; text-decoration: none;">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=pforms-entries' ) ); ?>" style="color: <?php echo esc_attr( $accent ); ?>; text-decoration: none;">
                     <?php esc_html_e( 'View all entries', 'promptless-forms' ); ?>
                 </a>
             </p>
