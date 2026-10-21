@@ -172,7 +172,10 @@ class PForms_Entry_Detail {
         echo '<thead><tr><th style="width:30%;">' . esc_html__( 'Field', 'promptless-forms' ) . '</th><th>' . esc_html__( 'Value', 'promptless-forms' ) . '</th></tr></thead>';
         echo '<tbody>';
 
-        foreach ( $fields as $field_key => $value ) {
+        // Internal metadata stored beside the answers (the
+        // `_pforms_form_version` stamp) is not something the visitor typed:
+        // the form version shows in Entry Details instead.
+        foreach ( PForms_Entry_Summary::answers( $fields ) as $field_key => $value ) {
             $field_config = $this->get_field_config( $field_key );
             $label        = $field_config && ! empty( $field_config['label'] )
                 ? $field_config['label']
@@ -280,6 +283,12 @@ class PForms_Entry_Detail {
                     <em>(<?php esc_html_e( 'deleted', 'promptless-forms' ); ?>)</em>
                 <?php endif; ?>
             </li>
+            <?php if ( ! empty( $entry['fields']['_pforms_form_version'] ) ) : ?>
+                <li>
+                    <strong><?php esc_html_e( 'Form version:', 'promptless-forms' ); ?></strong>
+                    <?php echo esc_html( (string) (int) $entry['fields']['_pforms_form_version'] ); ?>
+                </li>
+            <?php endif; ?>
             <li>
                 <strong><?php esc_html_e( 'Status:', 'promptless-forms' ); ?></strong>
                 <?php

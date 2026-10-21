@@ -251,7 +251,7 @@ class PForms_CSV_Exporter {
         } else {
             // Combine all fields for mixed export.
             $data_parts = array();
-            foreach ( $fields as $key => $value ) {
+            foreach ( PForms_Entry_Summary::answers( $fields ) as $key => $value ) {
                 if ( is_array( $value ) ) {
                     $value = implode( ', ', $value );
                 }
