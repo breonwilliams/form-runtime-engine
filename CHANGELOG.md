@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.12.3] - Unreleased
+## [1.12.3] - 2026-10-21
 
-Fixes from the Promptless Forms video dry run (Sparrowmere, 2026-10). Not
-released yet: ships with the rest of the dry run's findings.
+Fixes from the Promptless Forms video dry run (Sparrowmere, 2026-10).
 
 ### Fixed
 
