@@ -101,6 +101,7 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 * Fixed: an empty or invalid sender address no longer sends notifications as "WordPress"; the site's admin email is used with your sender name, and an invalid address is refused when the form is saved.
 * Fixed: the entries list now shows who sent each entry (name and email) instead of the first two answers, and the entry page no longer lists the internal form version as an answer.
 * Fixed: notification emails use the site's brand colour (kept readable) instead of WordPress blue when Promptless WP is active.
+* Changed: after a successful submit the form is replaced by its success message, and keyboard focus moves to it. Forms meant to be filled again can keep showing the form with the new "after_submit": "reset" setting.
 
 = 1.12.2 =
 * Fixed: when "Next" finds problems on a step, focus now goes to the first one, not the last.
@@ -132,7 +133,7 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 == Upgrade Notice ==
 
 = 1.12.3 =
-Clearer focus outlines, brand-coloured controls and emails, entries listed by who sent them, an aligned multi-step Submit, and notifications that never send as "WordPress". No form data changes.
+A successful submit now replaces the form with its confirmation (opt out per form with "after_submit": "reset"), plus clearer focus outlines, branded controls and emails, and entries listed by sender.
 
 = 1.12.2 =
 Accessibility fixes for multi-step and single-step forms: focus goes to the first error and to each new step, errors are always announced inline, and email and phone fields support autofill. No settings or form data change.

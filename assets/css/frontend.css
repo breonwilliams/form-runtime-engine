@@ -558,6 +558,35 @@
     color: #721c24;
 }
 
+/* Confirmation (settings.after_submit "confirmation", the default since
+   1.12.3): after a successful submit everything in the form but its title
+   and the messages container is hidden, so the success message REPLACES the
+   form instead of sitting above an emptied one. display: none also takes
+   the hidden fields out of the accessibility tree. frontend.js moves focus
+   to the messages container; the outline is the fields' focus indicator, so
+   it only shows when the submit came from the keyboard (:focus-visible). */
+.fre-form--submitted > :not(.fre-form__messages):not(.fre-form__title) {
+    display: none;
+}
+
+.fre-form--submitted .fre-form__messages {
+    margin-bottom: 0;
+}
+
+.fre-form--submitted .fre-form__message:last-child {
+    margin-bottom: 0;
+}
+
+.fre-form__messages:focus {
+    outline: none;
+}
+
+.fre-form__messages:focus-visible {
+    outline: 2px solid var(--fre-focus-color);
+    outline-offset: 2px;
+    border-radius: var(--fre-border-radius);
+}
+
 /* ==========================================================================
    Fields
    ========================================================================== */

@@ -121,6 +121,13 @@ class PForms_Renderer {
         // argument is accepted and ignored.
         $data_attrs  = sprintf( 'data-form-id="%s"', esc_attr( $form_id ) );
         $data_attrs .= ' data-ajax="true"';
+        // What a successful submit shows. The default ('confirmation')
+        // replaces the form with the success message; only the opt-in
+        // 'reset' needs telling to the script. An unknown stored value
+        // (saved before validation existed) behaves as the default.
+        if ( isset( $settings['after_submit'] ) && 'reset' === $settings['after_submit'] ) {
+            $data_attrs .= ' data-after-submit="reset"';
+        }
         if ( $is_multistep ) {
             $data_attrs .= sprintf( ' data-steps="%d"', count( $form['steps'] ) );
             $multistep_settings = isset( $settings['multistep'] ) ? $settings['multistep'] : array();

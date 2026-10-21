@@ -58,7 +58,28 @@ released yet: ships with the rest of the dry run's findings.
   `pforms_email_accent_color` filter. The token contract records the PHP
   read of `aisb_global_settings`.
 
+### Changed
+
+- **A successful submit now replaces the form with its confirmation.** The
+  success message used to appear above the whole form, reset and empty (a
+  multi-step form back on step 1), which read as "nothing was sent" or as an
+  invitation to send again (Sparrowmere dry run, on a page and in a popup).
+  New `settings.after_submit`: `"confirmation"` (the default, so existing
+  forms change too) hides everything but the form title and the message, and
+  moves keyboard focus to the message (the `role="alert"` region it is
+  announced from, with the fields' 2px focus outline); `"reset"` keeps the
+  old behaviour for forms meant to be filled again, such as a newsletter
+  strip. Any other value is refused at save. The answers are still cleared.
+  With a redirect the confirmation shows until the next page loads. Inside a
+  Promptless WP popup, close-on-submit still closes it after its delay and
+  returns focus to the button that opened it. Documented in the JSON schema,
+  the connector rulebook and the preflight settings hints; the relay is
+  unchanged (it passes `config` through). Checked by keyboard on Local: a
+  single-step and a multi-step form on a page, a `reset` form, and a popup
+  with close-on-submit on and off.
+
 Pinned by `tests/Unit/FormControlStylesTest.php`,
+`tests/Unit/AfterSubmitTest.php`,
 `tests/Unit/NotificationHeadersTest.php`, `tests/Unit/EntrySummaryTest.php`
 and `tests/Unit/EmailAccentTest.php`.
 

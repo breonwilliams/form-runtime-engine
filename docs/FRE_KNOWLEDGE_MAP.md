@@ -203,6 +203,7 @@ Form-level behavior is controlled via the `settings` object:
   "submit_button_text": "Book My Demo",
   "success_message": "Thanks — we'll reach out within one business day.",
   "redirect_url": null,
+  "after_submit": "confirmation",
   "show_title": false,
   "css_class": "",
   "store_entries": true,
@@ -218,6 +219,7 @@ Form-level behavior is controlled via the `settings` object:
 - `submit_button_text` — default `"Submit"`
 - `success_message` — default `"Thank you for your submission."` Shown inline after successful submit.
 - `redirect_url` — if set, redirects to this URL after success instead of showing the inline message. Must be a valid URL. Use null or omit to keep inline behavior.
+- `after_submit` — what a successful submit shows. `"confirmation"` (default since 1.12.3; omit it): the success message **replaces** the form and receives keyboard focus, so it is announced and nobody reads an emptied form as "nothing was sent" or as an invitation to send again. `"reset"`: the message shows above the emptied form (a multi-step form returns to step 1); use it **only** for forms meant to be filled again in one visit, such as a newsletter strip or a sign-in sheet. Any other value is refused at save. With a `redirect_url` the confirmation shows until the new page loads. In a Promptless WP popup with `close_on_submit`, the popup still closes after its delay; without it, the popup stays open on the confirmation until the visitor closes it.
 - `show_title` — whether to render the form's title above the form. Default false.
 - `css_class` — custom class applied to the form's outer container.
 - `theme_variant` — `"light"` | `"dark"` | `"auto"`. Default `"light"`. **Set to `"dark"` when the form renders inside a dark-background section** so input styling matches. Forms inside an `.aisb-section--dark` ancestor auto-inherit dark mode via CSS selector, but setting this explicitly is still the recommended pattern.
