@@ -9,22 +9,47 @@
  *     bin/install-wp-tests.sh, .github/**, .claude/settings*.json,
  *     .claude/hooks/**, vendor/**, ~/.wp-tests/**, ~/.claude/settings*.json
  *   - tests/** files that exist in refs/verify/baseline or in HEAD
+ *   - outside the checkout: the gate's state (~/.claude/verification-gate/,
+ *     where green results and unlocks are recorded) and the orchestrate
+ *     skill's worker/reviewer definitions (the reviewer is a check)
  *
  * Editable: a file under tests/ that is in neither — a test the agent created
  * and that has not been committed yet. A worker must be able to fix its own
  * new test, or one mistake in it kills the phase.
  *
+ * The one way through is the person: a prompt whose first line is exactly
+ * UNLOCK-VERIFICATION unlocks the main session for that turn (verify.sh
+ * `prompt` writes the marker, `stop` removes it). Subagents are never
+ * unlocked. Same rule as ai-section-builder-modern's guard.js.
+ *
  * This is the early warning, not the authority. Bash is matched by pattern,
  * so a determined command can get past it; verify.sh compares every tracked
  * protected path against refs/verify/baseline at turn end, whatever wrote it.
+ *
+ * Fails closed: settings run this with onFailure "block", and input it cannot
+ * read is refused rather than waved through.
  */
 
-$root  = dirname( __DIR__, 2 );
-$home  = getenv( 'HOME' );
-$input = json_decode( stream_get_contents( STDIN ), true );
+$root      = dirname( __DIR__, 2 );
+$home      = getenv( 'HOME' );
+$state_dir = $home . '/.claude/verification-gate';
+$input     = json_decode( stream_get_contents( STDIN ), true );
 
 if ( ! is_array( $input ) ) {
-	exit( 0 );
+	fwrite( STDERR, "BLOCKED by the verification guard: its input could not be read.\n" );
+	exit( 2 );
+}
+
+// The person's unlock: main session only, this turn only, never past 2 hours.
+if ( empty( $input['agent_id'] ) && ! empty( $input['session_id'] ) ) {
+	$marker = $state_dir . '/form-runtime-engine/unlock-' . basename( (string) $input['session_id'] );
+	if ( is_file( $marker ) ) {
+		$until = (int) strtok( (string) file_get_contents( $marker ), "\n" );
+		$left  = $until - (int) round( microtime( true ) * 1000 );
+		if ( $left > 0 && $left <= 2 * 60 * 60 * 1000 ) {
+			exit( 0 );
+		}
+	}
 }
 
 $tool = isset( $input['tool_name'] ) ? $input['tool_name'] : '';
@@ -112,6 +137,12 @@ function lock_reason( $abs ) {
 	if ( preg_match( '#^' . preg_quote( $home, '#' ) . '/\.claude/settings[^/]*\.json$#', $abs ) ) {
 		return 'user-level Claude settings can disable hooks';
 	}
+	if ( 0 === strpos( $abs . '/', $home . '/.claude/verification-gate/' ) ) {
+		return 'the gate state records green results and unlocks';
+	}
+	if ( preg_match( '#^' . preg_quote( $home, '#' ) . '/\.claude/(agents/phase-(worker|reviewer)\.md$|skills/orchestrate(/|$))#', $abs ) ) {
+		return 'the orchestrate worker and reviewer definitions are part of the checking';
+	}
 
 	if ( $abs === $root ) {
 		return null;
@@ -121,6 +152,10 @@ function lock_reason( $abs ) {
 	}
 
 	$rel = substr( $abs, strlen( $root ) + 1 );
+
+	if ( preg_match( '#^\.git/(refs/verify(/|$)|packed-refs$)#', $rel ) ) {
+		return 'the baseline ref is moved only by the user';
+	}
 
 	if ( preg_match( '#^(phpunit\.xml(\.dist)?|composer\.(json|lock)|\.gitignore|bin/install-wp-tests\.sh)$#', $rel ) ) {
 		return "{$rel} is verification config";
@@ -164,9 +199,18 @@ if ( 'Bash' !== $tool ) {
 
 $cmd = isset( $args['command'] ) ? (string) $args['command'] : '';
 
-// The baseline ref and the unlock script are the user's alone.
-if ( preg_match( '#refs/verify|rebaseline#', $cmd ) && ! preg_match( '#^\s*git\s+(rev-parse|log|diff|show|cat-file|ls-tree)\b[^;&|]*$#', $cmd ) ) {
-	deny( $cmd, 'refs/verify/baseline is moved only by the user, with .claude/hooks/rebaseline.sh in their own terminal' );
+// The baseline ref and the rebaseline script are the user's alone. Judged per
+// command, so reading the ref (git rev-parse, git diff, grep in a file) is
+// allowed inside a longer command line; anything else that names it is not.
+foreach ( preg_split( '#\s*(?:&&|\|\||[;&|\n])\s*#', $cmd ) as $segment ) {
+	if ( ! preg_match( '#refs/verify|rebaseline#', $segment ) ) {
+		continue;
+	}
+	$is_read = preg_match( '#^\s*(\w+=\S*\s+)*git\s+(-C\s+("[^"]*"|\'[^\']*\'|\S+)\s+)*(rev-parse|log|diff|show|cat-file|ls-tree|for-each-ref|merge-base|reflog\s+show)\b#', $segment )
+		|| preg_match( '#^\s*(grep|rg|cat|head|tail|less|wc)\s#', $segment );
+	if ( ! $is_read ) {
+		deny( $cmd, 'refs/verify/baseline is moved only by the user (.claude/hooks/rebaseline.sh in their terminal, or a turn that starts with UNLOCK-VERIFICATION)' );
+	}
 }
 if ( preg_match( '#disableAllHooks|core\.hooksPath#', $cmd ) ) {
 	deny( $cmd, 'commands that switch hooks off are not allowed' );

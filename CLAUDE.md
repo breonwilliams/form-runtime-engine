@@ -1014,27 +1014,79 @@ change reviewable. Until then, this baseline is what makes the gate usable.
 Armed by `.claude/settings.json`; scripts in `.claude/hooks/`. Both are tracked
 (`.gitignore` un-ignores them); `settings.local.json` is not.
 
+Same design as ai-section-builder-modern's `scripts/claude-hooks/` (branch
+`chore/local-verification-gates`); the differences are listed below.
+
 | Hook | Script | What it does |
 |------|--------|--------------|
-| PreToolUse (Edit/Write/MultiEdit/NotebookEdit/Bash) | `guard.php` | Refuses writes to the verification layer |
+| UserPromptSubmit | `verify.sh prompt` | Records the tree the turn started from; honours `UNLOCK-VERIFICATION` |
+| SubagentStart | `verify.sh agent-start` | Records the tree a subagent started from |
+| PreToolUse (Edit/Write/MultiEdit/NotebookEdit/Bash) | `guard.php` | Refuses writes to the verification layer (`onFailure: block`) |
 | PostToolUse (Edit/Write/MultiEdit) | `post-edit.sh` | Per-file only: `php -l`, `jq empty`, `bash -n`, `node --check`. **No suites** — a multi-file change is red in the middle |
-| Stop + SubagentStop | `verify.sh` | Tamper check → `php -l` over all shipped files → Unit → Integration. Exit 2 = the turn/subagent cannot finish |
+| Stop + SubagentStop | `verify.sh stop` | Tamper check → `php -l` over all shipped files → Unit → Integration |
 
-Run the gate by hand: `.claude/hooks/verify.sh < /dev/null`.
+Run the gate by hand (also the orchestrator's verify command):
+`.claude/hooks/verify.sh run` — exit 0 = green. Logs and state live in
+`~/.claude/verification-gate/form-runtime-engine/`.
+
+**When the Stop gate runs.** The working tree is fingerprinted together with
+the baseline ref. A fingerprint that already passed passes again without
+re-running. A turn or subagent that changed nothing is warned, not blocked, for
+a red tree it did not cause. Anything else runs the gate.
+
+**Give-up limit.** A red gate blocks up to **3 times in a row**, then lets the
+turn end with `RED. NOT VERIFIED` (a `systemMessage`, never a pass). Subagents
+get the same limit; one let through red is caught again by the main session's
+gate, because the tree is still red. Without the cap a gate the agent cannot
+satisfy is an endless, billed loop — this repo had one on 2026-10-29, ~100
+turns, when the gate itself was broken.
 
 **Locked** (guard + tamper check): `tests/**` files present in the baseline or
 in HEAD, `phpunit.xml(.dist)`, `composer.json/.lock`, `.gitignore`,
 `bin/install-wp-tests.sh`, `.github/**`, `.claude/settings*.json`,
-`.claude/hooks/**`, `vendor/**`, `~/.wp-tests/**`, `~/.claude/settings*.json`.
+`.claude/hooks/**`, `vendor/**`, the baseline ref (`.git/refs/verify/`,
+`packed-refs`, `git update-ref`, `rebaseline.sh`), `~/.wp-tests/**`,
+`~/.claude/settings*.json`, `~/.claude/verification-gate/**`, and the
+orchestrate skill's `phase-worker.md` / `phase-reviewer.md` / `skills/orchestrate/`.
 **Editable:** a new file under `tests/` until it is committed, so a worker can
-fix a mistake in its own new test.
+fix a mistake in its own new test. Read-only commands that name the ref
+(`git rev-parse`, `git diff`, `grep`, `cat`) are allowed.
 
-**Changing the verification layer deliberately (you, not an agent):** edit the
-files in your editor, commit, then run `.claude/hooks/rebaseline.sh` in your own
-terminal. It moves `refs/verify/baseline` (a ref, not a tag, so
-`git push --tags` never publishes it) after showing what it accepts, and needs
-an interactive terminal to confirm. Until you do, the tamper check blocks every
-turn and names the changed files.
+**Changing the verification layer deliberately — two ways, both yours:**
+- **Have Claude do it:** make the FIRST line of your prompt exactly
+  `UNLOCK-VERIFICATION`, then describe the change. The main session's guard is
+  off for that one turn: Claude edits, commits, and moves the baseline with
+  `git update-ref refs/verify/baseline HEAD` so the tamper check accepts it.
+  Subagents stay locked. The lock returns when the turn ends (green, or let
+  through after 3 blocks), and never lasts past 2 hours. Every unlock, relock
+  and baseline move made under one is logged to `unlock.log` in the state dir.
+- **Do it yourself:** edit in your editor, commit, then run
+  `.claude/hooks/rebaseline.sh` in your own terminal. It shows what it accepts
+  and needs an interactive terminal to confirm (type only `y`; arrow keys
+  pressed at the prompt become part of the answer and it says "Unchanged.").
+
+The baseline is a ref, not a tag, so `git push --tags` never publishes it.
+Until it is moved, the tamper check blocks and names the changed files.
+
+**Where this differs from ai-section-builder-modern, on purpose:**
+- **Tamper check against a baseline ref** (theirs has none; the guard is all).
+  Here hooks are tracked files, so a committed change to a test or config is
+  caught at turn end whatever wrote it. Consequence: an unlock must also move
+  the baseline, so the unlock lasts until the turn really ends — not only until
+  the first Stop attempt as there — or the tamper block that follows an
+  unlocked change could never be cleared.
+- **Unlock line must be exactly `UNLOCK-VERIFICATION`** (theirs: the first line
+  *starts with* it). `UNLOCK-VERIFICATION: do X` does not unlock here.
+- **Fingerprint includes the baseline ref**, so a cached green is not reused
+  after the baseline moves.
+- **Unlocks are logged** (`unlock.log`), including any baseline move.
+- **No `git clean` / `rm .` blanket refusals**: the tamper check covers deleted
+  tracked files; new untracked tests are the only thing `git clean` could take.
+- **Guard in PHP**, matching this repo; exits 2 rather than printing a JSON
+  `deny` — same effect.
+- **Inherited gap, not verified live here either:** subagents are refused the
+  unlock because their tool calls carry `agent_id`. Until confirmed, don't
+  delegate protected changes during an `UNLOCK-VERIFICATION` turn.
 
 **What the guard is not:** a security boundary. Bash is pattern-matched, so a
 determined command can get past it. The authority is the turn-end tamper check,
