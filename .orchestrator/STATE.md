@@ -84,7 +84,10 @@ created on the Local site only and removed afterwards, except where noted.
 `form-engine-wordpress` MCP tools and so acted on **725printlab.com**: created a form `hc-relay`
 ("HC relay check", two fields, notifications off, on no page), read it back, and ran one
 `dry_run` test submit (stores nothing, sends nothing). That form is still there; removing it is
-the human's decision. No other MCP tool was used against that site; all other checks used the
+the human's decision. — The human approved deleting it; the delete call failed ("Server
+form-engine-wordpress unavailable": no relay process was running), so `hc-relay` is **still on
+725printlab.com** until the relay is restarted and the delete re-run, or it is deleted in that
+site's wp-admin (Form Entries → Forms). No other MCP tool was used against that site; all other checks used the
 Local site only.
 
 **Limits of what these checks show:** Local's PHP-FPM pool is `pm = static`, 2 workers, so
