@@ -48,3 +48,16 @@ In the signed-in admin session (capability present):
 - same with `nonce=0123456789` (wrong) → `-1`
 - stored count stayed 0 after both.
 Logged out (curl, no cookies): HTTP 400, body `0` (no `wp_ajax_nopriv_` handler; never reaches the plugin).
+
+## Layout — FIXED (2026-10-29T20:39:30Z, commit daf499f)
+Widths rebalanced in `assets/css/admin.css` (form 28%, shortcode 24%, `.column-availability` 20%,
+modified 14%, entries 100px) and the Adjust count label stacked above its field; RTL regenerated.
+Gate exit 0 (Unit 556 / 1517, Integration 192 / 1044 / 3 skipped). Re-checked by Claude in the
+signed-in browser with the six fixtures recreated (then removed again):
+- 1440px: five readable columns; capped row reads "Open / Closes July 20, 2099 at 5:00 pm UTC /
+  3 of 10 places taken / Adjust count" at normal row height. The opened control shows "Places taken"
+  above the field, "Save count" and "Reset to 0" beside it; clicking by element reference now hits the
+  right controls; Save stored 6.
+- 800px: five readable columns; Status text wraps over a few lines.
+- 375px: WordPress's stacked small-screen layout, readable; header wraps ("Modifie d") — the table has
+  no primary-column markup, so all its columns behave this way; not compared against the pre-P6 table.

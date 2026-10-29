@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: DONE   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T20:32:38Z
+Updated: 2026-10-29T20:39:30Z
 Last green commit: 4682894
-Next action: Run complete; PR #28 open. Post-run checks recorded below ("Post-run checks"). Before merge: fix the P6 Status column width defect (5b) and have a person click Reset → OK once (5c). Still open: the relay (blocked: every Promptless relay targets a live site), the Promptless WP roadmap update, confirming `hc-relay` was deleted from 725printlab.com.
+Next action: Run complete; PR #28 open. Post-run checks recorded below ("Post-run checks"). Before merge: have a person click Reset → OK once (5c); the 5b layout defect is fixed in daf499f. Still open: the relay (blocked: every Promptless relay targets a live site), the Promptless WP roadmap update, confirming `hc-relay` was deleted from 725printlab.com.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -77,7 +77,7 @@ created on the Local site only and removed afterwards, except where noted.
 | 4c | FlowMint retention does not reopen a full form | P2 (Q-001/Q-010) | **PASS** (Local) — FlowMint's own `fre_delete_entries` step deleted both entries (`deleted_count: 2`); count stayed 2, form stayed `cap_reached`; a 4th HTTP post was refused and started no run. | `flowmint-run/state-after-retention.txt`, `state-after-post-4.txt` |
 | 4d | FlowMint loads a form with availability settings | P1/P5 | **PASS (partial)** (Local) — `FMW_Workflow_Validator::validate_full` → `{"valid":true,"errors":[],"warnings":[]}`; runs executed against the form (4b). The FlowMint *editor screen* was not opened (needs a signed-in browser). | `flowmint-run/validator.txt` |
 | 5a | wp-admin Status column text | P6 | **PASS** — in the browser, signed in by the human (Claude entered no credentials), all six fixtures show the right text; also matched by the WP-CLI admin render. | `wp-admin-browser.md`, `admin-status-render.txt` |
-| 5b | wp-admin layout | P6 | **FAIL — defect.** At desktop width the Status column is ~1 character wide: header "S t a t u s" vertical, every cell and the Adjust count control wrapped one character per line. Cause: fixed table layout; existing columns take 35% + 30% + 20% + 100px (`assets/css/admin.css:188, 206, 210, 346`) and P6's `.column-availability` has no width. At ~800px the cells stack. Light/dark admin schemes not checked (would change the human's profile). | `wp-admin-browser.md` |
+| 5b | wp-admin layout | P6 | **FAIL, then FIXED and re-checked.** Found: at desktop width the Status column was ~1 character wide (fixed table layout; existing columns took 35% + 30% + 20% + 100px and `.column-availability` had no width). Fix `daf499f`: widths rebalanced (form 28%, shortcode 24%, status 20%, modified 14%, entries 100px), control label stacked above its field, RTL regenerated; gate exit 0 at 2026-10-29T20:39:30Z (Unit 556, Integration 192). Re-checked in the browser by Claude: 1440px — five readable columns, Status cells normal height, control laid out, Save via element references stored 6; 800px — five readable columns; 375px — WordPress's stacked small-screen layout, readable, header wraps ("Modifie d"), which is how this table's other columns behave too (no primary-column markup; not compared against the pre-P6 table). Light/dark admin schemes not checked. | `wp-admin-browser.md` |
 | 5c | Adjust count save flow | P6 | **PASS (Save) / NOT VERIFIED (Reset button).** Save 7 → stored 7, page shows "7 of 10"; Save 0 → stored 0. "Reset to 0" did nothing in the built-in browser: it requires `confirm()` (`admin.js:410`), which this browser does not accept. Needs a person to click Reset → OK. | `wp-admin-browser.md` |
 | 5d | Adjust count refused without a valid nonce | P6 | **PASS** — signed-in admin session: no nonce → `-1`, wrong nonce → `-1`, count unchanged (0). Logged out: HTTP 400 `0`. | `wp-admin-browser.md` |
 | 3 | Relay copy and restart | P5 | **NOT DONE — blocked.** All three Promptless relays (`promptless-wordpress`, `form-engine-wordpress`, `flowmint-workflows`) in the desktop app config point at `https://725printlab.com`, a live site running an older Forms plugin without this feature. Installing the new relay there would describe settings that site cannot enforce. The new file was copied in and then **restored from backup** (`form-engine-connector.js.pre-availability.bak`, identical hash); the running relay processes were never restarted, so it was never loaded. | — |
@@ -98,8 +98,7 @@ All Local test data (hc-* forms, entries, counts, FlowMint workflow and runs, te
 probe mu-plugin) removed by 2026-10-29T20:32:38Z; verified empty.
 
 **Before PR #28 can merge:**
-1. Fix the Status column width (5b) — a P6 CSS change plus a check that the column is usable at
-   desktop and narrow widths; re-run the gate.
+1. ~~Fix the Status column width (5b)~~ — **done** in `daf499f` (2026-10-29T20:39:30Z), see 5b.
 2. A person clicks "Reset to 0" → OK once in a browser (5c), or the Reset path is changed so it
    can be tested.
 3. Push the post-run evidence commits.
