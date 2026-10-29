@@ -154,3 +154,21 @@
 3. Different closed wording (e.g. "This form is closed."): shorter; less explicit that it once was open.
 
 **Answer:** Human, 2026-10-29T17:07:03Z, verbatim: "Keep both defaults, with one change: the before-open message must name the timezone. \"This form opens on March 15, 2027 at 9:00 am ET\" — a time without a zone is ambiguous for anyone outside the site's timezone, and these are deadline-driven forms. Use whatever zone label WordPress gives for the site timezone, and carry it into the P4 brief." So: the closed default stays "This form is no longer accepting submissions."; the before-open default stays as worded and appends the zone label WordPress gives for the site timezone (the label is WordPress's, so it may read e.g. "EDT"/"EST" rather than "ET", or an offset on an offset-only site). Implemented in P4.
+
+## Q-010 · P2 · What happens to the count when a cap is removed and later added back
+
+**Status:** open
+**Raised by:** reviewer, 2026-10-29T17:23:34Z
+
+**Question:** A form has a cap, fills up, and then its cap is removed (by the owner, or by a save that simply leaves the availability settings out). Later the cap is put back. Does the form remember how many places were already taken?
+
+**Why it blocks:** P2 as built answers "no": removing the cap deletes the count, and putting it back recounts from the entries still stored. Example: a camp capped at 30 is full; a retention workflow deletes the old entries; the owner removes the cap for a day and restores it → the form reopens with up to 30 places. That contradicts Q-001 ("deleting entries never gives a place back"), and Q-001(a) only settles a cap added for the *first* time. Also: the connector's update replaces the whole form config, so an agent PATCH that omits `settings.availability` removes the cap and, as built, wipes the count with it. P2 cannot be approved until this is decided.
+
+**Options seen:**
+1. **Restart from the entries stored at that moment** (as built). Simple; matches the first-add rule. Cost: places come back for every deleted entry, the exact effect Q-001 ruled out; a careless agent update erases the count.
+2. **Keep the old count, frozen while the form has no cap.** A re-added cap resumes where it stopped; a cap-less save never erases anything. Cost: submissions accepted while uncapped are not counted, so the form can admit more than the cap in total (e.g. cap 30 with 20 taken; cap removed and 10 more accepted; cap 30 restored → the count still says 20, so 10 more get in: 40 in all).
+3. **Keep counting accepted submissions while the cap is off, once a form has ever had one.** A re-added cap is exact; a cap-less save never erases anything. Cost: one extra small database write per accepted submission on forms that once had a cap; slightly more for P3 to test.
+
+In every option, P6's adjust/reset control lets the owner correct the number, and deleting the form itself removes its count (a re-created form is a new form, seeded under Q-001(a)) unless you say otherwise.
+
+**Answer:** _(unanswered)_

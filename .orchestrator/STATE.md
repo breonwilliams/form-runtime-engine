@@ -1,15 +1,15 @@
 # Orchestrator state
 
-Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T17:07:36Z
-Last green commit: b82c9f2
-Next action: Run 3 (P2–P6, no phase cap). P2 attempt 1 is with the phase-worker.
+Run status: HALTED: QUESTION   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
+Updated: 2026-10-29T17:23:34Z
+Last green commit: 7f79542
+Next action: Human answers Q-010 in QUESTIONS.md (count when a cap is removed and re-added). Then P2 goes back to pending and is retried (attempt 1 again — the escalated attempt is not counted), reusing the parked work on `orchestrator/P2-attempt-1`, then P3–P6 continue without a cap.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
 | P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
-| P2 | in_progress | 1 | b82c9f2 | | | |
+| P2 | needs_decision | 0 | b82c9f2 | pass (exit 0) | ESCALATE | |
 | P3 | pending | 0 | | | | |
 | P4 | pending | 0 | | | | |
 | P5 | pending | 0 | | | | |
@@ -49,3 +49,4 @@ Next action: Run 3 (P2–P6, no phase cap). P2 attempt 1 is with the phase-worke
 - Carry into later briefs (P1 reviewer's minor findings): (P3/P4) an invalid PHP-registered config logs an error on every `check()` call — once wired into render and submit that is one log line per page view, so dedupe when wiring; (P5/P6) a DST spring-forward-gap time gets the generic "must be a date…" refusal — give it a clearer message or document it.
 - Q-009 (default wording of the closed and before-open messages) raised by the P1 worker as non-blocking; answered by the human 2026-10-29T17:07:03Z (before-open default must name the site timezone, WordPress's label). Goes into the P4 brief (A-003).
 - Run 3 started 2026-10-29T17:07:36Z: P2–P6 with no phase cap, at the human's request. Baseline b82c9f2 green (Unit 546, Integration 99 / 3 skipped).
+- P2 attempt 1 (2026-10-29T17:23:34Z): worker DONE, gate exit 0 (Unit 549, Integration 116 / 3 skipped), reviewer ESCALATE on a guessed decision — removing and re-adding a cap restarts the count from stored entries, which Q-001 does not settle. The orchestrator had waved the worker's question through as covered by Q-001(a); the reviewer was right to dispute it. Attempt escalated, not counted (Attempts back to 0). Work parked on `orchestrator/P2-attempt-1` (0e07366): reusable once Q-010 is answered. Retry must also fix the reviewer's minor finding: the lazy-row race test does not interleave inside the lazy path (a mutant survives).
