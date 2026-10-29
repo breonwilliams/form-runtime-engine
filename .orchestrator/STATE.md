@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T19:00:33Z
+Updated: 2026-10-29T19:12:20Z
 Last green commit: 9f66955
-Next action: Run 3. P5 attempt 1 is with the phase-worker.
+Next action: Run 3. P5 attempt 2 is with the phase-worker (attempt 1 CHANGES_REQUESTED, parked).
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -12,7 +12,7 @@ Next action: Run 3. P5 attempt 1 is with the phase-worker.
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
 | P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | 9f66955 |
-| P5 | in_progress | 1 | 73eb42c | | | |
+| P5 | in_progress | 2 | a937345 | | | |
 | P6 | pending | 0 | | | | |
 
 <!-- Status: pending | in_progress | needs_decision | blocked | done
@@ -67,3 +67,4 @@ Next action: Run 3. P5 attempt 1 is with the phase-worker.
 - P3 attempt 2: DONE, gate exit 0, reviewer APPROVE (A-005). For P4: AJAX refusal is `{success:false, data:{code:'form_closed', message, reason}}`, reason ∈ not_yet_open / closed_date / cap_reached / invalid_settings. For P5: document `pforms_form_full( $form_id, $entry_id, $cap, $form_config )` and the replica caveat.
 - P4 attempt 1 (2026-10-29T18:28:57Z): worker NEEDS_DECISION — A-003 blocked by two protected exact-string tests from P1 (FormAvailabilityTest.php:484, FormAvailabilityTimezoneTest.php:52). Render + JS work green (worker's gate: Integration 161 / 781) and parked on `orchestrator/P4-attempt-1` (e8d70c3). Escalated, not counted. Raised as Q-011. Retry must also put two worker deviations to cold review: a neutral closed-message style; no focus move on a page-load closed render.
 - Orchestrator note: the guard pattern-matches Bash text, so any Bash command whose text names the baseline ref or the re-baseline script is refused even when it only writes a log. State files are written with the Edit/Write tools.
+- P5 attempt 1 (2026-10-29T19:12:20Z): gate exit 0 (Unit 556, Integration 179), reviewer CHANGES_REQUESTED — rulebook and knowledge map promise an owner count adjust/reset control that only P6 builds. Parked on `orchestrator/P5-attempt-1` (3085ca7).
