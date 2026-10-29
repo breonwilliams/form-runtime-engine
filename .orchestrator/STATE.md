@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T18:59:56Z
+Updated: 2026-10-29T19:00:33Z
 Last green commit: 9f66955
-Next action: Run 3. P4 done; start P5 attempt 1.
+Next action: Run 3. P5 attempt 1 is with the phase-worker.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -12,7 +12,7 @@ Next action: Run 3. P4 done; start P5 attempt 1.
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
 | P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | 9f66955 |
-| P5 | pending | 0 | | | | |
+| P5 | in_progress | 1 | 73eb42c | | | |
 | P6 | pending | 0 | | | | |
 
 <!-- Status: pending | in_progress | needs_decision | blocked | done
