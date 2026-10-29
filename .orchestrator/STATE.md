@@ -2,13 +2,13 @@
 
 Run status: PAUSED   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
 Updated: 2026-10-29T17:00:25Z
-Last green commit: (P1 commit — recorded below)
+Last green commit: d2cb13f
 Next action: Paused after P1 by `max_phases_per_run: 1` (human checkpoint, run 2). To continue, the human raises or removes `max_phases_per_run` in ROADMAP.md and runs the orchestrator; it starts P2 attempt 1. Q-009 (default message wording) is open but does not block P2 or P3; answer it before P4.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
 | P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
-| P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | (pending) |
+| P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
 | P2 | pending | 0 | | | | |
 | P3 | pending | 0 | | | | |
 | P4 | pending | 0 | | | | |
