@@ -1,15 +1,15 @@
 # Orchestrator state
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T17:49:52Z
-Last green commit: 1464b25
-Next action: Run 3 resumed after Q-010 (option 3). P2 attempt 1 (retry of the escalated attempt) is with the phase-worker, starting from the parked work on `orchestrator/P2-attempt-1`; then P3–P6 without a cap.
+Updated: 2026-10-29T18:00:30Z
+Last green commit: (P2 commit — recorded below)
+Next action: Run 3. P2 done; start P3 attempt 1.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
 | P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
-| P2 | in_progress | 1 | 1464b25 | | | |
+| P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | (pending) |
 | P3 | pending | 0 | | | | |
 | P4 | pending | 0 | | | | |
 | P5 | pending | 0 | | | | |
@@ -26,10 +26,12 @@ Next action: Run 3 resumed after Q-010 (option 3). P2 attempt 1 (retry of the es
 - P0 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:39:13Z (same counts). P0 changed no PHP, so this proves only that nothing regressed.
 - Run 2 baseline 30340a6: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:46:04Z (same counts).
 - P1 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:56:40Z (Unit 546 tests / 1459 assertions; Integration 99 tests / 242 assertions / 3 skipped). The new tests pass and nothing regressed; it does not by itself prove the tests test the right thing (see reviewer judgment).
+- P2 retry working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T17:55:35Z (Unit 549 / 1473; Integration 121 / 396 / 3 skipped). Includes the two-connection race tests against Local's real MySQL/InnoDB.
 
 **Reviewer judgment** (a model read the code; not proof):
 - P0: the release ZIP no longer contains `.orchestrator/`; the file list is otherwise identical to a b3579ee build (119 vs 119, empty names-only diff); the old script did ship 6 `.orchestrator` entries, so the fix is not vacuous. Reproduced independently by the reviewer in scratch copies; the worker's own build showed the same.
 - P1: every done-state criterion met. The reviewer mutated a scratch copy to check the tests can fail for the reason they name: comparing in UTC or in server time fails 7 tests each; 0-as-unlimited fails 3; removing the filter fails both filter tests; disabling the save-time validator fails the admin and both connector path tests; Q-007 boundary mutations fail 2/5/4 tests. Both "save path" tests go through the real `save_form` and connector handlers.
+- P2: every criterion and the Q-010 behaviour met. Two independent reviewers reproduced the naive count-then-insert failure themselves; the retry reviewer also killed mutants for the overwriting seed (4 failures), claim(null) as a no-op (3), deleting the count on a cap-less save (3), a no-op form-delete hook (1) and a missing release floor (risky = fail).
 
 **Not verified:**
 - Plugin Check on the new ZIP was not run (not in P0's done-state; it is a release gate).
@@ -37,6 +39,9 @@ Next action: Run 3 resumed after Q-010 (option 3). P2 attempt 1 (retry of the es
 - P1: no test date falls on a DST transition; a local time inside a spring-forward gap is refused with a misleading generic message (reviewer finding, untested).
 - P1: nothing enforces availability yet. `check()` has no production callers until P3/P4; the cap uses a stubbed count of 0 until P2.
 - P1: PHP 7.4/8.2 — new files lint clean on Local's 7.4.1 (worker and reviewer, by hand); the Unit suite has not run on 7.4/8.2 (CI after push).
+- P2: the race tests interleave at statement level on two connections; InnoDB row-lock waiting and real concurrent PHP-FPM requests are not exercised (human curl check, roadmap item 1).
+- P2: nothing claims places yet; the handler wiring (claim before store, release on failure, never on spam/dry run) is P3.
+- P2: declared gap — a PHP-registered form whose cap is removed in code before its first submission keeps no count while uncapped, and PHP forms are seeded at their first capped claim, not at cap-add (A-004).
 
 ## Notes
 

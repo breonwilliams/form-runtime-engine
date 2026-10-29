@@ -23,3 +23,10 @@
 **Changed to:** P4 also makes the default before-open message append the zone label WordPress gives for the site timezone (e.g. "This form opens on March 15, 2027 at 9:00 am EDT"), pinned by a test with a non-UTC site zone. The closed default is unchanged.
 **Because:** Human decision on Q-009 (answered 2026-10-29T17:07:03Z): "a time without a zone is ambiguous for anyone outside the site's timezone, and these are deadline-driven forms."
 **Proposed by:** human (Q-009) · **Accepted by:** human · **Commit:** (P4 commit, recorded in STATE.md)
+
+## A-004 · P2 · 2026-10-29T18:00:30Z
+
+**Plan said:** "How the count is stored is open"; "Uninstall removes whatever P2 stores"; seeding "happens where forms are saved".
+**Changed to:** `PForms_Place_Counter` stores one wp_options row `pforms_places_{form_id}` (md5 for IDs over 150 chars), autoload 'no', SQL through `$wpdb` only. DB forms are seeded on `pforms_form_saved` and their count removed on `pforms_form_deleted`; PHP-registered forms get their row lazily at their first capped claim (INSERT IGNORE). Uninstall removes counts only with the "Remove all data" opt-in, like forms. Q-010 counting is `claim($id, null)`: one statement per accepted submission, a no-op on forms that never had a cap. Declared gap: a PHP-registered form whose cap is removed in code before its first submission keeps no count while uncapped, and is seeded at its first capped claim rather than at cap-add.
+**Because:** no schema change or DB_VERSION bump; the repository's only save/delete points fire those actions and Unit tests stub SQL in save(); default uninstall keeps forms, so dropping counts would reopen full forms on reinstall; the system cannot see a code-only cap without writing on every registration.
+**Proposed by:** worker · **Accepted by:** reviewer (APPROVE) · **Commit:** (P2 commit, recorded in STATE.md)

@@ -35,8 +35,9 @@
  * A close moment at or before the open moment is refused at save time (so a
  * same-day date-only window, 00:00 to the end of that day, is valid).
  *
- * The place count is P2's job. Until then the count is injected through the
- * $context['count'] argument, and places_taken() returns 0.
+ * The place count comes from PForms_Place_Counter (read only for a capped
+ * form with a known ID); tests and callers that already hold it can inject it
+ * through $context['count'].
  *
  * @package FormRuntimeEngine
  */
@@ -90,7 +91,9 @@ class PForms_Availability {
      *     Optional.
      *
      *     @type int    $now     Unix timestamp to decide at. Default time().
-     *     @type int    $count   Places already taken. Default places_taken().
+     *     @type int    $count   Places already taken. Default: the form's
+     *                           PForms_Place_Counter count (capped forms only;
+     *                           0 for an uncapped form).
      *     @type string $form_id Form ID, when $form is a config array.
      * }
      * @return array {
@@ -118,7 +121,7 @@ class PForms_Availability {
         }
 
         $now   = isset( $context['now'] ) ? (int) $context['now'] : time();
-        $count = isset( $context['count'] ) ? max( 0, (int) $context['count'] ) : self::places_taken( $form_id );
+        $count = isset( $context['count'] ) ? max( 0, (int) $context['count'] ) : 0;
 
         $result = array(
             'open'      => true,
@@ -160,6 +163,11 @@ class PForms_Availability {
             $opens_at  = self::to_timestamp( $availability['opens_at'] ?? null, 'open' );
             $closes_at = self::to_timestamp( $availability['closes_at'] ?? null, 'close' );
             $cap       = isset( $availability['max_entries'] ) ? (int) $availability['max_entries'] : null;
+
+            if ( null !== $cap && ! isset( $context['count'] ) ) {
+                $count           = self::places_taken( $form_id );
+                $result['count'] = $count;
+            }
 
             $result['opens_at']  = $opens_at;
             $result['closes_at'] = $closes_at;
@@ -283,15 +291,19 @@ class PForms_Availability {
     /**
      * Places already taken for a form.
      *
-     * P1 stub: the counter arrives in P2. check() callers inject the count
-     * through $context['count'] until then.
+     * Read through PForms_Place_Counter (SQL on its own row, never the
+     * options/transient/object-cache APIs). A config array passed without a
+     * form ID has nothing to count against, so it reports 0.
      *
      * @param string $form_id Form ID.
      * @return int
      */
     private static function places_taken( $form_id ) {
-        unset( $form_id );
-        return 0;
+        if ( '' === $form_id ) {
+            return 0;
+        }
+
+        return ( new PForms_Place_Counter() )->get( $form_id );
     }
 
     /**

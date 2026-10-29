@@ -223,3 +223,4 @@ where they would plug in later).
 - P0: the release ZIP is `build/promptless-forms.zip`, not `build/form-runtime-engine.zip` (A-001)
 - P1: setting names, the decision point's signature/reasons and five edge rules, as built (A-002)
 - P4: the default before-open message names the site timezone (Q-009 answer) (A-003)
+- P2: count storage, seeding hooks, opt-in uninstall, claim(null) for Q-010, declared PHP-form gap (A-004)
