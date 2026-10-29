@@ -110,7 +110,7 @@ config="$WP_TESTS_DIR/wp-tests-config.php"
 	fail integration "WordPress test library not found at $WP_TESTS_DIR." \
 		"Install it (as the user): see 'Verification gates' in CLAUDE.md."
 
-db_host="$(php -r 'foreach (file($argv[1]) as $l) if (preg_match("/define\\(\\s*.DB_HOST.\\s*,\\s*.(.*).\\s*\\)/", $l, $m)) echo $m[1];' "$config")"
+db_host="$(sed -n "s/.*'DB_HOST'[^']*'\\([^']*\\)'.*/\\1/p" "$config")"
 socket="${db_host#*:}"
 if [ "$socket" != "$db_host" ] && [ ! -S "$socket" ]; then
 	fail integration "The Local site's MySQL socket is not there: $socket" \
