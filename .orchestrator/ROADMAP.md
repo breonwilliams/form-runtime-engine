@@ -228,3 +228,4 @@ where they would plug in later).
 - P1/P4: two P1 before-open assertions loosened to a prefix check in a human-unlocked turn; baseline moved (A-006)
 - P4: neutral closed style, no focus move on page-load render, "UTC±H[:MM]" for offset zones, closed render skips pforms_rendered_form (A-007)
 - P5: handle_submit keeps error data (form_closed, field_errors); availability on get_form/list_forms only; DST-gap message; no claim of the P6 control (A-008)
+- P6: timezone_label() public; count control returns real HTTP status codes; uncapped-count and filter-reason lines in the Status cell (A-009)

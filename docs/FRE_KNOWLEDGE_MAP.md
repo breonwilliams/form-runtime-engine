@@ -362,6 +362,7 @@ Every key is optional. Leave a key out (or set it to JSON `null`) for "not set".
 - the cap works with `store_entries: false`;
 - when a cap is first added to a form that already has entries, the count starts at its stored non-spam entries;
 - once a form has had a cap it keeps counting while the cap is off, so a restored cap resumes from the count; deleting the form removes the count;
+- in wp-admin, the Status column of the Forms list (Form Entries → Forms) has an **Adjust count** control that sets the count of a capped form (or of a form which has had a cap) to any whole number of 0 or more, or resets it to 0; there is no connector tool for it;
 - a **non-dry-run `formengine_test_submit` takes a place** like a visitor's entry — use `options.dry_run: true` on capped forms.
 
 **What a closed form does.** It renders its message instead of the form (no fields, no button); a page cached while it was open shows the message when submitted. It refuses every submission before anything is stored, emailed or sent to a webhook: the browser gets error code `form_closed` with the message and a `reason`; `formengine_test_submit` (dry run or not) gets `form_closed` with `{form_id, reason, opens_at, closes_at}`. There is no "N places left" display. When the last place is taken, the action `pforms_form_full` fires once; nothing fires when a form closes by date.

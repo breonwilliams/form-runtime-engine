@@ -534,12 +534,13 @@ class PForms_Availability {
      * by UTC offset (or a zone PHP has no abbreviation for) formats as an
      * offset ("+05:30", or "GMT+0530" on newer PHP, "-03"); that is written the way WordPress's General
      * Settings names offsets: "UTC+5:30", "UTC-5", and "UTC" for +0.
+     * Public so the admin Forms list names zones the same way (P6).
      *
      * @param int           $timestamp Moment (unix).
      * @param \DateTimeZone $timezone  Site timezone.
      * @return string
      */
-    private static function timezone_label( $timestamp, $timezone ) {
+    public static function timezone_label( $timestamp, $timezone ) {
         $label = (string) wp_date( 'T', $timestamp, $timezone );
 
         if ( '' !== $label && ! preg_match( '/^(?:GMT|UTC)?[+-]\d/', $label ) ) {

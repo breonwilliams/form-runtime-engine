@@ -1,9 +1,9 @@
 # Orchestrator state
 
-Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T19:20:15Z
-Last green commit: aa60815
-Next action: Run 3. P6 attempt 1 is with the phase-worker.
+Run status: DONE   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
+Updated: 2026-10-29T19:29:28Z
+Last green commit: (P6 commit — recorded below)
+Next action: Run complete. Human checks in ROADMAP.md ("Human checks after the run") remain; nothing is pushed.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -13,7 +13,7 @@ Next action: Run 3. P6 attempt 1 is with the phase-worker.
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
 | P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | 9f66955 |
 | P5 | done | 2 | a937345 | pass (exit 0) | APPROVE | aa60815 |
-| P6 | in_progress | 1 | 394dceb | | | |
+| P6 | done | 1 | 394dceb | pass (exit 0) | APPROVE | (pending) |
 
 <!-- Status: pending | in_progress | needs_decision | blocked | done
      Gate: "pass (exit 0)" or "fail (exit N)". Only the verify command fills this column.
@@ -31,6 +31,7 @@ Next action: Run 3. P6 attempt 1 is with the phase-worker.
 - P4 retry working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:55:43Z (Unit 549 / 1473; Integration 166 / 807 / 3 skipped), incl. exact before-open text for New York EST/EDT, offset-only UTC+5:30 / UTC-5, Auckland NZDT.
 - P3 attempt 2 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:19:28Z (Unit 549 / 1473; Integration 154 / 740 / 3 skipped), existing duplicate/idempotency tests unedited and green.
 - P5 attempt 2 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T19:15:14Z (Unit 556 / 1517; Integration 180 / 947 / 3 skipped); `jq empty docs/form-schema.json` and `node --check` on the relay OK.
+- P6 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T19:26:49Z (Unit 556 / 1517; Integration 192 / 1044 / 3 skipped); `node --check assets/js/admin.js` OK.
 
 **Reviewer judgment** (a model read the code; not proof):
 - P0: the release ZIP no longer contains `.orchestrator/`; the file list is otherwise identical to a b3579ee build (119 vs 119, empty names-only diff); the old script did ship 6 `.orchestrator` entries, so the fix is not vacuous. Reproduced independently by the reviewer in scratch copies; the worker's own build showed the same.
@@ -39,9 +40,12 @@ Next action: Run 3. P6 attempt 1 is with the phase-worker.
 - P4: every criterion met by reading; render tests sound; JS `form_closed` branch cannot be pre-empted and reuses the success confirmation's live region and focus; offset rewrite checked by the reviewer on PHP 8.5.5 for +05:45, -09:30, -03:30, -00:30, +14:00, +00:00.
 - P3: every criterion met on both paths. A positive-control test proves the "no side effect" spies move on an accepted submission. Reviewer mutants: dropping the release from send_error → 3 failures; moving the availability check after validation → 1 failure + 2 errors. Reviewer's own two-connection test showed take()'s LAST_INSERT_ID identifies only the true last-place request.
 - P5: every claim in the rulebook, schema, knowledge map, CONNECTOR_SPEC, CLAUDE.md and relay descriptions checked against the code by two reviewers; attempt 1 was refused for promising the unbuilt count control, attempt 2 approved. Drift tests fail on a key rename (reviewer mutants).
+- P6: every criterion met; count control checks capability then nonce, no nopriv hook, refuses never-capped forms without creating a row, writes only via PForms_Place_Counter::set(); escaping, translation and $_POST handling clean; the doc sentence about the control is true.
 
 **Not verified:**
 - Plugin Check on the new ZIP was not run (not in P0's done-state; it is a release gate).
+- P6: wp-admin layout, wording and usability (Status column, Adjust count control, light/dark admin schemes, narrow width) — human check 5. Admin JS has no automated test. Reviewer minor findings, not fixed: an undecodable stored config shows "Closed: by a custom rule (form_not_found)"; the Forms list costs 1–2 extra queries per form.
+- Whole run: FlowMint was never run against this branch (human check 4); PHP 7.4/8.2 suites not run (CI after push); no real concurrent HTTP requests (human check 1); the installed relay copy is not updated (human check 3).
 - The ZIP check is not in the verify gate: a later edit to bin/build-release.sh could re-ship `.orchestrator/` and nothing automated would notice.
 - P1: no test date falls on a DST transition. (The spring-forward-gap message was fixed and tested in P5.)
 - P5: the relay agents actually use (`~/form-engine-mcp/form-engine-connector.js`) is NOT updated — a human copies the repo file there and restarts the relay (human check 3). Relay descriptions were read, not executed. Minor doc gaps left: CONNECTOR_SPEC §7 error table lacks `form_closed` (it is in §9.9); CONNECTOR_SPEC.md:165 says field_errors are arrays, the validator stores one string per key (pre-existing).

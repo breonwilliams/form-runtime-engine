@@ -94,6 +94,7 @@ class PForms_Autoloader {
         'PForms_Entry_Notification_Status' => 'Admin/class-fre-entry-notification-status.php',
         'PForms_CSV_Exporter'        => 'Admin/class-fre-csv-exporter.php',
         'PForms_Forms_Manager'       => 'Admin/class-fre-forms-manager.php',
+        'PForms_Forms_Availability_Status' => 'Admin/class-fre-forms-availability-status.php',
 
         // Integration classes.
         'PForms_Design_System'       => 'Integration/class-fre-design-system.php',

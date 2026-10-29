@@ -57,6 +57,7 @@ class PForms_Admin {
         add_action( 'wp_ajax_pforms_test_webhook', array( 'PForms_Forms_Manager', 'ajax_test_webhook' ) );
         add_action( 'wp_ajax_pforms_preview_payload', array( 'PForms_Forms_Manager', 'ajax_preview_payload' ) );
         add_action( 'wp_ajax_pforms_regenerate_secret', array( 'PForms_Forms_Manager', 'ajax_regenerate_secret' ) );
+        add_action( 'wp_ajax_pforms_set_place_count', array( 'PForms_Forms_Manager', 'ajax_set_place_count' ) );
 
         // AJAX handler for API key testing.
         add_action( 'wp_ajax_pforms_test_google_api_key', array( $this, 'ajax_test_google_api_key' ) );
@@ -308,6 +309,10 @@ class PForms_Admin {
                 'deleting'           => __( 'Deleting...', 'promptless-forms' ),
                 'formIdRequired'     => __( 'Form ID is required.', 'promptless-forms' ),
                 'configRequired'     => __( 'Configuration is required.', 'promptless-forms' ),
+                // Place count control on the Forms list (availability).
+                'confirmResetCount'  => __( 'Reset the count of places taken to 0? Every place becomes free again.', 'promptless-forms' ),
+                'countInvalid'       => __( 'Enter a whole number, 0 or more.', 'promptless-forms' ),
+                'countSaveFailed'    => __( 'The count could not be saved. Please try again.', 'promptless-forms' ),
                 // API key testing strings.
                 'testing'            => __( 'Testing...', 'promptless-forms' ),
                 'testConnection'     => __( 'Test Connection', 'promptless-forms' ),

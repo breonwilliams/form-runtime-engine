@@ -58,3 +58,10 @@
 **Changed to:** the connector's `handle_submit` now merges its 400 status into existing error data instead of replacing it, so `form_closed` data (form_id, reason, opens_at, closes_at) and `validation_failed`'s `field_errors` reach REST callers, as CONNECTOR_SPEC already promised. `availability` is returned on get_form and list_forms, not on create/update responses; agents are told to read back with get_form. A DST spring-forward-gap time gets its own validator message. Docs make no claim about an owner count control until P6 builds it.
 **Because:** the old replace silently dropped documented error data; a committed Unit test drives handle_update_form with a stub `$wpdb` that cannot read the count; the P1 reviewer flagged the misleading DST message; attempt 1's claim of an unbuilt control was refused in review.
 **Proposed by:** worker · **Accepted by:** reviewer (APPROVE, attempt 2) · **Commit:** (P5 commit, recorded in STATE.md)
+
+## A-009 · P6 · 2026-10-29T19:29:28Z
+
+**Plan said:** reuse P4's zone-label logic (A-003); add admin actions that check `pforms_manage_forms` and a nonce.
+**Changed to:** `PForms_Availability::timezone_label()` made public (behaviour unchanged) so the Forms list reuses it. The new `pforms_set_place_count` AJAX handler answers refusals with HTTP 403/400/404/500 (existing Forms Manager handlers answer 200). The Status cell also shows "N counted (no entry limit set)" for a form whose cap was removed but still counts (Q-010), and "Closed: by a custom rule (<reason>)" for a filter's reason; the page reloads after a successful count save.
+**Because:** the label helper was private; proper status codes for refusals, which admin.js reads from responseJSON; Q-010 makes an uncapped count real and adjustable.
+**Proposed by:** worker · **Accepted by:** reviewer (APPROVE) · **Commit:** (P6 commit, recorded in STATE.md)
