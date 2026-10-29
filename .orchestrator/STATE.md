@@ -1,14 +1,14 @@
 # Orchestrator state
 
-Run status: PAUSED   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T16:41:08Z
-Last green commit: 1b0c77d
-Next action: Paused after P0 by `max_phases_per_run: 1` (human checkpoint). To continue, the human raises or removes `max_phases_per_run` in ROADMAP.md and runs the orchestrator; it starts P1 attempt 1.
+Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
+Updated: 2026-10-29T16:46:04Z
+Last green commit: 30340a6
+Next action: Run 2. P1 attempt 1 is with the phase-worker; then verify, cold review, commit, and PAUSE (max_phases_per_run: 1).
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
 | P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
-| P1 | pending | 0 | | | | |
+| P1 | in_progress | 1 | 30340a6 | | | |
 | P2 | pending | 0 | | | | |
 | P3 | pending | 0 | | | | |
 | P4 | pending | 0 | | | | |
@@ -24,6 +24,7 @@ Next action: Paused after P0 by `max_phases_per_run: 1` (human checkpoint). To c
 **Mechanically verified** (verify-command exit codes only):
 - Baseline 2a859bb: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:36:28Z (Unit 484 tests / 1254 assertions; Integration 97 tests / 231 assertions / 3 skipped).
 - P0 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:39:13Z (same counts). P0 changed no PHP, so this proves only that nothing regressed.
+- Run 2 baseline 30340a6: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:46:04Z (same counts).
 
 **Reviewer judgment** (a model read the code; not proof):
 - P0: the release ZIP no longer contains `.orchestrator/`; the file list is otherwise identical to a b3579ee build (119 vs 119, empty names-only diff); the old script did ship 6 `.orchestrator` entries, so the fix is not vacuous. Reproduced independently by the reviewer in scratch copies; the worker's own build showed the same.

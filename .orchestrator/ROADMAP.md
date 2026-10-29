@@ -23,7 +23,7 @@ and the schema, rulebook and validator describe exactly what the handler enforce
 
 - verify: `.claude/hooks/verify.sh run`   (exit 0 = green: tamper check, `php -l` over shipped files, Unit suite, Integration suite against Local's MySQL)
 - max_attempts_per_phase: 3
-- max_phases_per_run: 1   <!-- human, 2026-10-29: "halt after P0 completes and report before continuing to P1". Raise or remove for later runs. -->
+- max_phases_per_run: 1   <!-- human, 2026-10-29: "halt after P0 completes and report before continuing to P1". Run 2 (P1): human, 2026-10-29, "Run P1 next" — one phase again, then pause and report. Raise or remove for later runs. -->
 - protected: everything CLAUDE.md lists as **Locked** — existing `tests/**` files (new, uncommitted test files stay editable), `phpunit.xml(.dist)`, `composer.json/.lock`, `.gitignore`, `bin/install-wp-tests.sh`, `.github/**`, `.claude/settings*.json`, `.claude/hooks/**`, `vendor/**`, `refs/verify/*`, `~/.wp-tests/**`, `~/.claude/**`
 
 **Preconditions for every run** (the gate fails closed without them, and that is a BLOCKED
