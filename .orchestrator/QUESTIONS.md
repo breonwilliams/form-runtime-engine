@@ -157,7 +157,7 @@
 
 ## Q-010 · P2 · What happens to the count when a cap is removed and later added back
 
-**Status:** open
+**Status:** answered
 **Raised by:** reviewer, 2026-10-29T17:23:34Z
 
 **Question:** A form has a cap, fills up, and then its cap is removed (by the owner, or by a save that simply leaves the availability settings out). Later the cap is put back. Does the form remember how many places were already taken?
@@ -171,4 +171,4 @@
 
 In every option, P6's adjust/reset control lets the owner correct the number, and deleting the form itself removes its count (a re-created form is a new form, seeded under Q-001(a)) unless you say otherwise.
 
-**Answer:** _(unanswered)_
+**Answer:** Option 3. Human, 2026-10-29T17:49:31Z, chose "Keep counting (3)", whose text reads: "Q-010: option 3. Once a form has had a cap, keep counting accepted submissions even while the cap is off, so a restored cap is exact and a cap-less save never erases the count. Deleting the form removes its count."
