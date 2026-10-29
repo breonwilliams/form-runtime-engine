@@ -286,6 +286,16 @@ class PForms_Availability {
                 continue;
             }
             if ( null === self::parse_local( $availability[ $key ] ) ) {
+                if ( self::is_skipped_local_time( $availability[ $key ] ) ) {
+                    $errors[] = sprintf(
+                        /* translators: 1: setting name, 2: the configured value, 3: site timezone name */
+                        __( 'settings.availability.%1$s (%2$s) is a time that does not exist in the site timezone (%3$s): the clocks go forward at that hour. Choose a time outside the skipped hour, e.g. one hour later.', 'promptless-forms' ),
+                        $key,
+                        self::describe( $availability[ $key ] ),
+                        self::site_timezone()->getName()
+                    );
+                    continue;
+                }
                 $errors[] = sprintf(
                     /* translators: 1: setting name, 2: the configured value */
                     __( 'settings.availability.%1$s must be a date "YYYY-MM-DD" or a date and time "YYYY-MM-DD HH:MM" in the site timezone (got %2$s).', 'promptless-forms' ),
@@ -401,6 +411,29 @@ class PForms_Availability {
         }
 
         return array( $date, $has_time );
+    }
+
+    /**
+     * Whether a value is a well-formed "YYYY-MM-DD HH:MM" that names a real
+     * calendar minute but does not exist in the site timezone — a local time
+     * inside a daylight-saving spring-forward gap (e.g. "2027-03-14 02:30" in
+     * America/Los_Angeles). parse_local() refuses those (the round trip comes
+     * back an hour later); this lets validate() say why, instead of claiming
+     * the format is wrong.
+     *
+     * @param mixed $value Configured value.
+     * @return bool
+     */
+    private static function is_skipped_local_time( $value ) {
+        if ( ! is_string( $value ) || ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $value ) ) {
+            return false;
+        }
+
+        // UTC has no gaps: if the minute round-trips there, it is a real
+        // calendar minute, and only the site zone's clock change refused it.
+        $utc = DateTimeImmutable::createFromFormat( '!' . self::FORMAT_DATETIME, $value, new DateTimeZone( 'UTC' ) );
+
+        return false !== $utc && $utc->format( self::FORMAT_DATETIME ) === $value;
     }
 
     /**

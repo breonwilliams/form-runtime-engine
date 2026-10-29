@@ -227,3 +227,4 @@ where they would plug in later).
 - P3: take() returns its own count for pforms_form_full; availability checked before spam, so a honeypot hit on a closed form gets the closed message (A-005)
 - P1/P4: two P1 before-open assertions loosened to a prefix check in a human-unlocked turn; baseline moved (A-006)
 - P4: neutral closed style, no focus move on page-load render, "UTC±H[:MM]" for offset zones, closed render skips pforms_rendered_form (A-007)
+- P5: handle_submit keeps error data (form_closed, field_errors); availability on get_form/list_forms only; DST-gap message; no claim of the P6 control (A-008)

@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T19:12:20Z
-Last green commit: 9f66955
-Next action: Run 3. P5 attempt 2 is with the phase-worker (attempt 1 CHANGES_REQUESTED, parked).
+Updated: 2026-10-29T19:19:47Z
+Last green commit: (P5 commit — recorded below)
+Next action: Run 3. P5 done; start P6 attempt 1.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -12,7 +12,7 @@ Next action: Run 3. P5 attempt 2 is with the phase-worker (attempt 1 CHANGES_REQ
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
 | P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | 9f66955 |
-| P5 | in_progress | 2 | a937345 | | | |
+| P5 | done | 2 | a937345 | pass (exit 0) | APPROVE | (pending) |
 | P6 | pending | 0 | | | | |
 
 <!-- Status: pending | in_progress | needs_decision | blocked | done
@@ -30,6 +30,7 @@ Next action: Run 3. P5 attempt 2 is with the phase-worker (attempt 1 CHANGES_REQ
 - Q-011 test change c226cc6 (human-unlocked turn): `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:51:29Z after the baseline move (Unit 549 / 1473; Integration 154 / 740 / 3 skipped).
 - P4 retry working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:55:43Z (Unit 549 / 1473; Integration 166 / 807 / 3 skipped), incl. exact before-open text for New York EST/EDT, offset-only UTC+5:30 / UTC-5, Auckland NZDT.
 - P3 attempt 2 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:19:28Z (Unit 549 / 1473; Integration 154 / 740 / 3 skipped), existing duplicate/idempotency tests unedited and green.
+- P5 attempt 2 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T19:15:14Z (Unit 556 / 1517; Integration 180 / 947 / 3 skipped); `jq empty docs/form-schema.json` and `node --check` on the relay OK.
 
 **Reviewer judgment** (a model read the code; not proof):
 - P0: the release ZIP no longer contains `.orchestrator/`; the file list is otherwise identical to a b3579ee build (119 vs 119, empty names-only diff); the old script did ship 6 `.orchestrator` entries, so the fix is not vacuous. Reproduced independently by the reviewer in scratch copies; the worker's own build showed the same.
@@ -37,11 +38,13 @@ Next action: Run 3. P5 attempt 2 is with the phase-worker (attempt 1 CHANGES_REQ
 - P2: every criterion and the Q-010 behaviour met. Two independent reviewers reproduced the naive count-then-insert failure themselves; the retry reviewer also killed mutants for the overwriting seed (4 failures), claim(null) as a no-op (3), deleting the count on a cap-less save (3), a no-op form-delete hook (1) and a missing release floor (risky = fail).
 - P4: every criterion met by reading; render tests sound; JS `form_closed` branch cannot be pre-empted and reuses the success confirmation's live region and focus; offset rewrite checked by the reviewer on PHP 8.5.5 for +05:45, -09:30, -03:30, -00:30, +14:00, +00:00.
 - P3: every criterion met on both paths. A positive-control test proves the "no side effect" spies move on an accepted submission. Reviewer mutants: dropping the release from send_error → 3 failures; moving the availability check after validation → 1 failure + 2 errors. Reviewer's own two-connection test showed take()'s LAST_INSERT_ID identifies only the true last-place request.
+- P5: every claim in the rulebook, schema, knowledge map, CONNECTOR_SPEC, CLAUDE.md and relay descriptions checked against the code by two reviewers; attempt 1 was refused for promising the unbuilt count control, attempt 2 approved. Drift tests fail on a key rename (reviewer mutants).
 
 **Not verified:**
 - Plugin Check on the new ZIP was not run (not in P0's done-state; it is a release gate).
 - The ZIP check is not in the verify gate: a later edit to bin/build-release.sh could re-ship `.orchestrator/` and nothing automated would notice.
-- P1: no test date falls on a DST transition; a local time inside a spring-forward gap is refused with a misleading generic message (reviewer finding, untested).
+- P1: no test date falls on a DST transition. (The spring-forward-gap message was fixed and tested in P5.)
+- P5: the relay agents actually use (`~/form-engine-mcp/form-engine-connector.js`) is NOT updated — a human copies the repo file there and restarts the relay (human check 3). Relay descriptions were read, not executed. Minor doc gaps left: CONNECTOR_SPEC §7 error table lacks `form_closed` (it is in §9.9); CONNECTOR_SPEC.md:165 says field_errors are arrays, the validator stores one string per key (pre-existing).
 - P1: nothing enforces availability yet. `check()` has no production callers until P3/P4; the cap uses a stubbed count of 0 until P2.
 - P1: PHP 7.4/8.2 — new files lint clean on Local's 7.4.1 (worker and reviewer, by hand); the Unit suite has not run on 7.4/8.2 (CI after push).
 - P2: the race tests interleave at statement level on two connections; InnoDB row-lock waiting and real concurrent PHP-FPM requests are not exercised (human curl check, roadmap item 1).

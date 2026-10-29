@@ -521,6 +521,11 @@ For consistency across forms and reusable automations, use these standard field 
 | `webhook_enabled` / `webhook_url` / `webhook_preset` | — | **Not settings.** They live on the saved form record (Forms screen, or top-level fields of the connector's create/update), and the dispatcher reads only that record — a value here is ignored, so a PHP-registered form cannot have a webhook. `webhook_preset` is one of `google_sheets`, `zapier`, `make`, `custom` |
 | `webhook_resolve_option_labels` | `null` | Explicit override for option-label resolution in webhook payloads. `true` forces labels regardless of preset, `false` forces raw values, `null` (omit) uses the preset-aware default |
 | `theme_variant` | `"light"` | Theme mode: `light`, `dark`, or `auto` (inherits from AISB section) |
+| `availability.opens_at` | `null` (open from the start) | First open moment: `"YYYY-MM-DD"` (00:00) or `"YYYY-MM-DD HH:MM"`, site timezone. Before it the form shows its before-open message instead of the form |
+| `availability.closes_at` | `null` (never closes by date) | First closed moment, same formats; a bare date closes at the END of that day (23:59:59 is the last open second). Must be after `opens_at` |
+| `availability.max_entries` | `null` (unlimited) | Entry cap, whole number ≥ 0. Absent/`null` = unlimited, `0` = closed; anything else refused at save. Counts accepted submissions, not entry rows: spam never counts, deleting entries never gives a place back, works with `store_entries` off, a cap added to a form with entries starts at its non-spam entries, a form that has had a cap keeps counting while uncapped (deleting the form removes the count) |
+| `availability.closed_message` | `"This form is no longer accepting submissions."` | Shown instead of the form after `closes_at` or when full |
+| `availability.before_open_message` | `"This form opens on {date} at {time} {zone}."` | Shown instead of the form before `opens_at` |
 
 ### Full Settings Structure
 
@@ -736,6 +741,14 @@ do_action( 'pforms_entry_created', $entry_id, $form_id, $data );
 // file thumbnails, file move/copy automations).
 do_action( 'pforms_submission_complete', $entry_id, $form_id, $sanitized_data );
 
+// A capped form's last place was just taken (settings.availability.max_entries).
+// Fires once, on the submission that took it, after its entry is stored and
+// before pforms_submission_complete. $entry_id is 0 when store_entries is off.
+// Nothing fires when a form closes by date. On a read/write-splitting DB
+// drop-in (HyperDB/LudicrousDB) without reads-to-primary it may not fire;
+// the cap itself still holds.
+do_action( 'pforms_form_full', $form_id, $entry_id, $cap, $form_config );
+
 // After notification sent
 do_action( 'pforms_notification_sent', $sent, $entry_id, $form_config, $entry_data );
 
@@ -763,6 +776,13 @@ do_action( 'pforms_webhook_failed', $wp_error, $url, $payload, $entry_id, $form_
 ### Filters
 
 ```php
+// Whether a form is accepting submissions (PForms_Availability::check(), the
+// one decision point for settings.availability). $result has open, reason
+// (open | not_yet_open | closed_date | cap_reached | invalid_settings |
+// form_not_found), message, form_id, opens_at, closes_at, cap, count, now.
+// Change open/reason/message to close an open form or open a closed one.
+$result = apply_filters( 'pforms_form_availability', $result, $config, $context );
+
 // Modify valid field types
 $types = apply_filters( 'pforms_field_types', array( 'text', 'email', ... ) );
 

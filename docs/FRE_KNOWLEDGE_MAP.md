@@ -210,7 +210,8 @@ Form-level behavior is controlled via the `settings` object:
   "theme_variant": "dark",
   "notification": { ... },
   "spam_protection": { ... },
-  "multistep": { ... }
+  "multistep": { ... },
+  "availability": { ... }
 }
 ```
 
@@ -332,6 +333,60 @@ These are **top-level fields of `formengine_create_form` / `formengine_update_fo
 
 **Webhook secrets:** NOT exposed via API. Use the admin UI for secret rotation.
 
+### 7.6 Availability — open date, close date, entry cap
+
+Reach for this whenever the request mentions a deadline, a registration window, a launch/open date, limited spots, seats or places, or "close after N entries".
+
+```json
+"availability": {
+  "opens_at": "2027-03-15 09:00",
+  "closes_at": "2027-03-20",
+  "max_entries": 30,
+  "closed_message": "Registration has closed.",
+  "before_open_message": "Registration opens on 15 March at 9 am."
+}
+```
+
+Every key is optional. Leave a key out (or set it to JSON `null`) for "not set".
+
+- `opens_at` / `closes_at` — `"YYYY-MM-DD"` or `"YYYY-MM-DD HH:MM"` (24-hour), wall-clock time in the **site timezone** (WordPress → Settings → General), never UTC. A bare `opens_at` date opens at 00:00 that day; a bare `closes_at` date closes at the **end** of that day (23:59:59 is the last open second). A `closes_at` with a time is the first closed minute. `closes_at` must be after `opens_at` (a same-day date-only window is valid). A local time skipped by a daylight-saving change (e.g. `"2027-03-14 02:30"` in America/Los_Angeles) is refused with a message saying the time does not exist in the site timezone.
+- `max_entries` — whole number, 0 or more. **Absent or `null` = unlimited** (the only way to say "no limit"). `0` = no places: the form is closed. Strings (`"unlimited"`, `"30"`), decimals and negatives are refused at save.
+- `closed_message` — shown instead of the form once it has closed by date or is full. Default: "This form is no longer accepting submissions."
+- `before_open_message` — shown instead of the form before `opens_at`. Default names the opening date and time with the site timezone, e.g. "This form opens on March 15, 2027 at 9:00 am EDT."
+- Unknown keys and empty strings inside the block are refused at save, with the same message in wp-admin and through the connector.
+
+**What counts toward `max_entries`.** Accepted submissions, counted apart from the stored entry rows:
+
+- spam (honeypot) submissions never take a place; marking a spam entry "not spam" takes no place, even when the form is full;
+- **deleting entries never gives a place back** — not in wp-admin, not through `formengine_delete_entry`, not through retention clean-up;
+- the cap works with `store_entries: false`;
+- when a cap is first added to a form that already has entries, the count starts at its stored non-spam entries;
+- once a form has had a cap it keeps counting while the cap is off, so a restored cap resumes from the count; deleting the form removes the count;
+- a **non-dry-run `formengine_test_submit` takes a place** like a visitor's entry — use `options.dry_run: true` on capped forms.
+
+**What a closed form does.** It renders its message instead of the form (no fields, no button); a page cached while it was open shows the message when submitted. It refuses every submission before anything is stored, emailed or sent to a webhook: the browser gets error code `form_closed` with the message and a `reason`; `formengine_test_submit` (dry run or not) gets `form_closed` with `{form_id, reason, opens_at, closes_at}`. There is no "N places left" display. When the last place is taken, the action `pforms_form_full` fires once; nothing fires when a form closes by date.
+
+**Clearing the rules.** Save the config without `settings.availability`: the form is then always open and unlimited. Because `formengine_update_form` replaces `config` wholesale, **an update that leaves the block out removes the rules** — read the form first and send its `availability` block back (see §8.14).
+
+**Reading it back.** `formengine_get_form` and `formengine_list_forms` return an `availability` object per form:
+
+```json
+"availability": {
+  "open": false,
+  "reason": "cap_reached",
+  "message": "Registration has closed.",
+  "opens_at": "2027-03-15 09:00",
+  "closes_at": "2027-03-20",
+  "opens_at_iso": "2027-03-15T09:00:00-04:00",
+  "closes_at_iso": "2027-03-21T00:00:00-04:00",
+  "timezone": "America/New_York",
+  "max_entries": 30,
+  "count": 30
+}
+```
+
+`reason` is `open`, `not_yet_open`, `closed_date`, `cap_reached` or `invalid_settings`. `closes_at_iso` is the first **closed** moment. `count` is the places taken; for a form that has never had a cap it is the number a cap added now would start at.
+
 ---
 
 ## 8. Critical rules and drift patterns
@@ -382,7 +437,7 @@ If the form renders inside a section with a dark background (common when embedde
 
 ### 8.9 Test-submit vs. real submit
 
-The `formengine_test_submit` tool runs the full validation pipeline but does NOT write entries, does NOT send notifications, and does NOT fire webhooks (when `dry_run: true`). Use this for verifying form setup before exposing to users. `dry_run: false` performs a real submission with all side effects.
+The `formengine_test_submit` tool runs the full validation pipeline but does NOT write entries, does NOT send notifications, and does NOT fire webhooks (when `dry_run: true`). Use this for verifying form setup before exposing to users. `dry_run: false` performs a real submission with all side effects — on a form with `max_entries` it takes a place, and deleting the entry does not give it back. A closed form (before `opens_at`, from `closes_at`, or full) refuses test submits, dry runs included, with `form_closed` (§7.6).
 
 ### 8.10 Form surface / card vocabulary
 
@@ -401,6 +456,10 @@ The spam-protection honeypot field name is **not static**. FRE generates a per-f
 ### 8.13 AISB token inheritance
 
 When AI Section Builder Modern (Promptless WP) is active, FRE forms automatically inherit brand design tokens — primary / text / background / border colors, heading and body fonts, button and card border-radius, and neo-brutalist mode if enabled — via CSS custom properties (`--aisb-*`). Forms inside an `.aisb-section--dark` ancestor auto-inherit dark mode even without `settings.theme_variant = "dark"` (though setting it is still recommended for clarity). See `docs/AISB_TOKEN_CONTRACT.md` for the complete list of consumed tokens, fallbacks, and the minimum AISB version required. Do NOT introduce new `--aisb-*` token references in FRE CSS without updating that contract first.
+
+### 8.14 Updates replace availability
+
+`formengine_update_form` replaces `config` wholesale. An update whose config leaves out `settings.availability` removes the open date, close date, cap and messages — the form becomes always open and unlimited (its place count is kept). Read the form first and carry the whole `availability` block forward unless you mean to change it, then read the form back with `formengine_get_form` and check its `availability` object (create/update responses do not include it).
 
 ---
 

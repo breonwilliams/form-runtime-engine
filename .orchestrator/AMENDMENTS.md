@@ -51,3 +51,10 @@
 **Changed to:** a new neutral `.fre-form__message--closed` style (existing `--fre-*` properties only); a closed form rendered at page load uses the confirmation's container and state but does not move focus (the stale-page path does, via `showConfirmation()`); an offset-shaped zone label (PHP's "+05:30" / "GMT+0530" / "-03") is rewritten as "UTC±H[:MM]" ("UTC" for +0); the closed render bypasses the `pforms_rendered_form` filter.
 **Because:** the closed state is neither success nor error; moving focus before the visitor acts pulls them away from where they are; PHP has no abbreviation for offset zones and its raw output varies by version; the filter has no known consumer.
 **Proposed by:** worker · **Accepted by:** reviewer (APPROVE) · **Commit:** (P4 commit, recorded in STATE.md)
+
+## A-008 · P5 · 2026-10-29T19:19:47Z
+
+**Plan said:** P5's surfaces are the rulebook, schema, knowledge map, CONNECTOR_SPEC, CLAUDE.md and relay descriptions; get_form reads back availability.
+**Changed to:** the connector's `handle_submit` now merges its 400 status into existing error data instead of replacing it, so `form_closed` data (form_id, reason, opens_at, closes_at) and `validation_failed`'s `field_errors` reach REST callers, as CONNECTOR_SPEC already promised. `availability` is returned on get_form and list_forms, not on create/update responses; agents are told to read back with get_form. A DST spring-forward-gap time gets its own validator message. Docs make no claim about an owner count control until P6 builds it.
+**Because:** the old replace silently dropped documented error data; a committed Unit test drives handle_update_form with a stub `$wpdb` that cannot read the count; the P1 reviewer flagged the misleading DST message; attempt 1's claim of an unbuilt control was refused in review.
+**Proposed by:** worker · **Accepted by:** reviewer (APPROVE, attempt 2) · **Commit:** (P5 commit, recorded in STATE.md)
