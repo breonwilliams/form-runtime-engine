@@ -1,16 +1,16 @@
 # Orchestrator state
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T18:01:26Z
+Updated: 2026-10-29T18:16:53Z
 Last green commit: ef46c13
-Next action: Run 3. P3 attempt 1 is with the phase-worker.
+Next action: Run 3. P3 attempt 2 is with the phase-worker, starting from the parked attempt-1 work.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
 | P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
-| P3 | in_progress | 1 | 304213d | | | |
+| P3 | in_progress | 2 | 168fef3 | | | |
 | P4 | pending | 0 | | | | |
 | P5 | pending | 0 | | | | |
 | P6 | pending | 0 | | | | |
@@ -55,3 +55,4 @@ Next action: Run 3. P3 attempt 1 is with the phase-worker.
 - Q-009 (default wording of the closed and before-open messages) raised by the P1 worker as non-blocking; answered by the human 2026-10-29T17:07:03Z (before-open default must name the site timezone, WordPress's label). Goes into the P4 brief (A-003).
 - Run 3 started 2026-10-29T17:07:36Z: P2–P6 with no phase cap, at the human's request. Baseline b82c9f2 green (Unit 546, Integration 99 / 3 skipped).
 - P2 attempt 1 (2026-10-29T17:23:34Z): worker DONE, gate exit 0 (Unit 549, Integration 116 / 3 skipped), reviewer ESCALATE on a guessed decision — removing and re-adding a cap restarts the count from stored entries, which Q-001 does not settle. The orchestrator had waved the worker's question through as covered by Q-001(a); the reviewer was right to dispute it. Attempt escalated, not counted (Attempts back to 0). Work parked on `orchestrator/P2-attempt-1` (0e07366): reusable once Q-010 is answered. Retry must also fix the reviewer's minor finding: the lazy-row race test does not interleave inside the lazy path (a mutant survives).
+- P3 attempt 1 (2026-10-29T18:16:53Z): failed — worker hit its 60-turn limit before reporting. Partial tree was green (Integration 154). Parked on `orchestrator/P3-attempt-1` (e606cd5). Attempt 2 starts from it.
