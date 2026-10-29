@@ -1042,8 +1042,10 @@ which diffs every tracked protected path against `refs/verify/baseline`
 however it was written, commits included. Not covered by that diff: gitignored
 paths (`vendor/`, `~/.wp-tests/`, `settings.local.json`) — guard only — and a
 test committed after the baseline and then rewritten in a later commit.
-Claude Code also snapshots hooks at session start, so a mid-session edit to
-`settings.json` does not disarm a running session.
+Hook edits take effect in RUNNING sessions (observed 2026-10-29: the desktop
+app armed the guard mid-session within seconds of `settings.json` being
+written), which is why every `.claude/settings*.json` is locked — editing
+one is enough to disarm the gates.
 
 **Integration prerequisites** (fails closed if missing):
 - WordPress test library 7.1.4 + core in `~/.wp-tests/` (not `/tmp`, which
