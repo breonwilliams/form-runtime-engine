@@ -124,17 +124,21 @@ run_checks() {
 		return 1
 	fi
 
-	local bad=() status path
+	local bad=() status path reported=$'\n'
 	# Baseline tree vs working tree: catches edits, deletions and commits alike.
 	# A file added since the baseline is allowed only under tests/ (new tests).
 	while IFS=$'\t' read -r status path; do
 		[ -z "$status" ] && continue
 		[ "$status" = A ] && [[ "$path" == tests/* ]] && continue
 		bad+=("  $status  $path")
+		reported+="$path"$'\n'
 	done < <(git diff --name-status --no-renames "$BASELINE" -- "${PROTECTED[@]}")
 	# A new test may be edited until it is committed; after that it is locked.
+	# Skips files already listed above (a baseline test edited in the working
+	# tree differs from both), so each file is named once.
 	while IFS=$'\t' read -r status path; do
 		[ -z "$status" ] || [ "$status" = A ] && continue
+		[[ "$reported" == *$'\n'"$path"$'\n'* ]] && continue
 		bad+=("  $status  $path (committed test changed since HEAD)")
 	done < <(git diff --name-status --no-renames HEAD -- tests)
 	# Untracked files that would change config: a new workflow, hook, phpunit.xml.dist.
