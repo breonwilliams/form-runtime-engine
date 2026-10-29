@@ -2,7 +2,7 @@
 
 Run status: DONE   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
 Updated: 2026-10-29T19:29:28Z
-Last green commit: (P6 commit — recorded below)
+Last green commit: 4682894
 Next action: Run complete. Human checks in ROADMAP.md ("Human checks after the run") remain; nothing is pushed.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
@@ -13,7 +13,7 @@ Next action: Run complete. Human checks in ROADMAP.md ("Human checks after the r
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
 | P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | 9f66955 |
 | P5 | done | 2 | a937345 | pass (exit 0) | APPROVE | aa60815 |
-| P6 | done | 1 | 394dceb | pass (exit 0) | APPROVE | (pending) |
+| P6 | done | 1 | 394dceb | pass (exit 0) | APPROVE | 4682894 |
 
 <!-- Status: pending | in_progress | needs_decision | blocked | done
      Gate: "pass (exit 0)" or "fail (exit N)". Only the verify command fills this column.
