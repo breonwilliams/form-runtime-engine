@@ -61,3 +61,11 @@ signed-in browser with the six fixtures recreated (then removed again):
 - 800px: five readable columns; Status text wraps over a few lines.
 - 375px: WordPress's stacked small-screen layout, readable; header wraps ("Modifie d") — the table has
   no primary-column markup, so all its columns behave this way; not compared against the pre-P6 table.
+
+## Reset to 0 → OK — PASS (2026-10-29T20:47:15Z)
+**This step was performed by the human**, because the built-in browser does not accept `confirm()`.
+Setup by Claude: test form `hc-reset-check`, cap 10, count set to 4; Forms list showed
+"Open / 4 of 10 places taken / Adjust count". The human clicked Adjust count → Reset to 0 → OK and
+reported the page showing 0. Verified by Claude afterwards: stored option row `'0'`;
+`PForms_Place_Counter::get()` 0; `PForms_Availability::check()` → open, cap 10, count 0; page text
+"0 of 10 places taken". Test form deleted (its count row with it); no `hc-` forms, count rows or entries remain.
