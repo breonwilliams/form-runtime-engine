@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: DONE   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T19:29:28Z
+Updated: 2026-10-29T20:08:15Z
 Last green commit: 4682894
-Next action: Run complete. Human checks in ROADMAP.md ("Human checks after the run") remain; nothing is pushed.
+Next action: Run complete; PR #28 open. Post-run checks recorded below ("Post-run checks"). Still open: wp-admin in a signed-in browser (needs the human to sign in), the relay (blocked: every Promptless relay targets a live site), the Promptless WP roadmap update, and a decision on the stray `hc-relay` form created on 725printlab.com.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -57,6 +57,55 @@ Next action: Run complete. Human checks in ROADMAP.md ("Human checks after the r
 - P3 (reviewer minor findings, not fixed): on a site with a read/write-splitting db drop-in (HyperDB/LudicrousDB without send-reads-to-master) `SELECT LAST_INSERT_ID()` could hit a replica, so `pforms_form_full` may silently not fire (the cap itself holds); a throwing third-party `pforms_entry_created` listener leaves the entry stored but its place released (count one low); a PHP `\Error` between take and keep leaks one place (request dies there).
 - P3: the stale-cached-page front-end and FlowMint not starting a run are not exercised end to end (no JS tests; FlowMint not in the gate — human checks 2 and 4).
 - P2: declared gap — a PHP-registered form whose cap is removed in code before its first submission keeps no count while uncapped, and PHP forms are seeded at their first capped claim, not at cap-add (A-004).
+
+## Post-run checks (the roadmap's "Human checks after the run")
+
+Requested by the human, 2026-10-29. **Performed by Claude** (Opus 5.5, the orchestrating
+session), not by the human: the human asked to be recorded as the tester, which would make
+this record false, so it names who actually ran each check. All on branch
+`feat/form-availability-rules` at `f784ebf` (PR #28). Scripts, raw output and notes are in
+`.orchestrator/evidence/human-checks/` (excluded from the release ZIP by P0). Test data was
+created on the Local site only and removed afterwards, except where noted.
+
+| # | Check | Verifies | Result | Evidence |
+|---|---|---|---|---|
+| 6 | CI, PHP 7.4 and 8.2 | P0–P6 | **PASS** — GitHub Actions run 40941404775 on f784ebf: "PHP syntax (7.4)", "PHP syntax (8.2)", "Unit tests (7.4)" (PHP 7.4.33) and "Unit tests (8.2)" (PHP 8.2.35) all pass; both Unit legs `OK (556 tests, 1517 assertions)`. CI runs lint + Unit only; Integration is not in CI. | `gh pr checks 28`; job logs |
+| 1 | Real concurrency, cap 1 | P2, P3 | **PASS** — `concurrency.sh 25 10`: 25 rounds × 10 simultaneous real HTTP posts (nginx → PHP-FPM → admin-ajax, with real nonce, timing token, honeypot and a unique submission id), a fresh cap-1 form per round. Every round: 1 success, 9 `form_closed`/`cap_reached`, 1 stored entry, 0 spam rows, count 1. Run twice (250 requests each), both 25/25. The second run used a temporary mu-plugin probe (removed) that logged pid/start/end per request and held each 300 ms before the availability check: in **all 25 rounds two different PHP workers (pids 26434, 26435) were inside the handler at the same time**, and the cap still held. | `concurrency.sh`, `concurrency-probe-run-summary.txt`, `concurrency-overlap-probe.log` |
+| 2 | Stale cached page, browser | P4 (+P3) | **PASS** — form loaded open, closed server-side (cap 0), submitted from the stale page: server answered `form_closed`/`cap_reached`; the closed message replaced the fields and button, in the `role="alert"` container, focus moved to it; nothing stored; on reload the server rendered the closed div with no `<form>`. | `stale-page-browser.md` |
+| 4a | FlowMint: refused submission starts no run | P3 | **PASS** (Local) — cap-2 form with an enabled FlowMint workflow; posts 1–2 accepted, post 3 `form_closed`: exactly 2 runs (137→entry 93, 138→entry 94). | `flowmint.sh`, `flowmint-run/state-after-3-posts.txt`, `resp-*.json` |
+| 4b | FlowMint: last-place submission starts exactly one run | P3 | **PASS** (Local) — entry 94 took the last place and has exactly one run; both runs executed to `completed` through Action Scheduler. | `flowmint-run/state-after-runs.txt` |
+| 4c | FlowMint retention does not reopen a full form | P2 (Q-001/Q-010) | **PASS** (Local) — FlowMint's own `fre_delete_entries` step deleted both entries (`deleted_count: 2`); count stayed 2, form stayed `cap_reached`; a 4th HTTP post was refused and started no run. | `flowmint-run/state-after-retention.txt`, `state-after-post-4.txt` |
+| 4d | FlowMint loads a form with availability settings | P1/P5 | **PASS (partial)** (Local) — `FMW_Workflow_Validator::validate_full` → `{"valid":true,"errors":[],"warnings":[]}`; runs executed against the form (4b). The FlowMint *editor screen* was not opened (needs a signed-in browser). | `flowmint-run/validator.txt` |
+| 5 | wp-admin Forms list | P6 | **PARTIAL** — the real `PForms_Forms_Manager::render_page()` rendered as an administrator through WP-CLI shows the right Status text for all six states (plain, capped 3/10 with closing date, before opening, past closing, full 2/2, cap removed "4 counted (no entry limit set)"). **Not done:** layout, light/dark admin schemes, narrow width, and clicking Adjust count → Save/Reset in a browser — the built-in browser is not signed in to the Local wp-admin and Claude does not enter passwords. Six `hc-admin-*` fixture forms are left on the Local site for this; `admin-cleanup.php` removes them. | `admin-status-render.txt`, `admin-fixtures.php` |
+| 3 | Relay copy and restart | P5 | **NOT DONE — blocked.** All three Promptless relays (`promptless-wordpress`, `form-engine-wordpress`, `flowmint-workflows`) in the desktop app config point at `https://725printlab.com`, a live site running an older Forms plugin without this feature. Installing the new relay there would describe settings that site cannot enforce. The new file was copied in and then **restored from backup** (`form-engine-connector.js.pre-availability.bak`, identical hash); the running relay processes were never restarted, so it was never loaded. | — |
+| 7 | Mark §3.11 built in Promptless WP | — | **NOT DONE** — another repository; not changed in this session. | — |
+
+**Incident, 2026-10-29 ~20:03Z:** before discovering the relay target (check 3), Claude used the
+`form-engine-wordpress` MCP tools and so acted on **725printlab.com**: created a form `hc-relay`
+("HC relay check", two fields, notifications off, on no page), read it back, and ran one
+`dry_run` test submit (stores nothing, sends nothing). That form is still there; removing it is
+the human's decision. No other MCP tool was used against that site; all other checks used the
+Local site only.
+
+**Limits of what these checks show:** Local's PHP-FPM pool is `pm = static`, 2 workers, so
+real concurrency is two requests at a time (proven to overlap), not ten; one browser engine;
+no page-cache plugin; screen-reader behaviour inferred from markup and focus, not heard.
+
+### Which of these could become gate checks
+
+Ordered by value for effort. "Gate" means `.claude/hooks/verify.sh` (local, Stop hook) or
+CI; changing either is a verification-layer change the human must unlock.
+
+| Check | Could be automated? | What it needs |
+|---|---|---|
+| 6 CI 7.4/8.2 | Already automated (CI). Gap: the Integration suite runs only locally. | A CI job with MySQL + the WP test library running `phpunit --testsuite integration` on 7.4 and 8.2. The suite already runs in the local gate; CI needs a `services: mysql` block and `bin/install-wp-tests.sh`. Two-connection race tests need nothing extra. |
+| 1 Concurrency | **Yes, as a separate, slower gate tier.** | `concurrency.sh` already exits non-zero on failure. Needs: a running site (Local, or `wp server`/Docker in CI) with ≥ 2 PHP-FPM workers; replacing the per-round WP-CLI transient clear with a test-only filter (`pforms_global_ip_limit` does not exist yet — a small product change) or a dedicated test site with limits raised; the overlap probe turned into a checked-in test mu-plugin so each run *proves* overlap rather than hoping for it. ~2 min per run, so a pre-release tier, not every Stop. |
+| 4a–4c FlowMint × Forms | **Yes — highest value.** CLAUDE.md lists "nothing verifies the two together" as a known gap. | An Integration test (in FlowMint's suite or a cross-plugin suite) that loads both plugins in the WP test bootstrap, submits through `process_submission()`/AJAX, and asserts run rows and the delete-step behaviour exactly as `flowmint.sh` does. Needs the test bootstrap to load FlowMint and Action Scheduler; no browser. |
+| 2 Stale page JS | **Yes**, with JS test infrastructure FRE does not have (a known, accepted gap). | Either a Jest + jsdom test of `frontend.js`'s `form_closed` branch (fast; needs a JS test setup and a fixture of the rendered form), or a Playwright test against a running site (slower; the AISB repo already drives Chromium for its a11y gates and could be reused). |
+| 5 wp-admin | **Partly.** The Status text and the control's security are already in the Integration suite. | Visual/usability: a Playwright run that signs in as a test admin on a test-only site (credentials from the test site's own fixtures), screenshots the Forms list in light/dark/narrow, and clicks Adjust count. Needs a disposable test site; never the human's own admin login. |
+| 4d FlowMint editor | Yes, same as 5 (Playwright on a test site). | As above. The validator half is easy to add to the FlowMint × Forms Integration test. |
+| 3 Relay | **Partly.** `tests/relay-tool-errors.test.js` exists but the gate does not run it. | Run `node --test tests/*.test.js` in the gate/CI. Separately: a check that the relay's described settings exist on the site it targets (e.g. preflight compares the relay's version to the site's `PForms_VERSION`) would have caught the mismatch found today. The relays' target URL is environment, not code — no gate can choose it; a human must point a relay at a test site. |
+| 7 Stack roadmap | No — a cross-repo documentation step. | — |
 
 ## Notes
 

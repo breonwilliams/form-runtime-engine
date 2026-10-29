@@ -1,0 +1,26 @@
+round 1: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 2: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 3: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 4: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 5: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 6: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 7: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 8: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 9: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 10: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 11: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 12: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 13: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 14: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 15: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 16: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 17: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 18: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 19: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 20: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 21: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 22: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 23: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 24: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+round 25: PASS  success=1 form_closed=9 other=0  entries=1 spam=0 count=1
+TOTAL: 25 passed, 0 failed of 25 rounds x 10 parallel requests
