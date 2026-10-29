@@ -1,8 +1,10 @@
 # Orchestrator state
 
-Run status: HALTED: QUESTION   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T18:35:57Z
-Last green commit: 709e712
+Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
+Updated: 2026-10-29T18:51:29Z
+Last green commit: c226cc6
+Next action: Run 3 resumed. P4 attempt 1 (retry after Q-011) is with the phase-worker, starting from `orchestrator/P4-attempt-1`; then P5–P6.
+Previous next action (done):
 Next action: Q-011 answered (option 1: loosen both assertions to a prefix check). Waiting on the test edit, which only the human can unlock: in FormAvailabilityTest.php:484 and FormAvailabilityTimezoneTest.php:52, replace the exact `assertSame` on "This form opens on March 15, 2027 at 9:00 am." with a starts-with check on "This form opens on March 15, 2027 at 9:00 am", commit, move the baseline. Then P4 is retried from `orchestrator/P4-attempt-1`, then P5–P6.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
@@ -11,7 +13,7 @@ Next action: Q-011 answered (option 1: loosen both assertions to a prefix check)
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
-| P4 | needs_decision | 0 | 6e9c13f | | | |
+| P4 | in_progress | 1 | c226cc6 | | | |
 | P5 | pending | 0 | | | | |
 | P6 | pending | 0 | | | | |
 
@@ -27,6 +29,7 @@ Next action: Q-011 answered (option 1: loosen both assertions to a prefix check)
 - Run 2 baseline 30340a6: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:46:04Z (same counts).
 - P1 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:56:40Z (Unit 546 tests / 1459 assertions; Integration 99 tests / 242 assertions / 3 skipped). The new tests pass and nothing regressed; it does not by itself prove the tests test the right thing (see reviewer judgment).
 - P2 retry working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T17:55:35Z (Unit 549 / 1473; Integration 121 / 396 / 3 skipped). Includes the two-connection race tests against Local's real MySQL/InnoDB.
+- Q-011 test change c226cc6 (human-unlocked turn): `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:51:29Z after the baseline move (Unit 549 / 1473; Integration 154 / 740 / 3 skipped).
 - P3 attempt 2 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:19:28Z (Unit 549 / 1473; Integration 154 / 740 / 3 skipped), existing duplicate/idempotency tests unedited and green.
 
 **Reviewer judgment** (a model read the code; not proof):

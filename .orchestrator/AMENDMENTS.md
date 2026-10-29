@@ -37,3 +37,10 @@
 **Changed to:** capped forms take a place with new `PForms_Place_Counter::take($form_id, $cap)`, which returns the count its own atomic UPDATE produced (`LAST_INSERT_ID(expr)`), so `pforms_form_full` fires on exactly the request that took the last place; uncapped forms call `claim($form_id, null)`; `claim()` with a cap delegates to `take()`. The availability check runs before the spam check, so a honeypot submission to an already-closed form gets the closed message and nothing is stored (fake success and spam-entry keeping are unchanged on open forms). An exact repeat within the duplicate window of a submission already received is still answered with its success.
 **Because:** Q-003 needs the last-place request identified exactly; a bool claim plus a later read could see another request's claim. A closed form must create "no entry row", and a kept spam entry is one; on a closed form every visitor gets the same answer, so nothing about detection leaks.
 **Proposed by:** worker · **Accepted by:** reviewer (APPROVE) · **Commit:** (P3 commit, recorded in STATE.md)
+
+## A-006 · P1/P4 · 2026-10-29T18:51:29Z
+
+**Plan said:** P1's tests pinned the before-open default as an exact sentence (`tests/Unit/FormAvailabilityTest.php:484`, `tests/Integration/FormAvailabilityTimezoneTest.php:52`, `assertSame( 'This form opens on March 15, 2027 at 9:00 am.' )`).
+**Changed to:** both now `assertStringStartsWith( 'This form opens on March 15, 2027 at 9:00 am' )`. The exact text with the timezone label (A-003) is pinned by P4's own tests.
+**Because:** Human answer to Q-011 (option 1). The tests were locked; the edit was made by the main session in a turn the human unlocked by typing `UNLOCK-VERIFICATION`, committed as c226cc6, and the verification baseline moved to c226cc6 (logged by the guard). Gate after the move: exit 0 (Unit 549; Integration 154 / 3 skipped).
+**Proposed by:** worker (P4 attempt 1, NEEDS_DECISION) · **Accepted by:** human (Q-011) · **Commit:** c226cc6
