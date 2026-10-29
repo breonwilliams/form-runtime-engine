@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T19:19:47Z
+Updated: 2026-10-29T19:20:15Z
 Last green commit: aa60815
-Next action: Run 3. P5 done; start P6 attempt 1.
+Next action: Run 3. P6 attempt 1 is with the phase-worker.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -13,7 +13,7 @@ Next action: Run 3. P5 done; start P6 attempt 1.
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
 | P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | 9f66955 |
 | P5 | done | 2 | a937345 | pass (exit 0) | APPROVE | aa60815 |
-| P6 | pending | 0 | | | | |
+| P6 | in_progress | 1 | 394dceb | | | |
 
 <!-- Status: pending | in_progress | needs_decision | blocked | done
      Gate: "pass (exit 0)" or "fail (exit N)". Only the verify command fills this column.
