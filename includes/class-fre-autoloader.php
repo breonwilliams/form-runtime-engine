@@ -34,6 +34,7 @@ class PForms_Autoloader {
         'PForms_Upgrader'            => 'Core/class-fre-upgrader.php',
         'PForms_Forms_Repository'    => 'Core/class-fre-forms-repository.php',
         'PForms_Conditions'          => 'Core/class-fre-conditions.php',
+        'PForms_Availability'        => 'Core/class-fre-availability.php',
 
         // Connector classes (Phase 2+ Cowork connector).
         'PForms_Connector_Settings'  => 'Connector/class-fre-connector-settings.php',

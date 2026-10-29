@@ -61,6 +61,9 @@ class PForms_Registry {
         ),
         'css_class'          => '',
         'store_entries'      => true,
+        // Open date, close date, entry cap and messages. Every key "not set"
+        // (null): always open, unlimited. See PForms_Availability.
+        'availability'       => PForms_Availability::DEFAULTS,
     );
 
     /**
@@ -322,6 +325,18 @@ class PForms_Registry {
                     $this->default_settings['spam_protection']['rate_limit']
                 );
             }
+        }
+
+        // A missing, null or non-object availability block normalises to
+        // "not set". A non-object value is kept for PForms_Availability::check()
+        // to refuse (it fails closed), never silently turned into "open".
+        if ( ! array_key_exists( 'availability', $config['settings'] ) || null === $config['settings']['availability'] ) {
+            $config['settings']['availability'] = $this->default_settings['availability'];
+        } elseif ( is_array( $config['settings']['availability'] ) ) {
+            $config['settings']['availability'] = wp_parse_args(
+                $config['settings']['availability'],
+                $this->default_settings['availability']
+            );
         }
 
         // Merge each field with defaults.

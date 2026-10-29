@@ -99,6 +99,7 @@ class PForms_JSON_Schema_Validator {
         'webhook_url',
         'appearance',
         'after_submit',
+        'availability',
     );
 
     /**
@@ -418,6 +419,15 @@ class PForms_JSON_Schema_Validator {
                 __( 'settings.after_submit "%1$s" is not valid. Use one of: %2$s ("confirmation" replaces the form with the success message; "reset" shows the message above an emptied form, for forms meant to be filled again).', 'promptless-forms' ),
                 is_scalar( $settings['after_submit'] ) ? (string) $settings['after_submit'] : gettype( $settings['after_submit'] ),
                 implode( ', ', self::AFTER_SUBMIT_VALUES )
+            );
+        }
+
+        // Open/close dates and entry cap. The rules live with the decision
+        // point so the save path refuses exactly what it would distrust.
+        if ( array_key_exists( 'availability', $settings ) ) {
+            $result['errors'] = array_merge(
+                $result['errors'],
+                PForms_Availability::validate( $settings['availability'] )
             );
         }
 

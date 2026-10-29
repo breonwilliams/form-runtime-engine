@@ -138,3 +138,19 @@
 3. **Programmatic submissions bypass availability.** Cost: contradicts §3.11 ("on both paths"); not recommended.
 
 **Answer:** Option 1 (the recommendation). Human, 2026-10-29T16:30:06Z, verbatim: "Accept all recommendations". On a closed form, formengine_test_submit is refused with the closed reason for both dry runs and real submissions, and a dry run never takes or holds a place.
+
+## Q-009 · P1 · Built-in wording of the closed and before-open messages
+
+**Status:** open
+**Raised by:** worker, 2026-10-29T16:57:37Z
+
+**Question:** When the owner sets no message, what should visitors read? Today (P1 attempt 1): closed (full or past the close date) → "This form is no longer accepting submissions."; before opening → "This form opens on March 15, 2027 at 9:00 am." (site date/time formats, site timezone, no zone name).
+
+**Why it blocks:** It does not block P1 (the worker reported DONE; each text is one translatable string in `PForms_Availability`). It should be settled before P4 shows these to visitors and P5 documents them.
+
+**Options seen:**
+1. Keep as is: matches the style of the existing `success_message` default.
+2. Name the timezone in the before-open text ("9:00 am NZDT"): helps visitors in other zones; noisier for a local audience.
+3. Different closed wording (e.g. "This form is closed."): shorter; less explicit that it once was open.
+
+**Answer:** _(unanswered)_

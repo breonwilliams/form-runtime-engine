@@ -221,3 +221,4 @@ where they would plug in later).
 
 <!-- Orchestrator appends one line per accepted deviation: "- P1: <change> (A-001)" -->
 - P0: the release ZIP is `build/promptless-forms.zip`, not `build/form-runtime-engine.zip` (A-001)
+- P1: setting names, the decision point's signature/reasons and five edge rules, as built (A-002)
