@@ -175,7 +175,7 @@ In every option, P6's adjust/reset control lets the owner correct the number, an
 
 ## Q-011 · P4 · Two locked tests pin the old before-open wording
 
-**Status:** open
+**Status:** answered
 **Raised by:** worker, 2026-10-29T18:28:57Z
 
 **Question:** Your A-003 change (name the timezone in the default "This form opens on …" message) cannot be made without changing two tests written in P1, and the verification guard locks committed tests. How should those two tests change?
@@ -189,4 +189,4 @@ In every option, P6's adjust/reset control lets the owner correct the number, an
 
 Whichever you choose, the test edit has to be made by you or in a turn you unlock, and it is recorded as an amendment.
 
-**Answer:** _(unanswered)_
+**Answer:** Option 1. Human, 2026-10-29T18:35:57Z, chose "Loosen both (1)", whose text reads: "Q-011: option 1. Loosen both assertions to check that the message starts with \"This form opens on March 15, 2027 at 9:00 am\"; the P4 retry pins the exact new text with its own tests." Not yet applied: the two tests are still locked (no unlock in that turn). The edit is made in a turn the human unlocks, or by the human, before P4 is retried.

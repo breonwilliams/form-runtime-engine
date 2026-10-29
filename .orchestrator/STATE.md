@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: HALTED: QUESTION   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T18:28:57Z
+Updated: 2026-10-29T18:35:57Z
 Last green commit: 709e712
-Next action: Human answers Q-011 (two locked P1 tests pin the old before-open wording). The test change is then made by the human, or in a turn the human unlocks, with the baseline moved to match; then P4 is retried from the parked work on `orchestrator/P4-attempt-1`, then P5–P6.
+Next action: Q-011 answered (option 1: loosen both assertions to a prefix check). Waiting on the test edit, which only the human can unlock: in FormAvailabilityTest.php:484 and FormAvailabilityTimezoneTest.php:52, replace the exact `assertSame` on "This form opens on March 15, 2027 at 9:00 am." with a starts-with check on "This form opens on March 15, 2027 at 9:00 am", commit, move the baseline. Then P4 is retried from `orchestrator/P4-attempt-1`, then P5–P6.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
