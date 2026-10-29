@@ -141,7 +141,7 @@
 
 ## Q-009 · P1 · Built-in wording of the closed and before-open messages
 
-**Status:** open
+**Status:** answered
 **Raised by:** worker, 2026-10-29T16:57:37Z
 
 **Question:** When the owner sets no message, what should visitors read? Today (P1 attempt 1): closed (full or past the close date) → "This form is no longer accepting submissions."; before opening → "This form opens on March 15, 2027 at 9:00 am." (site date/time formats, site timezone, no zone name).
@@ -153,4 +153,4 @@
 2. Name the timezone in the before-open text ("9:00 am NZDT"): helps visitors in other zones; noisier for a local audience.
 3. Different closed wording (e.g. "This form is closed."): shorter; less explicit that it once was open.
 
-**Answer:** _(unanswered)_
+**Answer:** Human, 2026-10-29T17:07:03Z, verbatim: "Keep both defaults, with one change: the before-open message must name the timezone. \"This form opens on March 15, 2027 at 9:00 am ET\" — a time without a zone is ambiguous for anyone outside the site's timezone, and these are deadline-driven forms. Use whatever zone label WordPress gives for the site timezone, and carry it into the P4 brief." So: the closed default stays "This form is no longer accepting submissions."; the before-open default stays as worded and appends the zone label WordPress gives for the site timezone (the label is WordPress's, so it may read e.g. "EDT"/"EST" rather than "ET", or an offset on an offset-only site). Implemented in P4.

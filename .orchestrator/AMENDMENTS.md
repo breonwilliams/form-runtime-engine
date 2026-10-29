@@ -16,3 +16,10 @@
 **Changed to:** Not a departure from the plan, recorded because later phases must build on these calls: settings live in `settings.availability` (`opens_at`, `closes_at`, `max_entries`, `closed_message`, `before_open_message`); the decision point is `PForms_Availability::check( $form, $context )`, filtered by `pforms_form_availability`, with reasons `open`, `not_yet_open`, `closed_date`, `cap_reached`, `invalid_settings`, `form_not_found`; (a) JSON `null` is the explicit "not set"/unlimited value; (b) unknown keys and empty strings inside the block are refused; (c) close-before-open compares resolved moments, so a same-day date-only window is valid; (d) an invalid PHP-registered config fails closed with `invalid_settings`; (e) checks run before-open → after-close → cap.
 **Because:** The spec left these open; each is documented in the class docblock and pinned by tests (includes/Core/class-fre-availability.php; tests/Unit/FormAvailabilityTest.php).
 **Proposed by:** worker · **Accepted by:** reviewer (APPROVE) · **Commit:** (P1 commit, recorded in STATE.md)
+
+## A-003 · P4 · 2026-10-29T17:07:03Z
+
+**Plan said:** P4 done-state does not mention the default message wording; P1 shipped the before-open default "This form opens on %1$s at %2$s." with no timezone.
+**Changed to:** P4 also makes the default before-open message append the zone label WordPress gives for the site timezone (e.g. "This form opens on March 15, 2027 at 9:00 am EDT"), pinned by a test with a non-UTC site zone. The closed default is unchanged.
+**Because:** Human decision on Q-009 (answered 2026-10-29T17:07:03Z): "a time without a zone is ambiguous for anyone outside the site's timezone, and these are deadline-driven forms."
+**Proposed by:** human (Q-009) · **Accepted by:** human · **Commit:** (P4 commit, recorded in STATE.md)

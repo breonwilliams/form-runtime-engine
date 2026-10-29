@@ -1,15 +1,15 @@
 # Orchestrator state
 
-Run status: PAUSED   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T17:00:25Z
-Last green commit: d2cb13f
-Next action: Paused after P1 by `max_phases_per_run: 1` (human checkpoint, run 2). To continue, the human raises or removes `max_phases_per_run` in ROADMAP.md and runs the orchestrator; it starts P2 attempt 1. Q-009 (default message wording) is open but does not block P2 or P3; answer it before P4.
+Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
+Updated: 2026-10-29T17:07:36Z
+Last green commit: b82c9f2
+Next action: Run 3 (P2–P6, no phase cap). P2 attempt 1 is with the phase-worker.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
 | P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
-| P2 | pending | 0 | | | | |
+| P2 | in_progress | 1 | b82c9f2 | | | |
 | P3 | pending | 0 | | | | |
 | P4 | pending | 0 | | | | |
 | P5 | pending | 0 | | | | |
@@ -47,4 +47,5 @@ Next action: Paused after P1 by `max_phases_per_run: 1` (human checkpoint, run 2
 - Reviewer note: repo-root `./form-runtime-engine.zip` is a tracked file (old artifact). Not touched; `*.zip` is excluded from builds. Possibly worth removing from git separately.
 - Run 2 (P1) capped at one phase at the human's request ("Run P1 next").
 - Carry into later briefs (P1 reviewer's minor findings): (P3/P4) an invalid PHP-registered config logs an error on every `check()` call — once wired into render and submit that is one log line per page view, so dedupe when wiring; (P5/P6) a DST spring-forward-gap time gets the generic "must be a date…" refusal — give it a clearer message or document it.
-- Q-009 (default wording of the closed and before-open messages) raised by the P1 worker as non-blocking; open. Needed before P4.
+- Q-009 (default wording of the closed and before-open messages) raised by the P1 worker as non-blocking; answered by the human 2026-10-29T17:07:03Z (before-open default must name the site timezone, WordPress's label). Goes into the P4 brief (A-003).
+- Run 3 started 2026-10-29T17:07:36Z: P2–P6 with no phase cap, at the human's request. Baseline b82c9f2 green (Unit 546, Integration 99 / 3 skipped).

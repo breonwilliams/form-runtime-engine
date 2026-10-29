@@ -23,7 +23,7 @@ and the schema, rulebook and validator describe exactly what the handler enforce
 
 - verify: `.claude/hooks/verify.sh run`   (exit 0 = green: tamper check, `php -l` over shipped files, Unit suite, Integration suite against Local's MySQL)
 - max_attempts_per_phase: 3
-- max_phases_per_run: 1   <!-- human, 2026-10-29: "halt after P0 completes and report before continuing to P1". Run 2 (P1): human, 2026-10-29, "Run P1 next" — one phase again, then pause and report. Raise or remove for later runs. -->
+<!-- max_phases_per_run removed for run 3 (P2–P6). Human, 2026-10-29: "run the rest of the roadmap — P2 through P6 — without stopping between phases. Halt only if you hit a decision that's genuinely mine to make, or if a phase runs out of attempts." Runs 1 and 2 were capped at one phase each. -->
 - protected: everything CLAUDE.md lists as **Locked** — existing `tests/**` files (new, uncommitted test files stay editable), `phpunit.xml(.dist)`, `composer.json/.lock`, `.gitignore`, `bin/install-wp-tests.sh`, `.github/**`, `.claude/settings*.json`, `.claude/hooks/**`, `vendor/**`, `refs/verify/*`, `~/.wp-tests/**`, `~/.claude/**`
 
 **Preconditions for every run** (the gate fails closed without them, and that is a BLOCKED
@@ -222,3 +222,4 @@ where they would plug in later).
 <!-- Orchestrator appends one line per accepted deviation: "- P1: <change> (A-001)" -->
 - P0: the release ZIP is `build/promptless-forms.zip`, not `build/form-runtime-engine.zip` (A-001)
 - P1: setting names, the decision point's signature/reasons and five edge rules, as built (A-002)
+- P4: the default before-open message names the site timezone (Q-009 answer) (A-003)
