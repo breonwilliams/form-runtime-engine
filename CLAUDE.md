@@ -1060,6 +1060,14 @@ fix a mistake in its own new test. Read-only commands that name the ref
   Subagents stay locked. The lock returns when the turn ends (green, or let
   through after 3 blocks), and never lasts past 2 hours. Every unlock, relock
   and baseline move made under one is logged to `unlock.log` in the state dir.
+  **Type the line by hand.** A prompt that arrives as pasted text does not
+  unlock, even when `UNLOCK-VERIFICATION` is its first visible line (observed
+  2026-10-29: the prompt hook ran, no unlock marker was written). Suspected
+  cause, **unconfirmed**: the app hands pasted text to the hook inside a
+  wrapper, so the hook's first line is the wrapper, not the word. The hook
+  does not record the prompt it receives, so this has not been checked. If an
+  unlock seems ignored, look for `unlock-<session>` in the state dir and an
+  `UNLOCKED` line in `unlock.log` before assuming it took.
 - **Do it yourself:** edit in your editor, commit, then run
   `.claude/hooks/rebaseline.sh` in your own terminal. It shows what it accepts
   and needs an interactive terminal to confirm (type only `y`; arrow keys
@@ -1084,9 +1092,32 @@ Until it is moved, the tamper check blocks and names the changed files.
   tracked files; new untracked tests are the only thing `git clean` could take.
 - **Guard in PHP**, matching this repo; exits 2 rather than printing a JSON
   `deny` — same effect.
-- **Inherited gap, not verified live here either:** subagents are refused the
-  unlock because their tool calls carry `agent_id`. Until confirmed, don't
-  delegate protected changes during an `UNLOCK-VERIFICATION` turn.
+
+**Verified live (2026-10-29, this repo, main session):** the per-edit check
+catching a parse error; the guard refusing Edit and `sed -i` on an existing
+test; a `cd`-then-relative-path write getting past the guard and the tamper
+check catching it, uncommitted and committed; a new uncommitted test staying
+editable; the Stop gate blocking a turn ("block 1 of 3") on broken product
+code; a typed `UNLOCK-VERIFICATION` letting a `verify.sh` edit and a baseline
+move through, then `unlock.log` recording the move and the relock, and the
+guard refusing both again the next turn.
+
+**NOT verified live — treat as unconfirmed:**
+- **Subagents stay locked during an unlocked turn.** The guard refuses the
+  unlock when a tool call carries `agent_id`; that assumes Claude Code sends
+  `agent_id` on a subagent's tool calls. Tested only with synthetic input
+  (also unconfirmed in ai-section-builder-modern). Until confirmed, make
+  protected changes in the main session, never through a subagent.
+- **`onFailure: "block"` is honoured.** Copied from ai-section-builder-modern's
+  settings; not confirmed to be a setting Claude Code reads. If it is not, a
+  crash in `guard.php` (a PHP fatal, exit 255) lets the tool call through
+  instead of blocking it.
+- **Blocks 2 and 3 and the `RED. NOT VERIFIED` release.** Only block 1 has
+  been seen live. The counting, the release on the 4th stop and the fresh
+  count on a new turn passed with synthetic hook input in a scratch clone; the
+  live path depends on Claude Code setting `stop_hook_active` on re-stops.
+- **Pasted unlocks** — see the unlock bullet above: they do not unlock, cause
+  suspected, not confirmed.
 
 **What the guard is not:** a security boundary. Bash is pattern-matched, so a
 determined command can get past it. The authority is the turn-end tamper check,
