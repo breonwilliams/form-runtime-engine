@@ -1233,6 +1233,19 @@
                 }
             }
 
+            // THE FORM IS CLOSED (before its open date, past its close date,
+            // or full) — the server's refusal, code `form_closed`. Reached on
+            // a page cached while the form was open: the closed message
+            // REPLACES the form exactly as the success confirmation does
+            // (same role="alert" container, same focus move, Q-004). The
+            // answers are cleared: there is nothing left to send them to.
+            if (data.code === 'form_closed') {
+                this.showMessage('closed', data.message);
+                this.form.reset();
+                this.showConfirmation();
+                return false;
+            }
+
             // Show field errors.
             if (data.field_errors) {
                 Object.entries(data.field_errors).forEach(([fieldKey, message]) => {
@@ -1471,6 +1484,9 @@
      */
     function initForms() {
         document.querySelectorAll('.fre-form').forEach(form => {
+            // A form closed when the page rendered is only its message
+            // (PForms_Renderer::render_closed(), no <form>): nothing to run.
+            if (form.classList.contains('fre-form--closed')) return;
             new FREForm(form);
         });
     }

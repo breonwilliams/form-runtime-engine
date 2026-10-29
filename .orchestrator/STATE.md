@@ -1,11 +1,9 @@
 # Orchestrator state
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T18:51:29Z
-Last green commit: c226cc6
-Next action: Run 3 resumed. P4 attempt 1 (retry after Q-011) is with the phase-worker, starting from `orchestrator/P4-attempt-1`; then P5–P6.
-Previous next action (done):
-Next action: Q-011 answered (option 1: loosen both assertions to a prefix check). Waiting on the test edit, which only the human can unlock: in FormAvailabilityTest.php:484 and FormAvailabilityTimezoneTest.php:52, replace the exact `assertSame` on "This form opens on March 15, 2027 at 9:00 am." with a starts-with check on "This form opens on March 15, 2027 at 9:00 am", commit, move the baseline. Then P4 is retried from `orchestrator/P4-attempt-1`, then P5–P6.
+Updated: 2026-10-29T18:59:56Z
+Last green commit: (P4 commit — recorded below)
+Next action: Run 3. P4 done; start P5 attempt 1.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -13,7 +11,7 @@ Next action: Q-011 answered (option 1: loosen both assertions to a prefix check)
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
-| P4 | in_progress | 1 | c226cc6 | | | |
+| P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | (pending) |
 | P5 | pending | 0 | | | | |
 | P6 | pending | 0 | | | | |
 
@@ -30,12 +28,14 @@ Next action: Q-011 answered (option 1: loosen both assertions to a prefix check)
 - P1 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:56:40Z (Unit 546 tests / 1459 assertions; Integration 99 tests / 242 assertions / 3 skipped). The new tests pass and nothing regressed; it does not by itself prove the tests test the right thing (see reviewer judgment).
 - P2 retry working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T17:55:35Z (Unit 549 / 1473; Integration 121 / 396 / 3 skipped). Includes the two-connection race tests against Local's real MySQL/InnoDB.
 - Q-011 test change c226cc6 (human-unlocked turn): `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:51:29Z after the baseline move (Unit 549 / 1473; Integration 154 / 740 / 3 skipped).
+- P4 retry working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:55:43Z (Unit 549 / 1473; Integration 166 / 807 / 3 skipped), incl. exact before-open text for New York EST/EDT, offset-only UTC+5:30 / UTC-5, Auckland NZDT.
 - P3 attempt 2 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:19:28Z (Unit 549 / 1473; Integration 154 / 740 / 3 skipped), existing duplicate/idempotency tests unedited and green.
 
 **Reviewer judgment** (a model read the code; not proof):
 - P0: the release ZIP no longer contains `.orchestrator/`; the file list is otherwise identical to a b3579ee build (119 vs 119, empty names-only diff); the old script did ship 6 `.orchestrator` entries, so the fix is not vacuous. Reproduced independently by the reviewer in scratch copies; the worker's own build showed the same.
 - P1: every done-state criterion met. The reviewer mutated a scratch copy to check the tests can fail for the reason they name: comparing in UTC or in server time fails 7 tests each; 0-as-unlimited fails 3; removing the filter fails both filter tests; disabling the save-time validator fails the admin and both connector path tests; Q-007 boundary mutations fail 2/5/4 tests. Both "save path" tests go through the real `save_form` and connector handlers.
 - P2: every criterion and the Q-010 behaviour met. Two independent reviewers reproduced the naive count-then-insert failure themselves; the retry reviewer also killed mutants for the overwriting seed (4 failures), claim(null) as a no-op (3), deleting the count on a cap-less save (3), a no-op form-delete hook (1) and a missing release floor (risky = fail).
+- P4: every criterion met by reading; render tests sound; JS `form_closed` branch cannot be pre-empted and reuses the success confirmation's live region and focus; offset rewrite checked by the reviewer on PHP 8.5.5 for +05:45, -09:30, -03:30, -00:30, +14:00, +00:00.
 - P3: every criterion met on both paths. A positive-control test proves the "no side effect" spies move on an accepted submission. Reviewer mutants: dropping the release from send_error → 3 failures; moving the availability check after validation → 1 failure + 2 errors. Reviewer's own two-connection test showed take()'s LAST_INSERT_ID identifies only the true last-place request.
 
 **Not verified:**
@@ -45,6 +45,8 @@ Next action: Q-011 answered (option 1: loosen both assertions to a prefix check)
 - P1: nothing enforces availability yet. `check()` has no production callers until P3/P4; the cap uses a stubbed count of 0 until P2.
 - P1: PHP 7.4/8.2 — new files lint clean on Local's 7.4.1 (worker and reviewer, by hand); the Unit suite has not run on 7.4/8.2 (CI after push).
 - P2: the race tests interleave at statement level on two connections; InnoDB row-lock waiting and real concurrent PHP-FPM requests are not exercised (human curl check, roadmap item 1).
+- P4: the stale-page JavaScript (`form_closed` → closed message replaces the form, focus moves) has no automated test — read by the reviewer only; human browser check 2. The reviewer could not run the "remove the closed branch" mutation (guard refused its manual take of the Integration lock), so "the closed-render tests can fail" is reviewer reading, not a run.
+- P4 (reviewer minor findings, not fixed): the closed render skips the `pforms_rendered_form` filter; a capped form's uncached render costs one count read per view.
 - P3 (reviewer minor findings, not fixed): on a site with a read/write-splitting db drop-in (HyperDB/LudicrousDB without send-reads-to-master) `SELECT LAST_INSERT_ID()` could hit a replica, so `pforms_form_full` may silently not fire (the cap itself holds); a throwing third-party `pforms_entry_created` listener leaves the entry stored but its place released (count one low); a PHP `\Error` between take and keep leaks one place (request dies there).
 - P3: the stale-cached-page front-end and FlowMint not starting a run are not exercised end to end (no JS tests; FlowMint not in the gate — human checks 2 and 4).
 - P2: declared gap — a PHP-registered form whose cap is removed in code before its first submission keeps no count while uncapped, and PHP forms are seeded at their first capped claim, not at cap-add (A-004).

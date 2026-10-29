@@ -485,11 +485,44 @@ class PForms_Availability {
         $time_format = get_option( 'time_format' );
 
         return sprintf(
-            /* translators: 1: opening date, 2: opening time, both in the site timezone */
-            __( 'This form opens on %1$s at %2$s.', 'promptless-forms' ),
+            /* translators: 1: opening date, 2: opening time, 3: timezone label (e.g. "EST", "UTC+5:30"), all in the site timezone */
+            __( 'This form opens on %1$s at %2$s %3$s.', 'promptless-forms' ),
             wp_date( $date_format ? $date_format : 'F j, Y', $opens_at, $timezone ),
-            wp_date( $time_format ? $time_format : 'g:i a', $opens_at, $timezone )
+            wp_date( $time_format ? $time_format : 'g:i a', $opens_at, $timezone ),
+            self::timezone_label( $opens_at, $timezone )
         );
+    }
+
+    /**
+     * The site timezone's label at a given moment (A-003).
+     *
+     * The abbreviation WordPress formats for the site timezone ("T"), so it
+     * follows daylight saving: "EST" in winter, "EDT" in summer. A site set
+     * by UTC offset (or a zone PHP has no abbreviation for) formats as an
+     * offset ("+05:30", or "GMT+0530" on newer PHP, "-03"); that is written the way WordPress's General
+     * Settings names offsets: "UTC+5:30", "UTC-5", and "UTC" for +0.
+     *
+     * @param int           $timestamp Moment (unix).
+     * @param \DateTimeZone $timezone  Site timezone.
+     * @return string
+     */
+    private static function timezone_label( $timestamp, $timezone ) {
+        $label = (string) wp_date( 'T', $timestamp, $timezone );
+
+        if ( '' !== $label && ! preg_match( '/^(?:GMT|UTC)?[+-]\d/', $label ) ) {
+            return $label;
+        }
+
+        $offset = ( new \DateTimeImmutable( '@' . (int) $timestamp ) )->setTimezone( $timezone )->getOffset();
+        if ( 0 === $offset ) {
+            return 'UTC';
+        }
+
+        $abs     = abs( $offset );
+        $hours   = intdiv( $abs, 3600 );
+        $minutes = intdiv( $abs % 3600, 60 );
+
+        return 'UTC' . ( $offset < 0 ? '-' : '+' ) . $hours . ( $minutes ? ':' . sprintf( '%02d', $minutes ) : '' );
     }
 
     /**

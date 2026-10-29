@@ -226,3 +226,4 @@ where they would plug in later).
 - P2: count storage, seeding hooks, opt-in uninstall, claim(null) for Q-010, declared PHP-form gap (A-004)
 - P3: take() returns its own count for pforms_form_full; availability checked before spam, so a honeypot hit on a closed form gets the closed message (A-005)
 - P1/P4: two P1 before-open assertions loosened to a prefix check in a human-unlocked turn; baseline moved (A-006)
+- P4: neutral closed style, no focus move on page-load render, "UTC±H[:MM]" for offset zones, closed render skips pforms_rendered_form (A-007)

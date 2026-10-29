@@ -44,3 +44,10 @@
 **Changed to:** both now `assertStringStartsWith( 'This form opens on March 15, 2027 at 9:00 am' )`. The exact text with the timezone label (A-003) is pinned by P4's own tests.
 **Because:** Human answer to Q-011 (option 1). The tests were locked; the edit was made by the main session in a turn the human unlocked by typing `UNLOCK-VERIFICATION`, committed as c226cc6, and the verification baseline moved to c226cc6 (logged by the guard). Gate after the move: exit 0 (Unit 549; Integration 154 / 3 skipped).
 **Proposed by:** worker (P4 attempt 1, NEEDS_DECISION) · **Accepted by:** human (Q-011) · **Commit:** c226cc6
+
+## A-007 · P4 · 2026-10-29T18:59:56Z
+
+**Plan said:** the closed message is "announced … the way the success confirmation already is (same live-region / focus treatment)"; A-003 "use whatever zone label WordPress gives".
+**Changed to:** a new neutral `.fre-form__message--closed` style (existing `--fre-*` properties only); a closed form rendered at page load uses the confirmation's container and state but does not move focus (the stale-page path does, via `showConfirmation()`); an offset-shaped zone label (PHP's "+05:30" / "GMT+0530" / "-03") is rewritten as "UTC±H[:MM]" ("UTC" for +0); the closed render bypasses the `pforms_rendered_form` filter.
+**Because:** the closed state is neither success nor error; moving focus before the visitor acts pulls them away from where they are; PHP has no abbreviation for offset zones and its raw output varies by version; the filter has no known consumer.
+**Proposed by:** worker · **Accepted by:** reviewer (APPROVE) · **Commit:** (P4 commit, recorded in STATE.md)
