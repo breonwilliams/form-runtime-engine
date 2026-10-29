@@ -48,8 +48,9 @@ class FormAvailabilityTimezoneTest extends IntegrationTestCase {
         $this->assertSame( 'closed_date', $at( '2027-03-20 04:00:00' )['reason'] );
         $this->assertSame( 'closed_date', $at( '2027-03-20 04:01:00' )['reason'] );
 
-        $this->assertSame(
-            'This form opens on March 15, 2027 at 9:00 am.',
+        // Prefix check (Q-011): the timezone label is pinned by P4's tests.
+        $this->assertStringStartsWith(
+            'This form opens on March 15, 2027 at 9:00 am',
             $at( '2027-03-01 00:00:00' )['message']
         );
     }

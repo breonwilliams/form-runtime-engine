@@ -480,8 +480,9 @@ class FormAvailabilityTest extends UnitTestCase {
 
         $result = \PForms_Availability::check( $config, array( 'now' => $this->utc( '2027-03-01 00:00:00' ) ) );
 
-        // In UTC this would read "March 14, 2027 at 8:00 pm".
-        $this->assertSame( 'This form opens on March 15, 2027 at 9:00 am.', $result['message'] );
+        // In UTC this would read "March 14, 2027 at 8:00 pm". A prefix check
+        // (Q-011): the timezone label after the time is pinned by P4's tests.
+        $this->assertStringStartsWith( 'This form opens on March 15, 2027 at 9:00 am', $result['message'] );
     }
 
     public function test_custom_before_open_message_is_used() {
