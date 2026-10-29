@@ -2,7 +2,7 @@
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
 Updated: 2026-10-29T18:59:56Z
-Last green commit: (P4 commit — recorded below)
+Last green commit: 9f66955
 Next action: Run 3. P4 done; start P5 attempt 1.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
@@ -11,7 +11,7 @@ Next action: Run 3. P4 done; start P5 attempt 1.
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
-| P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | (pending) |
+| P4 | done | 1 | c226cc6 | pass (exit 0) | APPROVE | 9f66955 |
 | P5 | pending | 0 | | | | |
 | P6 | pending | 0 | | | | |
 
