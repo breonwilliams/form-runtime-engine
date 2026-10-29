@@ -1,15 +1,15 @@
 # Orchestrator state
 
-Run status: HALTED: QUESTION   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T17:23:34Z
-Last green commit: 7f79542
-Next action: Human answers Q-010 in QUESTIONS.md (count when a cap is removed and re-added). Then P2 goes back to pending and is retried (attempt 1 again — the escalated attempt is not counted), reusing the parked work on `orchestrator/P2-attempt-1`, then P3–P6 continue without a cap.
+Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
+Updated: 2026-10-29T17:49:52Z
+Last green commit: 1464b25
+Next action: Run 3 resumed after Q-010 (option 3). P2 attempt 1 (retry of the escalated attempt) is with the phase-worker, starting from the parked work on `orchestrator/P2-attempt-1`; then P3–P6 without a cap.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
 | P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
-| P2 | needs_decision | 0 | b82c9f2 | pass (exit 0) | ESCALATE | |
+| P2 | in_progress | 1 | 1464b25 | | | |
 | P3 | pending | 0 | | | | |
 | P4 | pending | 0 | | | | |
 | P5 | pending | 0 | | | | |
