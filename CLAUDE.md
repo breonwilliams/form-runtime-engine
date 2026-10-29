@@ -943,14 +943,17 @@ For complete ready-to-use form examples (JSON and PHP), see **`docs/CLAUDE.md`**
 - Condition operators: `equals`, `not_equals`, `contains`, `not_contains`, `is_empty`, `is_not_empty`, `is_checked`, `is_not_checked`, `greater_than`, `less_than`, `>=`, `<=`, `in`, `not_in`
 - Multiple rules with `'logic' => 'or'` (default: `'and'`)
 
-## Test Suite — GREEN as of 2026-09-12 (was known-red from 2026-09-01)
-
-`composer run test:unit` passes on a clean checkout — measured at the 1.8.8
-release:
+## Test Suite — GREEN, both suites (measured 2026-10-29, 1.12.3)
 
 ```
-OK (257 tests, 631 assertions)
+Unit:         OK (484 tests, 1254 assertions)
+Integration:  97 tests, 231 assertions, 0 failures, 3 skipped
 ```
+
+The 3 skips are `MultisiteProvisioningTest`, which runs only with
+`WP_TESTS_MULTISITE=1`. The Integration suite ran for the first time on
+2026-10-29 and was 6 red, all stale fixtures (commit `54078c8`). CI still runs
+only the Unit suite; Integration runs locally, in the turn-end gate below.
 
 **Any failure is now a real regression.** The section below is the history
 of the 14 fixture failures that stood between 2026-09-01 and the 1.8.7/1.8.8
@@ -1005,6 +1008,78 @@ no `FRE_*` classes remaining).
 **The fix is to update the fixtures** to use `get_name()` rather than the bare
 key — deliberately not done as part of the connector TLS port, to keep that
 change reviewable. Until then, this baseline is what makes the gate usable.
+
+## Verification gates (Claude Code hooks)
+
+Armed by `.claude/settings.json`; scripts in `.claude/hooks/`. Both are tracked
+(`.gitignore` un-ignores them); `settings.local.json` is not.
+
+| Hook | Script | What it does |
+|------|--------|--------------|
+| PreToolUse (Edit/Write/MultiEdit/NotebookEdit/Bash) | `guard.php` | Refuses writes to the verification layer |
+| PostToolUse (Edit/Write/MultiEdit) | `post-edit.sh` | Per-file only: `php -l`, `jq empty`, `bash -n`, `node --check`. **No suites** — a multi-file change is red in the middle |
+| Stop + SubagentStop | `verify.sh` | Tamper check → `php -l` over all shipped files → Unit → Integration. Exit 2 = the turn/subagent cannot finish |
+
+Run the gate by hand: `.claude/hooks/verify.sh < /dev/null`.
+
+**Locked** (guard + tamper check): `tests/**` files present in the baseline or
+in HEAD, `phpunit.xml(.dist)`, `composer.json/.lock`, `.gitignore`,
+`bin/install-wp-tests.sh`, `.github/**`, `.claude/settings*.json`,
+`.claude/hooks/**`, `vendor/**`, `~/.wp-tests/**`, `~/.claude/settings*.json`.
+**Editable:** a new file under `tests/` until it is committed, so a worker can
+fix a mistake in its own new test.
+
+**Changing the verification layer deliberately (you, not an agent):** edit the
+files in your editor, commit, then run `.claude/hooks/rebaseline.sh` in your own
+terminal. It moves `refs/verify/baseline` (a ref, not a tag, so
+`git push --tags` never publishes it) after showing what it accepts, and needs
+an interactive terminal to confirm. Until you do, the tamper check blocks every
+turn and names the changed files.
+
+**What the guard is not:** a security boundary. Bash is pattern-matched, so a
+determined command can get past it. The authority is the turn-end tamper check,
+which diffs every tracked protected path against `refs/verify/baseline`
+however it was written, commits included. Not covered by that diff: gitignored
+paths (`vendor/`, `~/.wp-tests/`, `settings.local.json`) — guard only — and a
+test committed after the baseline and then rewritten in a later commit.
+Claude Code also snapshots hooks at session start, so a mid-session edit to
+`settings.json` does not disarm a running session.
+
+**Integration prerequisites** (fails closed if missing):
+- WordPress test library 7.1.4 + core in `~/.wp-tests/` (not `/tmp`, which
+  macOS clears on reboot). Reinstall:
+  `WP_TESTS_DIR=$HOME/.wp-tests/wordpress-tests-lib WP_CORE_DIR=$HOME/.wp-tests/wordpress bash bin/install-wp-tests.sh wordpress_test root root "localhost:$HOME/Library/Application Support/Local/run/jkm3tqhoPn/mysql/mysqld.sock" 7.1.4 --force`
+- The **AI Section Builder** site running in Local: its MySQL socket only
+  exists while it runs. Database `wordpress_test` on that server.
+- Integration runs are serialized by a lock (`~/.wp-tests/.gate.lock`): every
+  run rebuilds the `wptests_` tables, so parallel subagents would collide.
+- `composer test:integration` still points at `/tmp/wordpress-tests-lib`; the
+  gate calls phpunit directly with the `~/.wp-tests` path.
+
+### Known gaps — recorded, not solved
+
+- **PHP versions.** Local runs 8.5; CI covers 7.4 and 8.2 (lint + Unit only).
+  Nothing local checks 7.4/8.2. Local ships usable binaries
+  (`~/Library/Application Support/Local/lightning-services/php-8.2.29+0/bin/darwin-arm64/bin/php`,
+  `php-7.4.1+18/bin/darwin/bin/php`, x86_64 under Rosetta) — enough for a
+  multi-version `php -l` if wanted.
+- **The rest of the Promptless stack.** FlowMint depends on this plugin's
+  entry classes and `pforms_submission_complete`
+  (`flowmint-workflows/includes/Core/class-fmw-submission-listener.php`,
+  `class-fmw-workflow-job.php`, `class-fmw-workflow-context.php`). Nothing
+  verifies the two together.
+- **Damaged GIFs pass the upload inspector.** `getimagesize()` reads only a
+  GIF's 13-byte header, so a GIF header followed by junk is accepted although
+  `imagecreatefromgif()` cannot decode it. JPEG and PNG are refused. Product
+  gap, not fixed.
+- **`test_hidden_conditional_field_skips_validation` cannot fail** for the
+  reason it names: `browser` is not required in the `conditional-logic`
+  fixture, so it passes whether or not hidden fields are skipped.
+- **`bin/install-wp-tests.sh` cannot create the database** with Local: its
+  socket glob is unquoted and Local's path contains a space. `wordpress_test`
+  already exists, so it does not matter until that database is dropped.
+- **Worktrees** have no `vendor/` (gitignored); the gate fails there until
+  `composer install` is run in the worktree.
 
 ## Gotchas
 

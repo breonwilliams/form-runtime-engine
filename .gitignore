@@ -27,5 +27,10 @@ Thumbs.db
 # Local release builds (zips for hosted-site testing before a real GitHub release)
 release/
 
-# Claude workspace metadata (local scratch folder, never committed)
-.claude/
+# Claude workspace metadata is local, EXCEPT the verification gates: the
+# project hooks and the settings that arm them are tracked so a change to
+# what "verified" means shows up in a diff (see "Verification gates" in
+# CLAUDE.md). settings.local.json stays local.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
