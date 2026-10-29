@@ -2,12 +2,12 @@
 
 Run status: PAUSED   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
 Updated: 2026-10-29T16:41:08Z
-Last green commit: (P0 commit — recorded below)
+Last green commit: 1b0c77d
 Next action: Paused after P0 by `max_phases_per_run: 1` (human checkpoint). To continue, the human raises or removes `max_phases_per_run` in ROADMAP.md and runs the orchestrator; it starts P1 attempt 1.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
-| P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | (pending) |
+| P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
 | P1 | pending | 0 | | | | |
 | P2 | pending | 0 | | | | |
 | P3 | pending | 0 | | | | |
