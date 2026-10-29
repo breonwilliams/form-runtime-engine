@@ -172,3 +172,21 @@
 In every option, P6's adjust/reset control lets the owner correct the number, and deleting the form itself removes its count (a re-created form is a new form, seeded under Q-001(a)) unless you say otherwise.
 
 **Answer:** Option 3. Human, 2026-10-29T17:49:31Z, chose "Keep counting (3)", whose text reads: "Q-010: option 3. Once a form has had a cap, keep counting accepted submissions even while the cap is off, so a restored cap is exact and a cap-less save never erases the count. Deleting the form removes its count."
+
+## Q-011 · P4 · Two locked tests pin the old before-open wording
+
+**Status:** open
+**Raised by:** worker, 2026-10-29T18:28:57Z
+
+**Question:** Your A-003 change (name the timezone in the default "This form opens on …" message) cannot be made without changing two tests written in P1, and the verification guard locks committed tests. How should those two tests change?
+
+**Why it blocks:** Both assert the old sentence exactly — `tests/Unit/FormAvailabilityTest.php:484` and `tests/Integration/FormAvailabilityTimezoneTest.php:52` expect `'This form opens on March 15, 2027 at 9:00 am.'` with `assertSame`. Any zone label makes them fail. Workers cannot edit committed tests and neither can the orchestrator; only you can unlock the verification layer (a turn whose first line you type by hand as exactly `UNLOCK-VERIFICATION`, or your own edit followed by the re-baseline script in `.claude/hooks/` run in your own terminal). The rest of P4 (closed-form rendering, the stale-page JS) is built, green and parked on `orchestrator/P4-attempt-1`.
+
+**Options seen:**
+1. **Loosen the two assertions so they hold before and after the change** — assert the message starts with "This form opens on March 15, 2027 at 9:00 am" instead of equalling the whole sentence. The tree stays green at every step; the retry worker then adds the zone label and new tests that pin the exact new text (New York winter and summer, an offset-only site). Cost: those two P1 tests stop pinning the trailing text; the new P4 tests take that over.
+2. **Change the two assertions to the exact new text** ("… at 9:00 am NZDT." for Auckland). Strictest. Cost: the tests are red until the message changes, so tests and code have to land in the same unlocked turn — the main session would write product code, outside the orchestrator's role, at your instruction.
+3. **Withdraw A-003.** No test change. Cost: the before-open time stays without a zone, the ambiguity you objected to.
+
+Whichever you choose, the test edit has to be made by you or in a turn you unlock, and it is recorded as an amendment.
+
+**Answer:** _(unanswered)_

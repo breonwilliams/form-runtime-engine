@@ -1,9 +1,9 @@
 # Orchestrator state
 
-Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T18:24:33Z
-Last green commit: b289ba9
-Next action: Run 3. P4 attempt 1 is with the phase-worker.
+Run status: HALTED: QUESTION   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
+Updated: 2026-10-29T18:28:57Z
+Last green commit: 709e712
+Next action: Human answers Q-011 (two locked P1 tests pin the old before-open wording). The test change is then made by the human, or in a turn the human unlocks, with the baseline moved to match; then P4 is retried from the parked work on `orchestrator/P4-attempt-1`, then P5–P6.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -11,7 +11,7 @@ Next action: Run 3. P4 attempt 1 is with the phase-worker.
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
 | P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | b289ba9 |
-| P4 | in_progress | 1 | 6e9c13f | | | |
+| P4 | needs_decision | 0 | 6e9c13f | | | |
 | P5 | pending | 0 | | | | |
 | P6 | pending | 0 | | | | |
 
@@ -60,3 +60,5 @@ Next action: Run 3. P4 attempt 1 is with the phase-worker.
 - P2 attempt 1 (2026-10-29T17:23:34Z): worker DONE, gate exit 0 (Unit 549, Integration 116 / 3 skipped), reviewer ESCALATE on a guessed decision — removing and re-adding a cap restarts the count from stored entries, which Q-001 does not settle. The orchestrator had waved the worker's question through as covered by Q-001(a); the reviewer was right to dispute it. Attempt escalated, not counted (Attempts back to 0). Work parked on `orchestrator/P2-attempt-1` (0e07366): reusable once Q-010 is answered. Retry must also fix the reviewer's minor finding: the lazy-row race test does not interleave inside the lazy path (a mutant survives).
 - P3 attempt 1 (2026-10-29T18:16:53Z): failed — worker hit its 60-turn limit before reporting. Partial tree was green (Integration 154). Parked on `orchestrator/P3-attempt-1` (e606cd5). Attempt 2 starts from it.
 - P3 attempt 2: DONE, gate exit 0, reviewer APPROVE (A-005). For P4: AJAX refusal is `{success:false, data:{code:'form_closed', message, reason}}`, reason ∈ not_yet_open / closed_date / cap_reached / invalid_settings. For P5: document `pforms_form_full( $form_id, $entry_id, $cap, $form_config )` and the replica caveat.
+- P4 attempt 1 (2026-10-29T18:28:57Z): worker NEEDS_DECISION — A-003 blocked by two protected exact-string tests from P1 (FormAvailabilityTest.php:484, FormAvailabilityTimezoneTest.php:52). Render + JS work green (worker's gate: Integration 161 / 781) and parked on `orchestrator/P4-attempt-1` (e8d70c3). Escalated, not counted. Raised as Q-011. Retry must also put two worker deviations to cold review: a neutral closed-message style; no focus move on a page-load closed render.
+- Orchestrator note: the guard pattern-matches Bash text, so any Bash command whose text names the baseline ref or the re-baseline script is refused even when it only writes a log. State files are written with the Edit/Write tools.
