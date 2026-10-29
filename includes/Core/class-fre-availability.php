@@ -147,13 +147,7 @@ class PForms_Availability {
             // Only reachable by a PHP-registered config: both save paths
             // refuse these values. Fail closed rather than guess, so a typo
             // can never open a form to everyone.
-            PForms_Logger::error(
-                'Form availability settings are invalid; the form is treated as closed.',
-                array(
-                    'form_id' => $form_id,
-                    'errors'  => self::validate( $availability ),
-                )
-            );
+            self::log_invalid_once( $form_id, $availability );
             $result['open']    = false;
             $result['reason']  = self::REASON_INVALID_SETTINGS;
             $result['message'] = self::closed_message( $availability );
@@ -202,6 +196,44 @@ class PForms_Availability {
         $filtered = apply_filters( 'pforms_form_availability', $result, $config, $context );
 
         return self::normalize_result( $filtered, $result );
+    }
+
+    /**
+     * The refusal for a submission whose place claim was refused: the form is
+     * full, whatever an earlier check() said.
+     *
+     * check() is a read and can be stale (another request took the last place
+     * since); the atomic claim in PForms_Place_Counter is what holds the cap.
+     * When the claim says no, this builds the same decision check() gives a
+     * full form, so the visitor sees the form's closed message. Deliberately
+     * NOT filtered: the claim, not a filter, has the last word on the count.
+     *
+     * @param array $form_config Form configuration.
+     * @param array $base        The check() result the claim was attempted under.
+     * @return array A closed decision with reason cap_reached.
+     */
+    public static function full( array $form_config, array $base = array() ) {
+        $availability = isset( $form_config['settings']['availability'] ) ? $form_config['settings']['availability'] : null;
+
+        $result            = array_merge(
+            array(
+                'form_id'   => '',
+                'opens_at'  => null,
+                'closes_at' => null,
+                'cap'       => null,
+                'count'     => 0,
+                'now'       => time(),
+            ),
+            $base
+        );
+        $result['open']    = false;
+        $result['reason']  = self::REASON_CAP_REACHED;
+        $result['message'] = self::closed_message( $availability );
+        if ( null !== $result['cap'] ) {
+            $result['count'] = (int) $result['cap'];
+        }
+
+        return $result;
     }
 
     /**
@@ -286,6 +318,40 @@ class PForms_Availability {
         }
 
         return $errors;
+    }
+
+    /**
+     * Forms whose invalid settings were already logged in this request.
+     *
+     * @var array<string,bool>
+     */
+    private static $logged_invalid = array();
+
+    /**
+     * Log a form's invalid settings once per request per form.
+     *
+     * check() runs on every submission and every render, so an invalid
+     * PHP-registered config would otherwise write the same error each time
+     * it is asked about within one request.
+     *
+     * @param string $form_id      Form ID ('' when unknown).
+     * @param mixed  $availability The invalid settings.availability value.
+     * @return void
+     */
+    private static function log_invalid_once( $form_id, $availability ) {
+        $key = $form_id . '|' . md5( serialize( $availability ) );  // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- a cache key, never unserialized.
+        if ( isset( self::$logged_invalid[ $key ] ) ) {
+            return;
+        }
+        self::$logged_invalid[ $key ] = true;
+
+        PForms_Logger::error(
+            'Form availability settings are invalid; the form is treated as closed.',
+            array(
+                'form_id' => $form_id,
+                'errors'  => self::validate( $availability ),
+            )
+        );
     }
 
     /**

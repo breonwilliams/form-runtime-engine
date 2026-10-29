@@ -46,9 +46,11 @@
  * exactly one changes the row, the other affects 0 rows and is refused. There
  * is no separate read whose answer could go stale before the write.
  *
- * Who calls what: the submission handler calls claim() for EVERY accepted
- * submission, capped or not, before it stores it, and release() if storing
- * then fails (P3); never for a honeypot/spam submission or a dry run. An admin
+ * Who calls what: the submission handler counts EVERY accepted submission,
+ * capped or not, before it stores it — take() on a capped form (so it knows
+ * whether it took the last place), claim() with a null cap otherwise — and
+ * calls release() if storing then fails; never for a honeypot/spam
+ * submission or a dry run. An admin
  * control adjusts the count with set() (P6). PForms_Availability::check()
  * reads it with get().
  *
@@ -173,13 +175,33 @@ class PForms_Place_Counter {
             return true;
         }
 
+        return false !== $this->take( $form_id, $cap );
+    }
+
+    /**
+     * Take a place on a capped form and report the count this claim made.
+     *
+     * The same atomic claim as claim() with a cap, but it answers "which
+     * place did I get?" as well as "did I get one?" — so the submission that
+     * takes the LAST place (the returned count equals the cap) is known
+     * exactly, even when other requests claim in between (P3's
+     * `pforms_form_full` action). The number comes from the claim's own
+     * UPDATE through MySQL's per-connection LAST_INSERT_ID(expr), never from
+     * a separate read that another request's claim could change.
+     *
+     * @param string $form_id Form ID.
+     * @param int    $cap     The form's max_entries.
+     * @return int|false The count after this claim, or false if refused.
+     */
+    public function take( $form_id, $cap ) {
         $cap = (int) $cap;
         if ( $cap <= 0 ) {
             return false;
         }
 
-        if ( $this->increment_below( $form_id, $cap ) ) {
-            return true;
+        $taken = $this->increment_below( $form_id, $cap );
+        if ( false !== $taken ) {
+            return $taken;
         }
 
         // 0 rows: either the form is full, or it has no count row yet (a
@@ -304,20 +326,29 @@ class PForms_Place_Counter {
     /**
      * The atomic check-and-claim.
      *
+     * LAST_INSERT_ID(expr) both writes the new count and remembers it for
+     * this connection only, so the follow-up SELECT reports this statement's
+     * result, not a later claim's. It is read only when the UPDATE changed
+     * the row (a 0-row UPDATE leaves an older value behind).
+     *
      * @param string $form_id Form ID.
      * @param int    $cap     Cap, > 0.
-     * @return bool True if this statement took a place.
+     * @return int|false The count after this statement took a place, or false.
      */
     private function increment_below( $form_id, $cap ) {
         $changed = $this->db->query( $this->db->prepare(
             "UPDATE {$this->db->options}
-                SET option_value = CAST( option_value AS UNSIGNED ) + 1
+                SET option_value = LAST_INSERT_ID( CAST( option_value AS UNSIGNED ) + 1 )
               WHERE option_name = %s AND CAST( option_value AS UNSIGNED ) < %d",
             self::option_name( $form_id ),
             $cap
         ) );
 
-        return 1 === (int) $changed;
+        if ( 1 !== (int) $changed ) {
+            return false;
+        }
+
+        return (int) $this->db->get_var( 'SELECT LAST_INSERT_ID()' );
     }
 
     /**

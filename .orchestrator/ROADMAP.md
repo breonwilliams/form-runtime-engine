@@ -224,3 +224,4 @@ where they would plug in later).
 - P1: setting names, the decision point's signature/reasons and five edge rules, as built (A-002)
 - P4: the default before-open message names the site timezone (Q-009 answer) (A-003)
 - P2: count storage, seeding hooks, opt-in uninstall, claim(null) for Q-010, declared PHP-form gap (A-004)
+- P3: take() returns its own count for pforms_form_full; availability checked before spam, so a honeypot hit on a closed form gets the closed message (A-005)

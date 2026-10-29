@@ -1,16 +1,16 @@
 # Orchestrator state
 
 Run status: RUNNING   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T18:16:53Z
-Last green commit: ef46c13
-Next action: Run 3. P3 attempt 2 is with the phase-worker, starting from the parked attempt-1 work.
+Updated: 2026-10-29T18:23:55Z
+Last green commit: (P3 commit — recorded below)
+Next action: Run 3. P3 done; start P4 attempt 1.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
 | P0 | done | 1 | 2a859bb | pass (exit 0) | APPROVE | 1b0c77d |
 | P1 | done | 1 | 30340a6 | pass (exit 0) | APPROVE | d2cb13f |
 | P2 | done | 1 | 1464b25 | pass (exit 0) | APPROVE | ef46c13 |
-| P3 | in_progress | 2 | 168fef3 | | | |
+| P3 | done | 2 | 168fef3 | pass (exit 0) | APPROVE | (pending) |
 | P4 | pending | 0 | | | | |
 | P5 | pending | 0 | | | | |
 | P6 | pending | 0 | | | | |
@@ -27,11 +27,13 @@ Next action: Run 3. P3 attempt 2 is with the phase-worker, starting from the par
 - Run 2 baseline 30340a6: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:46:04Z (same counts).
 - P1 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T16:56:40Z (Unit 546 tests / 1459 assertions; Integration 99 tests / 242 assertions / 3 skipped). The new tests pass and nothing regressed; it does not by itself prove the tests test the right thing (see reviewer judgment).
 - P2 retry working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T17:55:35Z (Unit 549 / 1473; Integration 121 / 396 / 3 skipped). Includes the two-connection race tests against Local's real MySQL/InnoDB.
+- P3 attempt 2 working tree: `.claude/hooks/verify.sh run` exit 0 at 2026-10-29T18:19:28Z (Unit 549 / 1473; Integration 154 / 740 / 3 skipped), existing duplicate/idempotency tests unedited and green.
 
 **Reviewer judgment** (a model read the code; not proof):
 - P0: the release ZIP no longer contains `.orchestrator/`; the file list is otherwise identical to a b3579ee build (119 vs 119, empty names-only diff); the old script did ship 6 `.orchestrator` entries, so the fix is not vacuous. Reproduced independently by the reviewer in scratch copies; the worker's own build showed the same.
 - P1: every done-state criterion met. The reviewer mutated a scratch copy to check the tests can fail for the reason they name: comparing in UTC or in server time fails 7 tests each; 0-as-unlimited fails 3; removing the filter fails both filter tests; disabling the save-time validator fails the admin and both connector path tests; Q-007 boundary mutations fail 2/5/4 tests. Both "save path" tests go through the real `save_form` and connector handlers.
 - P2: every criterion and the Q-010 behaviour met. Two independent reviewers reproduced the naive count-then-insert failure themselves; the retry reviewer also killed mutants for the overwriting seed (4 failures), claim(null) as a no-op (3), deleting the count on a cap-less save (3), a no-op form-delete hook (1) and a missing release floor (risky = fail).
+- P3: every criterion met on both paths. A positive-control test proves the "no side effect" spies move on an accepted submission. Reviewer mutants: dropping the release from send_error → 3 failures; moving the availability check after validation → 1 failure + 2 errors. Reviewer's own two-connection test showed take()'s LAST_INSERT_ID identifies only the true last-place request.
 
 **Not verified:**
 - Plugin Check on the new ZIP was not run (not in P0's done-state; it is a release gate).
@@ -40,7 +42,8 @@ Next action: Run 3. P3 attempt 2 is with the phase-worker, starting from the par
 - P1: nothing enforces availability yet. `check()` has no production callers until P3/P4; the cap uses a stubbed count of 0 until P2.
 - P1: PHP 7.4/8.2 — new files lint clean on Local's 7.4.1 (worker and reviewer, by hand); the Unit suite has not run on 7.4/8.2 (CI after push).
 - P2: the race tests interleave at statement level on two connections; InnoDB row-lock waiting and real concurrent PHP-FPM requests are not exercised (human curl check, roadmap item 1).
-- P2: nothing claims places yet; the handler wiring (claim before store, release on failure, never on spam/dry run) is P3.
+- P3 (reviewer minor findings, not fixed): on a site with a read/write-splitting db drop-in (HyperDB/LudicrousDB without send-reads-to-master) `SELECT LAST_INSERT_ID()` could hit a replica, so `pforms_form_full` may silently not fire (the cap itself holds); a throwing third-party `pforms_entry_created` listener leaves the entry stored but its place released (count one low); a PHP `\Error` between take and keep leaks one place (request dies there).
+- P3: the stale-cached-page front-end and FlowMint not starting a run are not exercised end to end (no JS tests; FlowMint not in the gate — human checks 2 and 4).
 - P2: declared gap — a PHP-registered form whose cap is removed in code before its first submission keeps no count while uncapped, and PHP forms are seeded at their first capped claim, not at cap-add (A-004).
 
 ## Notes
@@ -56,3 +59,4 @@ Next action: Run 3. P3 attempt 2 is with the phase-worker, starting from the par
 - Run 3 started 2026-10-29T17:07:36Z: P2–P6 with no phase cap, at the human's request. Baseline b82c9f2 green (Unit 546, Integration 99 / 3 skipped).
 - P2 attempt 1 (2026-10-29T17:23:34Z): worker DONE, gate exit 0 (Unit 549, Integration 116 / 3 skipped), reviewer ESCALATE on a guessed decision — removing and re-adding a cap restarts the count from stored entries, which Q-001 does not settle. The orchestrator had waved the worker's question through as covered by Q-001(a); the reviewer was right to dispute it. Attempt escalated, not counted (Attempts back to 0). Work parked on `orchestrator/P2-attempt-1` (0e07366): reusable once Q-010 is answered. Retry must also fix the reviewer's minor finding: the lazy-row race test does not interleave inside the lazy path (a mutant survives).
 - P3 attempt 1 (2026-10-29T18:16:53Z): failed — worker hit its 60-turn limit before reporting. Partial tree was green (Integration 154). Parked on `orchestrator/P3-attempt-1` (e606cd5). Attempt 2 starts from it.
+- P3 attempt 2: DONE, gate exit 0, reviewer APPROVE (A-005). For P4: AJAX refusal is `{success:false, data:{code:'form_closed', message, reason}}`, reason ∈ not_yet_open / closed_date / cap_reached / invalid_settings. For P5: document `pforms_form_full( $form_id, $entry_id, $cap, $form_config )` and the replica caveat.
