@@ -3,7 +3,7 @@ Contributors: promptlesswp
 Tags: forms, contact-form, form-builder, webhook, lightweight
 Requires at least: 5.6
 Tested up to: 7.1
-Stable tag: 1.12.3
+Stable tag: 1.13.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -94,6 +94,14 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 
 == Changelog ==
 
+= 1.13.0 =
+* Added: open and close dates and an entry limit per form ("availability" in the form's settings), with your own closed message and a message shown before the form opens. Dates use the site timezone; a date without a time closes at the end of that day.
+* Added: the rules are enforced on the server when a form is submitted, so a page cached while the form was open still gets the closed message and nothing is saved. A closed form shows its message instead of the form.
+* Added: the entry limit holds when several people submit at once. Spam never takes a place and deleting entries never frees one.
+* Added: the Forms list shows each form's status (open, or closed and why, with places taken), with an Adjust count control to correct or reset a form's count.
+* Added: the AI connector can set, change and read these rules, and refuses test submissions to closed forms.
+* Fixed: the AI connector's test submit now returns which fields failed validation.
+
 = 1.12.3 =
 * Fixed: a clear, high-contrast focus outline on every field, including fields showing an error, in the site's brand colour (or the text colour when that is too light).
 * Fixed: on a multi-step form's last step, Submit now lines up with Previous.
@@ -131,6 +139,9 @@ The Connector exposes a REST API allowing AI agents (such as Anthropic's Claude 
 * Fixed: Twilio missed-call leads now reach the form's webhook.
 
 == Upgrade Notice ==
+
+= 1.13.0 =
+Adds an open date, a close date and an entry limit per form, with your own closed message, enforced on the server even for cached pages. The Forms list gains a Status column. Existing forms and entries are unchanged.
 
 = 1.12.3 =
 A successful submit now replaces the form with its confirmation (opt out per form with "after_submit": "reset"), plus clearer focus outlines, branded controls and emails, and entries listed by sender.

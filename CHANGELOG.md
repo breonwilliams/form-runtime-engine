@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-31
+
+Form availability rules: an open date, a close date and an entry cap per
+form, with the messages visitors see when a form is not accepting entries.
+
+### Added
+
+- **`settings.availability`** with five keys: `opens_at` and `closes_at`
+  (`"YYYY-MM-DD"` or `"YYYY-MM-DD HH:MM"` in the site timezone; a bare close
+  date stays open to the end of that day), `max_entries` (whole number;
+  absent or `null` means unlimited, `0` means closed), `closed_message` and
+  `before_open_message`. Bad values, unknown keys and a close date at or
+  before the open date are refused when the form is saved, in the admin and
+  through the connector, with the same message.
+- **Enforced on the server at submission**, on the browser path and the
+  connector's, before anything is stored, emailed, sent to a webhook or
+  handed to `pforms_submission_complete`. A page cached while the form was
+  open still gets the closed answer, and the visitor sees the closed message
+  in place of the form. A closed form renders its message instead of the
+  form. The default before-open message names the site timezone ("This form
+  opens on March 15, 2027 at 9:00 am EDT.").
+- **The cap holds under simultaneous submissions.** Places are taken with
+  one atomic database statement, never the options or object-cache APIs, and
+  a submission that fails after taking a place gives it back. The count is
+  kept apart from the entry rows: spam never takes a place, deleting entries
+  (by hand, through the connector or by a FlowMint retention workflow) never
+  gives one back, it works with `store_entries` off, a cap added to a form
+  that already has entries starts at its non-spam entries, and a form that
+  has had a cap keeps counting while the cap is off. Deleting the form
+  removes its count.
+- **Forms list: a Status column** (open, or closed and why, the dates in the
+  site timezone, and places taken against the cap) and an **Adjust count**
+  control to set or reset a form's count. It needs `pforms_manage_forms` and
+  a valid nonce.
+- **Connector:** `formengine_get_form` and `formengine_list_forms` return
+  each form's `availability` (open, reason, message, dates, timezone, cap,
+  count). `formengine_test_submit` on a closed form is refused with
+  `form_closed`, dry runs included, and a dry run never takes a place. The
+  rulebook, `docs/form-schema.json`, `docs/CONNECTOR_SPEC.md` and the relay
+  tool descriptions document the settings; note that an update replacing
+  `config` without the availability block removes the rules (the count is
+  kept).
+- Filter **`pforms_form_availability`** (`$result, $config, $context`) on
+  the single decision point, `PForms_Availability::check()`, to open or close
+  a form with your own reason and message.
+- Action **`pforms_form_full`** (`$form_id, $entry_id, $cap, $form_config`),
+  fired once on the submission that takes a form's last place, after its
+  entry is stored. Nothing fires when a form closes by date.
+
+### Changed
+
+- A submission refused because the form is closed no longer reaches
+  `pforms_entry_created` or `pforms_submission_complete`, so no webhook,
+  email or workflow runs for it. Every other hook, the entry tables and the
+  webhook payload are unchanged.
+
+### Fixed
+
+- The connector's submit endpoint replaced an error's data with just its
+  HTTP status, so `validation_failed` lost its `field_errors` (which
+  `docs/CONNECTOR_SPEC.md` already promised). The data is now kept.
+- A date-time that does not exist in the site timezone (inside a daylight
+  saving "clocks forward" gap) is refused with a message saying so, instead
+  of the generic date-format message.
+
 ## [1.12.3] - 2026-10-21
 
 Fixes from the Promptless Forms video dry run (Sparrowmere, 2026-10).
