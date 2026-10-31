@@ -10,7 +10,7 @@ A lightweight WordPress form engine that renders forms from configuration arrays
 > | Actions/filters | `pforms_*` | `pforms_init`, `pforms_submission_complete`, `pforms_webhook_payload`, `pforms_mime_map` |
 > | Global functions | `pforms_*` / `pforms()` | `pforms_register_form()`, `pforms_get_form()`, `pforms()->registry` |
 > | Shortcodes | `pforms_form` / `promptless_form` | `[pforms_form id="contact"]` (`[fre_form]` and `[client_form]` are retired — the latter removed in 1.6.5 per WP.org review) |
-> | Constants / main class | `PForms_*` / `Promptless_Forms` | `PForms_VERSION` (1.8.1), `PForms_DB_VERSION` (1.2.0); `class_alias` keeps `Form_Runtime_Engine` working |
+> | Constants / main class | `PForms_*` / `Promptless_Forms` | `PForms_VERSION` (1.13.0), `PForms_DB_VERSION` (1.2.0); `class_alias` keeps `Form_Runtime_Engine` working |
 > | Capability | `pforms_manage_forms` | via `PForms_Capabilities::MANAGE_FORMS` |
 > | **Kept `fre` (do NOT rename)** | — | DB tables `{prefix}fre_entries` / `fre_entry_meta` / `fre_entry_files` / `fre_webhook_log`, upload dir `fre-uploads/`, REST namespace `fre/v1`, webhook header `X-FRE-Signature`, CSS classes `.fre-form*`, PHP filenames `class-fre-*.php` (classes inside are `PForms_*`) |
 
@@ -963,11 +963,11 @@ For complete ready-to-use form examples (JSON and PHP), see **`docs/CLAUDE.md`**
 - Condition operators: `equals`, `not_equals`, `contains`, `not_contains`, `is_empty`, `is_not_empty`, `is_checked`, `is_not_checked`, `greater_than`, `less_than`, `>=`, `<=`, `in`, `not_in`
 - Multiple rules with `'logic' => 'or'` (default: `'and'`)
 
-## Test Suite — GREEN, both suites (measured 2026-10-29, 1.12.3)
+## Test Suite — GREEN, both suites (measured 2026-10-31, 1.13.0)
 
 ```
-Unit:         OK (484 tests, 1254 assertions)
-Integration:  97 tests, 231 assertions, 0 failures, 3 skipped
+Unit:         OK (556 tests, 1517 assertions)
+Integration:  192 tests, 1044 assertions, 0 failures, 3 skipped
 ```
 
 The 3 skips are `MultisiteProvisioningTest`, which runs only with

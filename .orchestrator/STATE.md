@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: DONE   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-29T20:47:15Z
+Updated: 2026-10-31T14:15:06Z
 Last green commit: 4682894
-Next action: Run complete; PR #28 open. Post-run checks recorded below ("Post-run checks"). Merge blockers from the post-run checks are cleared (5b fixed in daf499f; 5c done). Still open: the relay (blocked: every Promptless relay targets a live site), the Promptless WP roadmap update, confirming `hc-relay` was deleted from 725printlab.com.
+Next action: None — the run is finished and **released as Promptless Forms 1.13.0** (2026-10-31): PR #28 merged as 29878eb, release commit 261bf70, tag `v1.13.0`, WordPress.org SVN r3776937, GitHub release "Promptless Forms v1.13.0"; the WordPress.org download and the GitHub asset were diffed identical. Still open outside this repo: the relay update (blocked until 725printlab.com runs 1.13.0 — every Promptless relay targets it), confirming `hc-relay` was deleted from 725printlab.com, docs PR breonwilliams/promptlesswp-documentation#26 and roadmap PR breonwilliams/ai-section-builder-modern#93 (awaiting review). The tables below are the run's history as of 2026-10-29.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
