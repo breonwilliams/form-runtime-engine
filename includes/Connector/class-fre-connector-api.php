@@ -390,7 +390,7 @@ class PForms_Connector_API {
         return array(
             'read_first' => sprintf(
                 /* translators: %s: URL of the FRE markdown rulebook */
-                'This list is a summary. The AUTHORITATIVE and COMPREHENSIVE rulebook is the markdown document at %s. Fetch it (WebFetch the URL) and read it before creating or updating any form. It covers every field type, universal field properties, the column layout system, conditional visibility, multi-step forms, settings (notifications, webhooks, theme_variant), and the drift patterns that cause silent failures.',
+                'This list is a summary. The AUTHORITATIVE and COMPREHENSIVE rulebook is the markdown document at %s. Fetch it (WebFetch the URL) and read it before creating or updating any form. It covers every field type, universal field properties, the column layout system, conditional visibility, multi-step forms, settings (notifications, webhooks, theme_variant, availability: open/close dates and entry caps), and the drift patterns that cause silent failures.',
                 $schema_reference_url
             ),
 
@@ -406,6 +406,8 @@ class PForms_Connector_API {
                 'managed_by_immutable' => 'Forms created via this connector are tagged managed_by = "connector:cowork" at create time. This origin tag is IMMUTABLE — PATCH requests cannot change it. Use the managed_by filter on formengine_list_forms to avoid modifying admin-authored forms.',
                 'entry_read_gate' => 'formengine_list_entries and formengine_get_entry require the site administrator to have explicitly enabled entry-read access on the Form Entries → Connector admin page. Without it, these endpoints return 403 entry_access_disabled. Preflight reports the current state in `entry_read_enabled`.',
                 'test_submit_dry_run' => 'formengine_test_submit writes a real entry and may dispatch webhooks / send notifications by default. Pass options.dry_run = true to validate-only without any side effects. Pass options.skip_notifications = true to write a real entry (e.g. for webhook testing) but suppress the email.',
+                'availability_survives_update_only_if_sent' => 'formengine_update_form REPLACES config wholesale. An update whose config leaves out settings.availability REMOVES the form\'s open date, close date, entry cap and messages: the form is then always open and unlimited. Before updating a form, read it (formengine_get_form) and send its full settings.availability block back unchanged unless you mean to change it. Removing the cap this way never erases the place count: the form keeps counting, and a restored cap resumes from the count.',
+                'closed_forms_refuse_test_submit' => 'A form that is not accepting submissions (before opens_at, from closes_at, or with its cap reached) refuses formengine_test_submit — dry runs AND real ones — with error code form_closed, the visitor-facing message, and data {form_id, reason, opens_at, closes_at} (reason is not_yet_open, closed_date, cap_reached or invalid_settings; the dates are unix timestamps). A dry run never takes or holds a place. A NON-dry-run test submit on a capped form takes a place exactly like a real visitor\'s entry, and deleting that entry does not give it back — on capped forms use options.dry_run = true.',
                 'form_surface_options' => 'A form can render as a flat element on its parent section background (default) OR as a card with its own surface, border, and padding. Two routes: (1) FORM-LEVEL — set settings.appearance.surface = "card" to wrap the whole form in a token-aware card; preferred for simple single-surface forms. (2) FIELD-LEVEL — use one or more fields of type "section" to wrap grouped fields in cards; use when a form needs multiple grouped regions (e.g. a "Contact info" card above a "Message" card in the same form). When settings.appearance.surface = "card" is set, inner section cards are flattened automatically to avoid nested-card artifacts. Both routes inherit colors from the parent AISB section\'s theme variant. Vocabulary: "card", "surface", "wrapper", "container around the form" all refer to this feature.',
                 'honeypot_field_name_dynamic' => 'The spam-protection honeypot field name is NOT static. When a form is rendered, FRE generates a per-form honeypot name of the form `_pforms_hp_<hmac-suffix>` (before 1.11.0: `_pforms_website_url_<hmac-suffix>`, still recognised on cached pages). Never hard-code that field into a test submission — the server rejects any submission that fills it. formengine_test_submit handles this correctly when called via the connector; the warning is for any direct REST consumers that might imitate form posts.',
                 'min_submission_time_enforcement' => 'settings.spam_protection.min_submission_time defaults to 3 seconds. A BROWSER submission posted sooner after the form loaded is refused, and the visitor sees "Please wait a moment before submitting." formengine_test_submit is not affected: programmatic submissions skip the honeypot and timing checks, so no delay is needed after creating a form.',
@@ -496,6 +498,7 @@ class PForms_Connector_API {
                 'spam_protection'   => 'settings.spam_protection.honeypot and .timing_check default to true. settings.spam_protection.min_submission_time defaults to 3 seconds — a browser submission sooner than that is refused with "Please wait a moment before submitting." (the honeypot is the silent one: it shows the normal success message and stores nothing). The same content sent again within 60 seconds shows the success message only when the first copy was actually received; while the first copy is still being processed the visitor is asked to wait and try again. Rate limit default: 5 submissions per 3600 seconds (1 hour) per IP. The honeypot field name is dynamically generated per form (see critical_rules.honeypot_field_name_dynamic).',
                 'multistep'         => 'settings.multistep.progress_style: "steps" (default) | "bar" | "dots". settings.multistep.show_progress (default true) and .show_step_titles (default false) and .validate_on_next (default true) are also available. Only meaningful when a `steps` array is defined.',
                 'success_behavior'  => 'Set settings.redirect_url for post-submit redirect, or settings.success_message for inline confirmation (default: "Thank you for your submission."). settings.after_submit decides what the visitor sees after a successful submit: "confirmation" (default; omit it) replaces the form with the success message and moves focus to it, so nobody mistakes an emptied form for a failed send; "reset" shows the message above the emptied form, ONLY for forms meant to be filled again in one visit (a newsletter strip, a sign-in sheet). Any other value is refused at save. In a Promptless WP popup either works with close_on_submit: the popup closes after its delay once the success message appears.',
+                'availability'      => 'settings.availability limits WHEN and HOW MANY submissions a form accepts. Use it whenever the user mentions a deadline, a registration window, an open/launch date, limited spots, seats, places, a first-N offer or "close the form after N entries". Keys (all optional; leave a key out, or set it to JSON null, for "not set"): opens_at and closes_at — "YYYY-MM-DD" or "YYYY-MM-DD HH:MM", wall-clock time in the SITE timezone (not UTC); a bare opens_at date opens at 00:00, a bare closes_at date closes at the END of that day (23:59:59 is the last open second); "HH:MM" on closes_at is the first closed minute; closes_at must be after opens_at. max_entries — a whole number of 0 or more; leaving it out (or null) means UNLIMITED, 0 means no places (closed); any other value (a string such as "unlimited", a decimal, a negative) is refused at save. closed_message — what a visitor sees once the form has closed by date or is full (default "This form is no longer accepting submissions."). before_open_message — what a visitor sees before opens_at (default names the opening date and time in the site timezone, e.g. "This form opens on March 15, 2027 at 9:00 am EDT."). Unknown keys and empty strings inside the block are refused at save. A local time skipped by a daylight-saving clock change (e.g. "2027-03-14 02:30" in America/Los_Angeles) is refused with a message saying so. To clear all rules (always open, unlimited), save the config without settings.availability. COUNTING: max_entries counts accepted submissions, not stored entry rows. Spam never takes a place; deleting entries (admin, formengine_delete_entry, retention) NEVER gives a place back; the cap works with store_entries off; when a cap is first added to a form that already has entries, the count starts at its stored non-spam entries; marking a spam entry "not spam" takes no place. Once a form has had a cap it keeps counting while the cap is off; deleting the form removes the count. In wp-admin, the Status column of the Forms list (Form Entries → Forms) has an Adjust count control that sets the count of a capped form (or of a form which has had a cap) to any whole number of 0 or more, or resets it to 0; there is no connector tool for it. A closed form renders its message instead of the form; there is no "N places left" display. When the last place is taken, the action pforms_form_full fires once (nothing fires for a date closure). READ-BACK: formengine_get_form and formengine_list_forms return an `availability` object per form: {open, reason, message, opens_at, closes_at, opens_at_iso, closes_at_iso, timezone, max_entries, count} — reason is open | not_yet_open | closed_date | cap_reached | invalid_settings. Create and update responses do not include it: after any create/update that touches these rules, call formengine_get_form and check it.',
                 'presentation_flags' => 'settings.show_title (default false) — show form title above the form. settings.css_class — custom CSS class on the <form> element, applied alongside the built-in fre-form--* modifiers.',
             ),
         );
@@ -671,7 +674,7 @@ class PForms_Connector_API {
         $total   = count( $all );
         $offset  = ( $page - 1 ) * $per_page;
         $slice   = array_slice( array_values( $all ), $offset, $per_page );
-        $records = array_map( array( $this, 'build_form_response' ), $slice );
+        $records = array_map( array( $this, 'build_form_response_with_availability' ), $slice );
 
         return $this->collection( $records, array(
             'total'    => $total,
@@ -695,7 +698,7 @@ class PForms_Connector_API {
             return $this->not_found_form( $form_id );
         }
 
-        return $this->success( $this->build_form_response( $record ) );
+        return $this->success( $this->build_form_response_with_availability( $record ) );
     }
 
     /**
@@ -857,7 +860,11 @@ class PForms_Connector_API {
                 $result->add_data( array( 'status' => 400 ) );
             } elseif ( ! isset( $data['status'] ) ) {
                 // Validator returns a generic code; assume 400 unless otherwise set.
-                $result->add_data( array( 'status' => 400 ) );
+                // Merge rather than replace: add_data() swaps the data out, and a
+                // form_closed refusal's {form_id, reason, opens_at, closes_at}
+                // and a validation_failed refusal's field_errors must reach the
+                // caller (CONNECTOR_SPEC.md §7 and §9.9).
+                $result->add_data( array_merge( is_array( $data ) ? $data : array(), array( 'status' => 400 ) ) );
             }
             return $result;
         }
@@ -1027,6 +1034,79 @@ class PForms_Connector_API {
             'created'           => (int) ( $record['created'] ?? 0 ),
             'modified'          => (int) ( $record['modified'] ?? 0 ),
             'shortcode'         => sprintf( '[pforms_form id="%s"]', $record['id'] ?? '' ),
+        );
+    }
+
+    /**
+     * A form record for API reads (get_form, list_forms): the record plus
+     * whether the form is accepting submissions right now.
+     *
+     * @param array $record Form record from the repository.
+     * @return array
+     */
+    private function build_form_response_with_availability( array $record ) {
+        $response                 = $this->build_form_response( $record );
+        $response['availability'] = self::build_availability_response( $record );
+        return $response;
+    }
+
+    /**
+     * The form's availability as the connector reports it.
+     *
+     * Decided by PForms_Availability::check() — the same decision the
+     * renderer and both submission paths use — against the saved config.
+     *
+     *   open         bool         Whether a submission now would be accepted.
+     *   reason       string       open | not_yet_open | closed_date | cap_reached
+     *                             | invalid_settings (or a pforms_form_availability
+     *                             filter's own).
+     *   message      string       What a visitor sees instead of the form ('' when open).
+     *   opens_at     string|null  As configured (site-timezone wall clock), null if unset.
+     *   closes_at    string|null  As configured, null if unset.
+     *   opens_at_iso string|null  First open moment, ISO 8601 with the site offset.
+     *   closes_at_iso string|null First CLOSED moment, ISO 8601 (a bare close date
+     *                             resolves to the next midnight).
+     *   timezone     string       The site timezone the dates are read in.
+     *   max_entries  int|null     The cap; null = unlimited.
+     *   count        int          Places taken (accepted submissions counted toward
+     *                             the cap). For a form that has never had a cap,
+     *                             the number a cap added now would start at.
+     *
+     * @param array $record Form record from the repository.
+     * @return array
+     */
+    public static function build_availability_response( array $record ) {
+        $form_id = (string) ( $record['id'] ?? '' );
+        $config  = isset( $record['config'] ) && is_string( $record['config'] ) ? json_decode( $record['config'], true ) : null;
+        $config  = is_array( $config ) ? $config : array();
+
+        $decision = PForms_Availability::check( $config, array( 'form_id' => $form_id ) );
+
+        $configured = isset( $config['settings']['availability'] ) && is_array( $config['settings']['availability'] )
+            ? $config['settings']['availability']
+            : array();
+
+        $timezone = wp_timezone();
+        $iso      = static function ( $timestamp ) use ( $timezone ) {
+            return null === $timestamp ? null : wp_date( 'c', (int) $timestamp, $timezone );
+        };
+
+        $cap   = isset( $decision['cap'] ) ? $decision['cap'] : null;
+        $count = null !== $cap
+            ? (int) $decision['count']
+            : ( '' === $form_id ? 0 : ( new PForms_Place_Counter() )->get( $form_id ) );
+
+        return array(
+            'open'          => (bool) $decision['open'],
+            'reason'        => (string) $decision['reason'],
+            'message'       => (string) $decision['message'],
+            'opens_at'      => isset( $configured['opens_at'] ) && is_string( $configured['opens_at'] ) ? $configured['opens_at'] : null,
+            'closes_at'     => isset( $configured['closes_at'] ) && is_string( $configured['closes_at'] ) ? $configured['closes_at'] : null,
+            'opens_at_iso'  => $iso( $decision['opens_at'] ),
+            'closes_at_iso' => $iso( $decision['closes_at'] ),
+            'timezone'      => $timezone->getName(),
+            'max_entries'   => null === $cap ? null : (int) $cap,
+            'count'         => (int) $count,
         );
     }
 

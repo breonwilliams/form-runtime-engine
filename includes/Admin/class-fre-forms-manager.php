@@ -164,6 +164,7 @@ class PForms_Forms_Manager {
                                 <th scope="col" class="column-form"><?php esc_html_e( 'Form', 'promptless-forms' ); ?></th>
                                 <th scope="col" class="column-shortcode"><?php esc_html_e( 'Shortcode', 'promptless-forms' ); ?></th>
                                 <th scope="col" class="column-entries"><?php esc_html_e( 'Entries', 'promptless-forms' ); ?></th>
+                                <th scope="col" class="column-availability"><?php esc_html_e( 'Status', 'promptless-forms' ); ?></th>
                                 <th scope="col" class="column-modified"><?php esc_html_e( 'Modified', 'promptless-forms' ); ?></th>
                             </tr>
                         </thead>
@@ -210,6 +211,12 @@ class PForms_Forms_Manager {
                                                 <span class="fre-count-unread"><?php echo (int) $counts['unread']; ?> <?php esc_html_e( 'new', 'promptless-forms' ); ?></span>
                                             <?php endif; ?>
                                         </a>
+                                    </td>
+                                    <td class="column-availability">
+                                        <?php
+                                        // Escaped inside render(): every dynamic value goes through esc_html / esc_attr.
+                                        echo PForms_Forms_Availability_Status::render( $form_id, $form ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                                        ?>
                                     </td>
                                     <td class="column-modified">
                                         <?php
@@ -707,6 +714,60 @@ class PForms_Forms_Manager {
         wp_send_json_success( array(
             'message' => __( 'Webhook secret regenerated. Update your endpoint to match.', 'promptless-forms' ),
             'secret'  => $result,
+        ) );
+    }
+
+    /**
+     * AJAX: Set a form's place count (the owner's adjust / reset control, Q-001).
+     *
+     * POST: action=pforms_set_place_count, nonce (pforms_admin_nonce),
+     * form_id, count (a whole number, 0 or more; 0 resets). Offered only for
+     * a stored form that has an entry cap or a count row (Q-010); a form that
+     * never had a cap has nothing to adjust, and setting one would make it
+     * start counting.
+     *
+     * Refusals: 403 without pforms_manage_forms; -1 / 403 without a valid
+     * nonce (check_ajax_referer); 400 for a missing form ID, a count that is
+     * not a whole number of 0 or more, or a form with nothing to count; 404
+     * for an unknown form; 500 when the write fails.
+     */
+    public static function ajax_set_place_count() {
+        if ( ! current_user_can( PForms_Capabilities::MANAGE_FORMS ) ) {
+            wp_send_json_error( array( 'message' => __( 'Unauthorized', 'promptless-forms' ) ), 403 );
+        }
+
+        check_ajax_referer( 'pforms_admin_nonce', 'nonce' );
+
+        $form_id = isset( $_POST['form_id'] ) ? sanitize_key( wp_unslash( $_POST['form_id'] ) ) : '';
+        $raw     = isset( $_POST['count'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['count'] ) ) ) : '';
+
+        if ( '' === $form_id ) {
+            wp_send_json_error( array( 'message' => __( 'Form ID is required.', 'promptless-forms' ) ), 400 );
+        }
+
+        $record = self::get_form( $form_id );
+        if ( ! $record ) {
+            wp_send_json_error( array( 'message' => __( 'Form not found.', 'promptless-forms' ) ), 404 );
+        }
+
+        // Digits only, at most 9 of them: no sign, decimals or overflow.
+        if ( 1 !== preg_match( '/^\d{1,9}$/', $raw ) ) {
+            wp_send_json_error( array( 'message' => __( 'Enter a whole number, 0 or more.', 'promptless-forms' ) ), 400 );
+        }
+
+        $status = PForms_Forms_Availability_Status::describe( $form_id, $record );
+        if ( ! $status['adjustable'] ) {
+            wp_send_json_error( array( 'message' => __( 'This form has no entry limit, so there is no count to adjust.', 'promptless-forms' ) ), 400 );
+        }
+
+        $counter = new PForms_Place_Counter();
+        if ( ! $counter->set( $form_id, (int) $raw ) ) {
+            wp_send_json_error( array( 'message' => __( 'The count could not be saved. Please try again.', 'promptless-forms' ) ), 500 );
+        }
+
+        wp_send_json_success( array(
+            'message' => __( 'Count saved.', 'promptless-forms' ),
+            'count'   => $counter->get( $form_id ),
         ) );
     }
 }

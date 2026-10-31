@@ -357,6 +357,96 @@
 
             // Copy Secret button.
             $(document).on('click', '#fre-copy-secret-btn', this.handleCopySecret.bind(this));
+
+            // Place count control (Forms list, availability Status column).
+            $(document).on('click', '.fre-place-count-toggle', this.handleToggleCount.bind(this));
+            $(document).on('click', '.fre-place-count-save', this.handleSaveCount.bind(this));
+            $(document).on('click', '.fre-place-count-reset', this.handleResetCount.bind(this));
+        },
+
+        /**
+         * Show / hide the Adjust count panel.
+         *
+         * @param {Event} e
+         */
+        handleToggleCount: function(e) {
+            e.preventDefault();
+            var $btn = $(e.currentTarget);
+            var $panel = $('#' + $btn.attr('aria-controls'));
+            var open = $panel.hasClass('hidden');
+
+            $panel.toggleClass('hidden', !open);
+            $btn.attr('aria-expanded', open ? 'true' : 'false');
+            if (open) {
+                $panel.find('.fre-place-count-input').trigger('focus');
+            }
+        },
+
+        /**
+         * Save the number typed in the Adjust count panel.
+         *
+         * @param {Event} e
+         */
+        handleSaveCount: function(e) {
+            e.preventDefault();
+            var $panel = $(e.currentTarget).closest('.fre-place-count-control');
+            var value = String($panel.find('.fre-place-count-input').val()).trim();
+
+            if (!/^\d{1,9}$/.test(value)) {
+                alert(pformsAdmin.strings.countInvalid);
+                return;
+            }
+
+            this.setCount($panel, value);
+        },
+
+        /**
+         * Reset the count to 0, after confirmation.
+         *
+         * @param {Event} e
+         */
+        handleResetCount: function(e) {
+            e.preventDefault();
+            if (!confirm(pformsAdmin.strings.confirmResetCount)) {
+                return;
+            }
+
+            this.setCount($(e.currentTarget).closest('.fre-place-count-control'), '0');
+        },
+
+        /**
+         * Send the count; reload the list so the status reflects it.
+         *
+         * @param {jQuery} $panel Adjust count panel.
+         * @param {string} count  Whole number, 0 or more.
+         */
+        setCount: function($panel, count) {
+            var $buttons = $panel.find('button');
+            $buttons.prop('disabled', true);
+
+            $.ajax({
+                url: pformsAdmin.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'pforms_set_place_count',
+                    nonce: pformsAdmin.nonce,
+                    form_id: $panel.data('form-id'),
+                    count: count
+                },
+                success: function(response) {
+                    if (response && response.success) {
+                        window.location.reload();
+                        return;
+                    }
+                    alert((response && response.data && response.data.message) || pformsAdmin.strings.countSaveFailed);
+                    $buttons.prop('disabled', false);
+                },
+                error: function(xhr) {
+                    var message = xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message;
+                    alert(message || pformsAdmin.strings.countSaveFailed);
+                    $buttons.prop('disabled', false);
+                }
+            });
         },
 
         /**

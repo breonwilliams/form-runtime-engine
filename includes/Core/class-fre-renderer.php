@@ -54,6 +54,18 @@ class PForms_Renderer {
             'ajax'      => true,
         ) );
 
+        // A form that is not accepting submissions (before its open date,
+        // past its close date, full) shows its message INSTEAD of the form.
+        // Same decision point as the submission handler. This is the
+        // courtesy half only: a page cached while the form was open still
+        // carries the form, and the handler's `form_closed` refusal is what
+        // enforces (frontend.js then replaces the form with the message).
+        $availability = PForms_Availability::check( $form, array( 'form_id' => $form_id ) );
+        if ( empty( $availability['open'] ) ) {
+            $this->enqueue_styles();
+            return $this->render_closed( $form, $args, $availability );
+        }
+
         // Enqueue assets.
         $this->enqueue_assets();
 
@@ -216,6 +228,69 @@ class PForms_Renderer {
          * @param array  $args    Render arguments.
          */
         return apply_filters( 'pforms_rendered_form', $html, $form_id, $form, $args );
+    }
+
+    /**
+     * Render a closed form: its message in place of the form.
+     *
+     * The markup is the state the success confirmation leaves a form in
+     * (frontend.js showConfirmation()): `.fre-form--submitted`, the optional
+     * title, and the role="alert" `.fre-form__messages` container holding
+     * one message — so it is announced and styled the same way. Focus is
+     * deliberately NOT moved on page load (nothing the visitor did caused
+     * it); the container keeps tabindex="-1" like the confirmation's.
+     * There is no <form>, no submit button and no field inputs, and
+     * frontend.js does not initialise it (`.fre-form--closed`).
+     *
+     * The message is plain text, escaped with esc_html() — the same
+     * treatment success_message gets (frontend.js writes it with
+     * textContent).
+     *
+     * @param array $form         Form configuration (with 'id').
+     * @param array $args         Render arguments.
+     * @param array $availability PForms_Availability::check() result.
+     * @return string
+     */
+    private function render_closed( array $form, array $args, array $availability ) {
+        $form_id  = $form['id'];
+        $settings = isset( $form['settings'] ) && is_array( $form['settings'] ) ? $form['settings'] : array();
+
+        $classes = array( 'fre-form', 'fre-form--closed', 'fre-form--submitted' );
+        if ( ! empty( $settings['css_class'] ) ) {
+            $classes[] = esc_attr( $settings['css_class'] );
+        }
+        if ( ! empty( $args['css_class'] ) ) {
+            $classes[] = esc_attr( $args['css_class'] );
+        }
+        $theme_variant = isset( $settings['theme_variant'] ) ? $settings['theme_variant'] : 'light';
+        if ( in_array( $theme_variant, array( 'light', 'dark', 'auto' ), true ) ) {
+            $classes[] = 'fre-form--' . $theme_variant;
+        }
+        $appearance = isset( $settings['appearance'] ) && is_array( $settings['appearance'] ) ? $settings['appearance'] : array();
+        if ( isset( $appearance['surface'] ) && 'card' === (string) $appearance['surface'] ) {
+            $classes[] = 'fre-form--surface-card';
+        }
+
+        $html = sprintf(
+            '<div id="fre-form-%s" class="%s" data-form-id="%s" data-availability="%s">',
+            esc_attr( $form_id ),
+            implode( ' ', $classes ),
+            esc_attr( $form_id ),
+            esc_attr( $availability['reason'] )
+        );
+
+        if ( ! empty( $settings['show_title'] ) && ! empty( $form['title'] ) ) {
+            $html .= sprintf( '<h3 class="fre-form__title">%s</h3>', esc_html( $form['title'] ) );
+        }
+
+        $html .= sprintf(
+            '<div class="fre-form__messages" role="alert" aria-live="polite" tabindex="-1"><div class="fre-form__message fre-form__message--closed">%s</div></div>',
+            esc_html( (string) $availability['message'] )
+        );
+
+        $html .= '</div>';
+
+        return $html;
     }
 
     /**
@@ -956,6 +1031,16 @@ class PForms_Renderer {
     private function enqueue_assets() {
         wp_enqueue_style( 'pforms-frontend' );
         wp_enqueue_script( 'pforms-frontend' );
+        if ( wp_style_is( 'pforms-neo-brutalist', 'registered' ) ) {
+            wp_enqueue_style( 'pforms-neo-brutalist' );
+        }
+    }
+
+    /**
+     * Enqueue only the stylesheets — a closed form has nothing to script.
+     */
+    private function enqueue_styles() {
+        wp_enqueue_style( 'pforms-frontend' );
         if ( wp_style_is( 'pforms-neo-brutalist', 'registered' ) ) {
             wp_enqueue_style( 'pforms-neo-brutalist' );
         }

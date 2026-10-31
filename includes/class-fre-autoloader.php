@@ -34,6 +34,8 @@ class PForms_Autoloader {
         'PForms_Upgrader'            => 'Core/class-fre-upgrader.php',
         'PForms_Forms_Repository'    => 'Core/class-fre-forms-repository.php',
         'PForms_Conditions'          => 'Core/class-fre-conditions.php',
+        'PForms_Availability'        => 'Core/class-fre-availability.php',
+        'PForms_Place_Counter'       => 'Core/class-fre-place-counter.php',
 
         // Connector classes (Phase 2+ Cowork connector).
         'PForms_Connector_Settings'  => 'Connector/class-fre-connector-settings.php',
@@ -92,6 +94,7 @@ class PForms_Autoloader {
         'PForms_Entry_Notification_Status' => 'Admin/class-fre-entry-notification-status.php',
         'PForms_CSV_Exporter'        => 'Admin/class-fre-csv-exporter.php',
         'PForms_Forms_Manager'       => 'Admin/class-fre-forms-manager.php',
+        'PForms_Forms_Availability_Status' => 'Admin/class-fre-forms-availability-status.php',
 
         // Integration classes.
         'PForms_Design_System'       => 'Integration/class-fre-design-system.php',

@@ -29,6 +29,47 @@ class FormSubmissionTest extends IntegrationTestCase {
     }
 
     /**
+     * Key submitted values the way a browser sends them.
+     *
+     * PForms_Validator and PForms_Sanitizer look each value up by
+     * `$field_type->get_name( $field )` — `pforms_field_{key}`, the input's
+     * name attribute — not by the clean field key. Same helper as
+     * tests/Unit/FieldValidationTest.php (f279fee).
+     *
+     * @param array $data Values keyed by clean field key.
+     * @return array Values keyed by input name.
+     */
+    private function wire( array $data ) {
+        $prefixed = array();
+
+        foreach ( $data as $key => $value ) {
+            $prefixed[ 'pforms_field_' . $key ] = $value;
+        }
+
+        return $prefixed;
+    }
+
+    /**
+     * Pin the helper to production.
+     *
+     * If get_name() ever changes, every lookup in this file misses again and
+     * the "invalid input is rejected" tests keep passing silently (a missing
+     * value is empty, and empty is rejected too). This fails loudly instead.
+     */
+    public function test_wire_helper_matches_production_input_name() {
+        $field      = array( 'key' => 'name', 'type' => 'text' );
+        $field_type = new \PForms_Field_Text();
+
+        $wired = array_keys( $this->wire( array( 'name' => 'John Doe' ) ) );
+
+        $this->assertSame(
+            $field_type->get_name( $field ),
+            $wired[0],
+            'wire() must produce the same key the renderer puts in the input name attribute.'
+        );
+    }
+
+    /**
      * Test valid submission creates entry.
      */
     public function test_valid_submission_creates_entry() {
@@ -82,7 +123,7 @@ class FormSubmissionTest extends IntegrationTestCase {
             'message' => '',
         );
 
-        $result = $validator->validate( $form_config, $data );
+        $result = $validator->validate( $form_config, $this->wire( $data ) );
 
         $this->assertInstanceOf( 'WP_Error', $result );
 
@@ -107,7 +148,7 @@ class FormSubmissionTest extends IntegrationTestCase {
             'message' => 'Test message.',
         );
 
-        $result = $validator->validate( $form_config, $data );
+        $result = $validator->validate( $form_config, $this->wire( $data ) );
 
         $this->assertInstanceOf( 'WP_Error', $result );
 
@@ -251,7 +292,7 @@ class FormSubmissionTest extends IntegrationTestCase {
             'message' => '<script>alert("xss")</script>Hello',
         );
 
-        $sanitized = $sanitizer->sanitize( $form_config, $data );
+        $sanitized = $sanitizer->sanitize( $form_config, $this->wire( $data ) );
 
         // Name should be trimmed.
         $this->assertEquals( 'John Doe', $sanitized['name'] );
@@ -326,7 +367,7 @@ class FormSubmissionTest extends IntegrationTestCase {
             'message'      => 'Test message.',
         );
 
-        $result = $validator->validate( $form_config, $data );
+        $result = $validator->validate( $form_config, $this->wire( $data ) );
 
         // Should pass (order_number is not required).
         $this->assertTrue( $result );
@@ -353,7 +394,7 @@ class FormSubmissionTest extends IntegrationTestCase {
             'message'       => 'Test message.',
         );
 
-        $result = $validator->validate( $form_config, $data );
+        $result = $validator->validate( $form_config, $this->wire( $data ) );
 
         $this->assertTrue( $result );
     }

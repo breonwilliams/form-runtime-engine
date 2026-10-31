@@ -252,10 +252,37 @@ Get a single form.
     "connector_version": 3,
     "created": 1712345678,
     "modified": 1712345999,
-    "shortcode": "[pforms_form id=\"contact\"]"
+    "shortcode": "[pforms_form id=\"contact\"]",
+    "availability": {
+      "open": true,
+      "reason": "open",
+      "message": "",
+      "opens_at": null,
+      "closes_at": "2027-03-20",
+      "opens_at_iso": null,
+      "closes_at_iso": "2027-03-21T00:00:00-04:00",
+      "timezone": "America/New_York",
+      "max_entries": 30,
+      "count": 12
+    }
   }
 }
 ```
+
+The `availability` field is computed on read by `PForms_Availability::check()` — the same decision the form renderer and both submission paths use — and is present on the form records `GET /forms` (§9.2) and `GET /forms/{form_id}` return. The create (§9.4) and update (§9.5) responses do not include it — read the form back to check the result:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `open` | bool | Whether a submission now would be accepted. |
+| `reason` | string | `open`, `not_yet_open`, `closed_date`, `cap_reached`, `invalid_settings` (or a `pforms_form_availability` filter's own). |
+| `message` | string | What a visitor sees instead of the form; `""` when open. |
+| `opens_at` / `closes_at` | string\|null | As configured in `settings.availability` (site-timezone wall clock); `null` when not set. |
+| `opens_at_iso` / `closes_at_iso` | string\|null | The resolved moments, ISO 8601 with the site offset. `closes_at_iso` is the first **closed** moment (a bare close date resolves to the next midnight). |
+| `timezone` | string | The site timezone the dates are read in. |
+| `max_entries` | int\|null | The cap; `null` = unlimited. |
+| `count` | int | Places taken: accepted submissions counted toward the cap (spam never counts; deleting entries never gives a place back). For a form that has never had a cap, the number a cap added now would start at. |
+
+The settings themselves (`settings.availability.opens_at`, `closes_at`, `max_entries`, `closed_message`, `before_open_message`) are described in `docs/form-schema.json` and the connector rulebook (`settings_hints.availability`).
 
 The `shortcode` field is a convenience so consumers can embed forms without hand-constructing the shortcode. It is not stored — it is computed on read.
 
@@ -285,13 +312,15 @@ Create a new form.
 - `webhook_*` fields are optional; webhook secret auto-generates when `webhook_enabled: true` and no prior secret exists.
 - `managed_by` is automatically set to `connector:cowork` by the API — callers do not control it. This is how the plugin distinguishes connector-originated forms from admin-originated forms.
 
-**Response 201:** Same shape as §9.3.
+**Response 201:** Same shape as §9.3, without `availability`.
 
 ### 9.5 `PATCH /forms/{form_id}`
 
 Update an existing form. Partial updates allowed; fields not in the request body retain their current values.
 
-**Response 200:** Same shape as §9.3. `connector_version` is always incremented on update.
+**Response 200:** Same shape as §9.3, without `availability`. `connector_version` is always incremented on update.
+
+A supplied `config` replaces the stored one wholesale. A config without `settings.availability` therefore removes the form's open date, close date, cap and messages (the form becomes always open and unlimited); the place count is kept, so a cap added back later resumes from it. Send the full `availability` block on every update that should keep the rules. A refused availability value (e.g. `"max_entries": "unlimited"`) returns 400 `schema_error` with the same message the wp-admin Forms screen shows.
 
 ### 9.6 `DELETE /forms/{form_id}`
 
@@ -380,6 +409,7 @@ Submit a form programmatically. Primary use case: Claude Cowork verifying a form
 - `data` is required. A map of field key → value. Must include all fields marked `required: true` in the form config, unless `dry_run: true`.
 - `options.dry_run`: When `true`, runs validation and sanitization and returns what would be stored, but does not create an entry, fire `fre_entry_created`, send email, or dispatch webhooks. Default `false`.
 - `options.skip_notifications`: When `true`, creates the entry and fires `fre_entry_created` (so webhooks still dispatch), but skips the built-in email notification send. Default `false`. Ignored when `dry_run: true`.
+- A form that is not accepting submissions (before `opens_at`, from `closes_at`, or with `max_entries` reached) refuses the request — **dry runs included** — before anything is validated, stored, emailed or dispatched. A dry run never takes or holds a place. A non-dry-run submit on a capped form takes a place exactly like a visitor's entry, and deleting that entry does not give it back; use `dry_run: true` on capped forms.
 
 **Response 200 (normal run):**
 ```json
@@ -422,6 +452,23 @@ Submit a form programmatically. Primary use case: Claude Cowork verifying a form
   }
 }
 ```
+
+**Error (form closed):**
+```json
+{
+  "code": "form_closed",
+  "message": "This form is no longer accepting submissions.",
+  "data": {
+    "status": 400,
+    "form_id": "camp",
+    "reason": "cap_reached",
+    "opens_at": null,
+    "closes_at": 1805587200
+  }
+}
+```
+
+`message` is the form's `closed_message` / `before_open_message` (or the default). `reason` is `not_yet_open`, `closed_date`, `cap_reached` or `invalid_settings`. `opens_at` / `closes_at` are unix timestamps (first open / first closed moment) or `null`.
 
 ---
 

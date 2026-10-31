@@ -342,6 +342,43 @@
       }
     },
 
+    "availabilityDate": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}( \\d{2}:\\d{2})?$",
+      "description": "Wall-clock date \"YYYY-MM-DD\" or date and time \"YYYY-MM-DD HH:MM\" (24-hour) in the SITE timezone, not UTC. Null or absent means not set. A time skipped by a daylight-saving clock change is refused."
+    },
+
+    "availabilitySettings": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "When and how many submissions the form accepts. Absent, null, or an object with every key absent/null means always open and unlimited. Unknown keys and empty strings are refused at save. A closed form renders its message instead of the form and refuses submissions (code form_closed). Note: formengine_update_form replaces config wholesale, so an update without this block removes the rules (the place count is kept).",
+      "properties": {
+        "opens_at": {
+          "$ref": "#/$defs/availabilityDate",
+          "description": "First moment the form accepts submissions. A bare date opens at 00:00 of that day (site timezone). Absent/null: open from the start."
+        },
+        "closes_at": {
+          "$ref": "#/$defs/availabilityDate",
+          "description": "First moment the form is closed. A bare date closes at the END of that day (23:59:59 is the last open second); \"YYYY-MM-DD HH:MM\" closes at that minute. Must be after opens_at. Absent/null: never closes by date."
+        },
+        "max_entries": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Entry cap: accepted submissions counted toward it (spam never counts; deleting entries never gives a place back; works with store_entries off). Absent or null = UNLIMITED (the only way to say no limit). 0 = no places, form closed. Strings, decimals and negatives are refused at save."
+        },
+        "closed_message": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Shown instead of the form once it has closed by date or is full. Default: \"This form is no longer accepting submissions.\""
+        },
+        "before_open_message": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Shown instead of the form before opens_at. Default names the opening date and time with the site timezone, e.g. \"This form opens on March 15, 2027 at 9:00 am EDT.\""
+        }
+      }
+    },
+
     "settings": {
       "type": "object",
       "additionalProperties": true,
@@ -369,6 +406,7 @@
         "notification": { "$ref": "#/$defs/notificationSettings" },
         "spam_protection": { "$ref": "#/$defs/spamProtectionSettings" },
         "multistep": { "$ref": "#/$defs/multistepSettings" },
+        "availability": { "$ref": "#/$defs/availabilitySettings" },
         "webhook_enabled": { "type": "boolean", "default": false },
         "webhook_url": {
           "type": "string",

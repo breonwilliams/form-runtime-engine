@@ -1,0 +1,6 @@
+hc-admin-plain   open=1     reason=open          | Open
+hc-admin-capped  open=1     reason=open          | Open | Closes July 20, 2099 at 5:00 pm UTC | 3 of 10 places taken | Adjust count | Places taken | Save count | Reset to 0
+hc-admin-before  open=0     reason=not_yet_open  | Closed: not open yet | Opens January 15, 2099 at 9:00 am UTC
+hc-admin-past    open=0     reason=closed_date   | Closed: past its closing date | Closed January 20, 2020 at 5:00 pm UTC
+hc-admin-full    open=0     reason=cap_reached   | Closed: entry limit reached | 2 of 2 places taken | Adjust count | Places taken | Save count | Reset to 0
+hc-admin-uncap   open=1     reason=open          | Open | 4 counted (no entry limit set) | Adjust count | Places taken | Save count | Reset to 0

@@ -103,6 +103,8 @@ trap "rm -f ${EXCLUDE_FILE}" EXIT
 #
 # The exclude list intentionally drops:
 #   - VCS / IDE state (.git, .github, .claude, .gitignore)
+#   - Orchestration state (.orchestrator — roadmap, phase logs; internal
+#     planning documents of the kind WP.org review has flagged before)
 #   - Lint / test config (.phpcs.xml, .phpunit.xml, composer.lock)
 #   - Build & test artifacts (build/, release/, *.zip, .phpunit.result.cache, *.log)
 #   - The build script itself (we don't ship the script that builds the ZIP)
@@ -116,6 +118,7 @@ cat > "${EXCLUDE_FILE}" <<'BASE_EXCLUDES'
 .git
 .github
 .claude
+.orchestrator
 .gitignore
 .phpcs.xml
 .phpunit.xml

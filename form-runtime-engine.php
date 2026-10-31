@@ -295,6 +295,9 @@ final class Promptless_Forms {
         // Initialize webhook dispatcher.
         PForms_Webhook_Dispatcher::init();
 
+        // Keep capped forms' place counts in step with form saves/deletes.
+        PForms_Place_Counter::init_hooks();
+
         // Initialize design system integration.
         new PForms_Design_System();
 

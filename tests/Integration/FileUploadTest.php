@@ -113,12 +113,20 @@ class FileUploadTest extends IntegrationTestCase {
         $magic_bytes = array(
             // PDF: %PDF
             'application/pdf'          => "\x25\x50\x44\x46" . "-1.4\ntest content",
-            // JPEG: FF D8 FF
-            'image/jpeg'               => "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00",
-            // PNG: 89 50 4E 47 0D 0A 1A 0A
-            'image/png'                => "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A\x00\x00\x00\rIHDR",
-            // GIF: GIF89a
-            'image/gif'                => "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00",
+            // JPEG: a complete 1x1 image (GD, quality 75), not just FF D8 FF.
+            // Since 1.11.0 PForms_Upload_Inspector requires raster images to
+            // parse (getimagesize), and a bare JFIF header has no frame to read.
+            'image/jpeg'               => base64_decode(
+                '/9j/4AAQSkZJRgABAQEAYABgAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2ODApLCBxdWFsaXR5ID0gNzUK'
+                . '/9sAQwAIBgYHBgUIBwcHCQkICgwUDQwLCwwZEhMPFB0aHx4dGhwcICQuJyAiLCMcHCg3KSwwMTQ0NB8nOT04MjwuMzQy'
+                . '/9sAQwEJCQkMCwwYDQ0YMiEcITIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy'
+                . '/8AAEQgAAQABAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8A+f6KKKAP/9k='
+            ),
+            // PNG: a complete 1x1 image (GD). The bare signature + IHDR tag
+            // carried no width/height, so it never parsed either.
+            'image/png'                => base64_decode( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAADElEQVQI12NgYGAAAAAEAAEnNCcKAAAAAElFTkSuQmCC' ),
+            // GIF: a complete 1x1 image (GD), matching the other rasters.
+            'image/gif'                => base64_decode( 'R0lGODdhAQABAIAAAAQCBAAAACwAAAAAAQABAAACAkQBADs=' ),
             // DOC/XLS/PPT OLE: D0 CF 11 E0 A1 B1 1A E1
             'application/msword'       => "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" . str_repeat( "\x00", 100 ),
             'application/vnd.ms-excel' => "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" . str_repeat( "\x00", 100 ),

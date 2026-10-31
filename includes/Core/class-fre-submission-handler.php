@@ -72,8 +72,18 @@ class PForms_Submission_Handler {
     /**
      * Handle form submission via AJAX.
      *
-     * Lifecycle: NONCE CHECK → SPAM CHECK → VALIDATE → SANITIZE
-     *            → UPLOAD FILES → STORE ENTRY → SEND EMAIL → RETURN RESPONSE
+     * Lifecycle: NONCE CHECK → AVAILABILITY → SPAM CHECK → VALIDATE → SANITIZE
+     *            → TAKE PLACE → STORE ENTRY → UPLOAD FILES → SEND EMAIL
+     *            → RETURN RESPONSE
+     *
+     * AVAILABILITY runs before anything else that answers the visitor, so a
+     * closed form (before its open date, past its close date, or full) is
+     * refused with its closed message — code `form_closed` — even when the
+     * fields are invalid or the honeypot is filled, and nothing is stored,
+     * sent or fired. TAKE PLACE is the atomic claim that actually holds the
+     * cap (the check above is a read and can be stale); it runs after every
+     * check that can refuse the submission, and any failure after it gives
+     * the place back (send_error() / send_validation_error()).
      *
      * Fix #9: Nonce verification is now done BEFORE loading form config.
      */
@@ -126,6 +136,14 @@ class PForms_Submission_Handler {
              */
             do_action( 'pforms_before_submission_process', $form_id, $form_config );
 
+            // Step 1b: Is the form accepting submissions? Before the spam,
+            // field and upload checks: a visitor is told a closed form is
+            // closed, not asked to fix fields on a form they cannot submit.
+            $availability = PForms_Availability::check( $form_config, array( 'form_id' => $form_id ) );
+            if ( ! $availability['open'] ) {
+                $this->refuse_closed( $form_id, $form_config, $availability );
+            }
+
             // Step 2: Spam protection checks.
             $this->check_spam_protection( $form_id, $form_config );
 
@@ -171,6 +189,15 @@ class PForms_Submission_Handler {
             // consumer (email, webhook, sheet, CSV, admin) sees a clean payload.
             $sanitized_data = PForms_Conditions::strip_hidden_field_values( $form_config, $sanitized_data );
 
+            // Step 7c: Take a place. Every accepted submission is counted,
+            // capped or not (Q-001 / Q-010), BEFORE it is stored: a form's
+            // first claim seeds its count from the stored entries, so a claim
+            // made after storing would count this one twice. From here every
+            // error exit gives the place back until the entry is stored.
+            if ( ! $this->take_place( $form_id, $availability ) ) {
+                $this->refuse_closed( $form_id, $form_config, PForms_Availability::full( $form_config, $availability ) );
+            }
+
             // Step 8: Store entry (if enabled).
             $entry_id = null;
             if ( ! empty( $form_config['settings']['store_entries'] ) ) {
@@ -212,6 +239,9 @@ class PForms_Submission_Handler {
             if ( $entry_id ) {
                 $this->mark_duplicate_completed( $entry_id );
             }
+
+            // ...and its place is kept, whatever happens next.
+            $this->keep_place( $form_id, (int) $entry_id, $availability, $form_config );
 
             /**
              * Fires after a form submission has been fully processed —
@@ -305,7 +335,13 @@ class PForms_Submission_Handler {
      * Options:
      *   - `dry_run` (bool): When true, runs validation and sanitization and
      *     returns what would be stored, but does NOT create an entry, fire
-     *     `pforms_entry_created`, send email, or dispatch webhooks. Default false.
+     *     `pforms_entry_created`, send email, dispatch webhooks, or take a
+     *     place. A dry run on a closed form is refused like a real one
+     *     (Q-008). Default false.
+     *
+     * A closed form (PForms_Availability) returns WP_Error `form_closed`,
+     * whose message is the form's closed (or before-open) message and whose
+     * data carries `reason` — dry run or not, valid fields or not.
      *   - `skip_notifications` (bool): When true, creates the entry and fires
      *     `pforms_entry_created` (so external listeners like the webhook
      *     dispatcher still run — Cowork often wants that), but skips the
@@ -365,6 +401,14 @@ class PForms_Submission_Handler {
          */
         do_action( 'pforms_before_submission_process', $form_id, $form_config, $options );
 
+        // Is the form accepting submissions? Checked before validation and
+        // for dry runs too (Q-008): the connector's test submit must tell the
+        // truth about what a visitor would get.
+        $availability = PForms_Availability::check( $form_config, array( 'form_id' => $form_id ) );
+        if ( ! $availability['open'] ) {
+            return self::closed_error( $availability );
+        }
+
         // Translate clean field keys into the "pforms_field_{key}" form the
         // validator and sanitizer expect. Callers of process_submission use
         // clean keys per the connector contract (docs/CONNECTOR_SPEC.md §9.9)
@@ -392,6 +436,7 @@ class PForms_Submission_Handler {
         $sanitized_data = PForms_Conditions::strip_hidden_field_values( $form_config, $sanitized_data );
 
         // Dry run short-circuits here — return what would have been stored.
+        // It never takes or holds a place (Q-008).
         if ( ! empty( $options['dry_run'] ) ) {
             return array(
                 'dry_run'    => true,
@@ -407,13 +452,31 @@ class PForms_Submission_Handler {
         $store_entries   = ! isset( $form_config['settings']['store_entries'] )
             || ! empty( $form_config['settings']['store_entries'] );
 
-        if ( $store_entries ) {
-            $entry_id = $this->entry_repo->create( $form_id, $sanitized_data );
+        // Take a place before storing (see handle_submission(), Step 7c).
+        // Non-dry-run connector submissions count like any real entry
+        // (Q-001(b)).
+        if ( ! $this->take_place( $form_id, $availability ) ) {
+            return self::closed_error( PForms_Availability::full( $form_config, $availability ) );
+        }
 
-            if ( is_wp_error( $entry_id ) ) {
-                return $entry_id;
+        if ( $store_entries ) {
+            try {
+                $entry_id = $this->entry_repo->create( $form_id, $sanitized_data );
+            } catch ( Exception $e ) {
+                $this->release_place_on_exit();
+                throw $e;
             }
 
+            if ( is_wp_error( $entry_id ) ) {
+                $this->release_place_on_exit();
+                return $entry_id;
+            }
+        }
+
+        // Stored (or nothing to store): the place is kept.
+        $this->keep_place( $form_id, (int) $entry_id, $availability, $form_config );
+
+        if ( $store_entries ) {
             // PForms_Entry::create() fires `pforms_entry_created` internally after
             // the transaction commits — kept for backward-compat listeners.
             //
@@ -446,6 +509,160 @@ class PForms_Submission_Handler {
             'source'     => (string) $options['source'],
         );
     }
+
+    /**
+     * Refuse a submission to a closed form (AJAX path). Does not return.
+     *
+     * A repeat of a submission that was already received is still answered
+     * truthfully first (the copy that took the last place, sent twice, is not
+     * told the form is closed). Otherwise the visitor gets the form's closed
+     * message with the stable error code `form_closed` and the reason
+     * (`not_yet_open`, `closed_date`, `cap_reached`, ...), which the front end
+     * uses to replace the form with the message.
+     *
+     * @param string $form_id      Form ID.
+     * @param array  $form_config  Form configuration.
+     * @param array  $availability The closed decision.
+     */
+    private function refuse_closed( $form_id, array $form_config, array $availability ) {
+        if ( empty( $this->current_duplicate_key ) ) {
+            // Exits when this content was already received (success) or is
+            // still being processed; otherwise claims the window, which the
+            // refusal below releases.
+            $this->check_duplicate_submission( $form_id, $form_config );
+        }
+
+        $this->clear_idempotency_token_on_exit();
+        $this->clear_duplicate_token_on_exit();
+        $this->release_place_on_exit();
+
+        wp_send_json_error( array(
+            'code'    => self::CLOSED_CODE,
+            'message' => $availability['message'],
+            'reason'  => $availability['reason'],
+        ) );
+    }
+
+    /**
+     * The WP_Error for a closed form (programmatic path).
+     *
+     * @param array $availability The closed decision.
+     * @return WP_Error
+     */
+    private static function closed_error( array $availability ) {
+        return new WP_Error(
+            self::CLOSED_CODE,
+            $availability['message'],
+            array(
+                'form_id'   => $availability['form_id'],
+                'reason'    => $availability['reason'],
+                'opens_at'  => $availability['opens_at'],
+                'closes_at' => $availability['closes_at'],
+            )
+        );
+    }
+
+    /**
+     * Count this accepted submission before it is stored.
+     *
+     * Capped form: the atomic claim of one place; false when none is left —
+     * however stale the earlier check() was. Uncapped form: always true; a
+     * form that has had a cap keeps counting (Q-010), one that never had
+     * one costs a single 0-row statement.
+     *
+     * @param string $form_id      Form ID.
+     * @param array  $availability The check() decision the submission passed.
+     * @return bool Whether the submission may be stored.
+     */
+    private function take_place( $form_id, array $availability ) {
+        $counter = new PForms_Place_Counter();
+        $cap     = isset( $availability['cap'] ) ? $availability['cap'] : null;
+
+        if ( null === $cap ) {
+            $counter->claim( $form_id, null );
+            $this->took_last_place = false;
+        } else {
+            $count = $counter->take( $form_id, (int) $cap );
+            if ( false === $count ) {
+                return false;
+            }
+            $this->took_last_place = $count >= (int) $cap;
+        }
+
+        $this->held_place = $form_id;
+        return true;
+    }
+
+    /**
+     * The submission is stored: keep its place, and announce a form that
+     * this submission filled (Q-003).
+     *
+     * @param string $form_id      Form ID.
+     * @param int    $entry_id     Entry ID (0 when entries are not stored).
+     * @param array  $availability The check() decision the submission passed.
+     * @param array  $form_config  Form configuration.
+     */
+    private function keep_place( $form_id, $entry_id, array $availability, array $form_config ) {
+        if ( '' === $this->held_place ) {
+            return;
+        }
+        $this->held_place = '';
+
+        if ( ! $this->took_last_place ) {
+            return;
+        }
+        $this->took_last_place = false;
+
+        /**
+         * Fires once when a submission takes a capped form's last place.
+         *
+         * Inside the request that took it, after that entry is stored (and
+         * its files attached), before `pforms_submission_complete`. Never for
+         * a refused, failed, spam or dry-run submission. Nothing fires when
+         * a form closes by date.
+         *
+         * @param string $form_id     Form ID.
+         * @param int    $entry_id    The entry that took the last place (0 when
+         *                            the form does not store entries).
+         * @param int    $cap         The form's max_entries.
+         * @param array  $form_config Form configuration.
+         */
+        do_action( 'pforms_form_full', $form_id, (int) $entry_id, (int) $availability['cap'], $form_config );
+    }
+
+    /**
+     * Give back the place this request took, if it took one and the
+     * submission was not stored. Safe to call more than once.
+     */
+    private function release_place_on_exit() {
+        if ( '' === $this->held_place ) {
+            return;
+        }
+
+        ( new PForms_Place_Counter() )->release( $this->held_place );
+        $this->held_place      = '';
+        $this->took_last_place = false;
+    }
+
+    /**
+     * Form ID whose place this request holds but has not yet kept, or ''.
+     *
+     * @var string
+     */
+    private $held_place = '';
+
+    /**
+     * Whether the held place was the form's last one.
+     *
+     * @var bool
+     */
+    private $took_last_place = false;
+
+    /**
+     * Error code of a refusal because the form is closed (both paths).
+     * Stable: the front end and the connector key on it.
+     */
+    const CLOSED_CODE = 'form_closed';
 
     /**
      * Translate clean field keys into the internal `pforms_field_{key}` form.
@@ -920,6 +1137,7 @@ class PForms_Submission_Handler {
     private function send_error( $code, $message ) {
         $this->clear_idempotency_token_on_exit();
         $this->clear_duplicate_token_on_exit();
+        $this->release_place_on_exit();
 
         wp_send_json_error( array(
             'code'    => $code,
@@ -942,6 +1160,7 @@ class PForms_Submission_Handler {
     private function send_validation_error( WP_Error $error ) {
         $this->clear_idempotency_token_on_exit();
         $this->clear_duplicate_token_on_exit();
+        $this->release_place_on_exit();
 
         $data = $error->get_error_data();
 

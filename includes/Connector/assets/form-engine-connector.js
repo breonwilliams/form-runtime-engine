@@ -54,7 +54,8 @@ const TOOLS = [
   {
     name: "formengine_list_forms",
     description:
-      "List all database-stored forms on the site. Paginated. Optionally filter by origin: 'admin' for hand-authored forms, 'connector:cowork' for forms you (Cowork) previously created via this API. Use the origin filter to avoid inadvertently modifying forms the site owner maintains by hand.",
+      "List all database-stored forms on the site. Paginated. Optionally filter by origin: 'admin' for hand-authored forms, 'connector:cowork' for forms you (Cowork) previously created via this API. Use the origin filter to avoid inadvertently modifying forms the site owner maintains by hand. " +
+      "Each form carries an `availability` object (same shape as formengine_get_form) saying whether it is accepting submissions right now, so you can spot closed or full forms at a glance.",
     inputSchema: {
       type: "object",
       properties: {
@@ -73,7 +74,8 @@ const TOOLS = [
   {
     name: "formengine_get_form",
     description:
-      "Fetch a single form by ID. The response includes the raw config JSON string (parse it client-side with JSON.parse), the shortcode for embedding the form on a page, the connector_version (bumps on every update — useful for A/B tracking), and the managed_by tag. Webhook secrets are intentionally omitted from all responses.",
+      "Fetch a single form by ID. The response includes the raw config JSON string (parse it client-side with JSON.parse), the shortcode for embedding the form on a page, the connector_version (bumps on every update — useful for A/B tracking), and the managed_by tag. Webhook secrets are intentionally omitted from all responses. " +
+      "It also returns `availability`: {open, reason, message, opens_at, closes_at, opens_at_iso, closes_at_iso, timezone, max_entries, count} — whether the form is accepting submissions now and why not (reason: open | not_yet_open | closed_date | cap_reached | invalid_settings), its configured open/close dates, its entry cap (null = unlimited) and how many places are taken. Read this before updating a form so you can carry its settings.availability block forward.",
     inputSchema: {
       type: "object",
       properties: {
@@ -92,6 +94,7 @@ const TOOLS = [
       "Create a new form. BEFORE your first create in a session, call `formengine_preflight` and WebFetch the returned `schema_reference_url` — that markdown document covers column layouts (1/2, 1/3, 2/3, 1/4, 3/4 as strings), the 13 field types and their required properties, conditional visibility, multistep forms, settings (theme_variant for dark backgrounds, notifications, webhooks), and common drift patterns that the raw JSON schema doesn't explain. " +
       "The 'config' argument MUST be a JSON STRING (not an object) conforming to the Form Runtime Engine form schema. JSON.stringify your config object before passing it in. " +
       "KEY VISUAL SETTINGS to decide up front: (a) `settings.theme_variant` — set to \"dark\" when the form will be embedded in a dark-background section (a Promptless hero with theme_variant:\"dark\", for example), \"light\" otherwise. Defaults to light; skipping this produces light-theme inputs on dark backgrounds, which fails accessibility contrast. (b) `settings.appearance.surface` — set to \"card\" to wrap the form in a token-aware card (background, border, radius, padding) that inherits design tokens from the parent AISB section. Default \"none\" leaves the form flat on the section background. " +
+      "DEADLINES AND LIMITED PLACES: when the user mentions a registration window, an open or close date, a deadline, limited spots/seats or 'close after N entries', set `settings.availability`: {opens_at, closes_at (\"YYYY-MM-DD\" or \"YYYY-MM-DD HH:MM\", site timezone; a bare closes_at date closes at the end of that day), max_entries (whole number >= 0; omit or null for unlimited; 0 = closed), closed_message, before_open_message}. The cap counts accepted submissions — deleting entries never gives a place back. A refused value comes back as schema_error with the reason. Afterwards, read the form back with formengine_get_form and check its `availability` object. " +
       "If you're building forms for a site that ALSO uses Promptless WP (AI Section Builder Modern), see docs/WORKFLOW_PROMPTLESS_INTEGRATION.md for the end-to-end deployment flow — the FRE shortcode goes into a Promptless hero's `shortcode_content` field with `media_type: \"shortcode\"` so the form renders as the hero's primary visual element. " +
       "Forms created through this tool are automatically tagged managed_by='connector:cowork' and start at connector_version=1. " +
       "Returns the created record, including the shortcode to embed the form (e.g. [pforms_form id=\"contact\"]). " +
@@ -135,6 +138,7 @@ const TOOLS = [
       "Update an existing form. BEFORE your first update in a session, call `formengine_preflight` and WebFetch the returned `schema_reference_url` — the markdown rulebook covers every rule you need to avoid silent regressions when editing forms. " +
       "All fields except form_id are optional — omitted fields retain their current values. If you supply a new `config`, it MUST be a JSON STRING (not an object) and it REPLACES the existing config; include every field/step/setting you want to preserve. " +
       "KEY VISUAL SETTINGS to preserve or change intentionally: `settings.theme_variant` (\"light\"|\"dark\"|\"auto\" — match the parent section) and `settings.appearance.surface` (\"none\"|\"card\" — toggle the form-level card wrapper). Changing these is cheap; forgetting to carry them forward when replacing config silently reverts to defaults. " +
+      "AVAILABILITY: because config is replaced wholesale, a config without `settings.availability` REMOVES the form's open/close dates and entry cap (always open, unlimited — the place count is kept). Read the form first and send its availability block back unless you mean to change it; omit the block on purpose to clear the rules. Then read the form back with formengine_get_form and check its `availability` object. " +
       "If you're working on a site that ALSO uses Promptless WP, consult docs/WORKFLOW_PROMPTLESS_INTEGRATION.md for the cross-plugin workflow. " +
       "The connector_version bumps on every update. managed_by is immutable through this API; origin set at create time is preserved. " +
       "If you only need to regenerate the webhook secret, use the admin UI (secret rotation is intentionally not exposed via the API).",
@@ -221,7 +225,8 @@ const TOOLS = [
   {
     name: "formengine_test_submit",
     description:
-      "Submit a form programmatically for testing. Primary use: validate end-to-end that a form works — validation rules, webhook dispatch, notifications — before handing off to a client. The 'data' argument is a map of FIELD KEY (clean, no pforms_field_ prefix) → value. Use options.dry_run=true to run validation only and return what would have been stored, without writing to the database or firing any side effects. Use options.skip_notifications=true to write a real entry (for downstream webhook testing) but suppress the email notification.",
+      "Submit a form programmatically for testing. Primary use: validate end-to-end that a form works — validation rules, webhook dispatch, notifications — before handing off to a client. The 'data' argument is a map of FIELD KEY (clean, no pforms_field_ prefix) → value. Use options.dry_run=true to run validation only and return what would have been stored, without writing to the database or firing any side effects. Use options.skip_notifications=true to write a real entry (for downstream webhook testing) but suppress the email notification. " +
+      "A form that is not accepting submissions (before settings.availability.opens_at, from closes_at, or with max_entries reached) refuses every test submit, dry runs included, with error form_closed and data {form_id, reason, opens_at, closes_at}. A real (non-dry-run) submit on a capped form takes a place like a visitor's entry and deleting the entry does not give it back — use dry_run=true on capped forms.",
     inputSchema: {
       type: "object",
       properties: {

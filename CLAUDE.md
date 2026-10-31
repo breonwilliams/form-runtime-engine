@@ -521,6 +521,11 @@ For consistency across forms and reusable automations, use these standard field 
 | `webhook_enabled` / `webhook_url` / `webhook_preset` | — | **Not settings.** They live on the saved form record (Forms screen, or top-level fields of the connector's create/update), and the dispatcher reads only that record — a value here is ignored, so a PHP-registered form cannot have a webhook. `webhook_preset` is one of `google_sheets`, `zapier`, `make`, `custom` |
 | `webhook_resolve_option_labels` | `null` | Explicit override for option-label resolution in webhook payloads. `true` forces labels regardless of preset, `false` forces raw values, `null` (omit) uses the preset-aware default |
 | `theme_variant` | `"light"` | Theme mode: `light`, `dark`, or `auto` (inherits from AISB section) |
+| `availability.opens_at` | `null` (open from the start) | First open moment: `"YYYY-MM-DD"` (00:00) or `"YYYY-MM-DD HH:MM"`, site timezone. Before it the form shows its before-open message instead of the form |
+| `availability.closes_at` | `null` (never closes by date) | First closed moment, same formats; a bare date closes at the END of that day (23:59:59 is the last open second). Must be after `opens_at` |
+| `availability.max_entries` | `null` (unlimited) | Entry cap, whole number ≥ 0. Absent/`null` = unlimited, `0` = closed; anything else refused at save. Counts accepted submissions, not entry rows: spam never counts, deleting entries never gives a place back, works with `store_entries` off, a cap added to a form with entries starts at its non-spam entries, a form that has had a cap keeps counting while uncapped (deleting the form removes the count) |
+| `availability.closed_message` | `"This form is no longer accepting submissions."` | Shown instead of the form after `closes_at` or when full |
+| `availability.before_open_message` | `"This form opens on {date} at {time} {zone}."` | Shown instead of the form before `opens_at` |
 
 ### Full Settings Structure
 
@@ -736,6 +741,14 @@ do_action( 'pforms_entry_created', $entry_id, $form_id, $data );
 // file thumbnails, file move/copy automations).
 do_action( 'pforms_submission_complete', $entry_id, $form_id, $sanitized_data );
 
+// A capped form's last place was just taken (settings.availability.max_entries).
+// Fires once, on the submission that took it, after its entry is stored and
+// before pforms_submission_complete. $entry_id is 0 when store_entries is off.
+// Nothing fires when a form closes by date. On a read/write-splitting DB
+// drop-in (HyperDB/LudicrousDB) without reads-to-primary it may not fire;
+// the cap itself still holds.
+do_action( 'pforms_form_full', $form_id, $entry_id, $cap, $form_config );
+
 // After notification sent
 do_action( 'pforms_notification_sent', $sent, $entry_id, $form_config, $entry_data );
 
@@ -763,6 +776,13 @@ do_action( 'pforms_webhook_failed', $wp_error, $url, $payload, $entry_id, $form_
 ### Filters
 
 ```php
+// Whether a form is accepting submissions (PForms_Availability::check(), the
+// one decision point for settings.availability). $result has open, reason
+// (open | not_yet_open | closed_date | cap_reached | invalid_settings |
+// form_not_found), message, form_id, opens_at, closes_at, cap, count, now.
+// Change open/reason/message to close an open form or open a closed one.
+$result = apply_filters( 'pforms_form_availability', $result, $config, $context );
+
 // Modify valid field types
 $types = apply_filters( 'pforms_field_types', array( 'text', 'email', ... ) );
 
@@ -943,14 +963,17 @@ For complete ready-to-use form examples (JSON and PHP), see **`docs/CLAUDE.md`**
 - Condition operators: `equals`, `not_equals`, `contains`, `not_contains`, `is_empty`, `is_not_empty`, `is_checked`, `is_not_checked`, `greater_than`, `less_than`, `>=`, `<=`, `in`, `not_in`
 - Multiple rules with `'logic' => 'or'` (default: `'and'`)
 
-## Test Suite — GREEN as of 2026-09-12 (was known-red from 2026-09-01)
-
-`composer run test:unit` passes on a clean checkout — measured at the 1.8.8
-release:
+## Test Suite — GREEN, both suites (measured 2026-10-29, 1.12.3)
 
 ```
-OK (257 tests, 631 assertions)
+Unit:         OK (484 tests, 1254 assertions)
+Integration:  97 tests, 231 assertions, 0 failures, 3 skipped
 ```
+
+The 3 skips are `MultisiteProvisioningTest`, which runs only with
+`WP_TESTS_MULTISITE=1`. The Integration suite ran for the first time on
+2026-10-29 and was 6 red, all stale fixtures (commit `54078c8`). CI still runs
+only the Unit suite; Integration runs locally, in the turn-end gate below.
 
 **Any failure is now a real regression.** The section below is the history
 of the 14 fixture failures that stood between 2026-09-01 and the 1.8.7/1.8.8
@@ -1005,6 +1028,163 @@ no `FRE_*` classes remaining).
 **The fix is to update the fixtures** to use `get_name()` rather than the bare
 key — deliberately not done as part of the connector TLS port, to keep that
 change reviewable. Until then, this baseline is what makes the gate usable.
+
+## Verification gates (Claude Code hooks)
+
+Armed by `.claude/settings.json`; scripts in `.claude/hooks/`. Both are tracked
+(`.gitignore` un-ignores them); `settings.local.json` is not.
+
+Same design as ai-section-builder-modern's `scripts/claude-hooks/` (branch
+`chore/local-verification-gates`); the differences are listed below.
+
+| Hook | Script | What it does |
+|------|--------|--------------|
+| UserPromptSubmit | `verify.sh prompt` | Records the tree the turn started from; honours `UNLOCK-VERIFICATION` |
+| SubagentStart | `verify.sh agent-start` | Records the tree a subagent started from |
+| PreToolUse (Edit/Write/MultiEdit/NotebookEdit/Bash) | `guard.php` | Refuses writes to the verification layer (`onFailure: block`) |
+| PostToolUse (Edit/Write/MultiEdit) | `post-edit.sh` | Per-file only: `php -l`, `jq empty`, `bash -n`, `node --check`. **No suites** — a multi-file change is red in the middle |
+| Stop + SubagentStop | `verify.sh stop` | Tamper check → `php -l` over all shipped files → Unit → Integration |
+
+Run the gate by hand (also the orchestrator's verify command):
+`.claude/hooks/verify.sh run` — exit 0 = green. Logs and state live in
+`~/.claude/verification-gate/form-runtime-engine/`.
+
+**When the Stop gate runs.** The working tree is fingerprinted together with
+the baseline ref. A fingerprint that already passed passes again without
+re-running. A turn or subagent that changed nothing is warned, not blocked, for
+a red tree it did not cause. Anything else runs the gate.
+
+**Give-up limit.** A red gate blocks up to **3 times in a row**, then lets the
+turn end with `RED. NOT VERIFIED` (a `systemMessage`, never a pass). Subagents
+get the same limit; one let through red is caught again by the main session's
+gate, because the tree is still red. Without the cap a gate the agent cannot
+satisfy is an endless, billed loop — this repo had one on 2026-10-29, ~100
+turns, when the gate itself was broken.
+
+**Locked** (guard + tamper check): `tests/**` files present in the baseline or
+in HEAD, `phpunit.xml(.dist)`, `composer.json/.lock`, `.gitignore`,
+`bin/install-wp-tests.sh`, `.github/**`, `.claude/settings*.json`,
+`.claude/hooks/**`, `vendor/**`, the baseline ref (`.git/refs/verify/`,
+`packed-refs`, `git update-ref`, `rebaseline.sh`), `~/.wp-tests/**`,
+`~/.claude/settings*.json`, `~/.claude/verification-gate/**`, and the
+orchestrate skill's `phase-worker.md` / `phase-reviewer.md` / `skills/orchestrate/`.
+**Editable:** a new file under `tests/` until it is committed, so a worker can
+fix a mistake in its own new test. Read-only commands that name the ref
+(`git rev-parse`, `git diff`, `grep`, `cat`) are allowed.
+
+**Changing the verification layer deliberately — two ways, both yours:**
+- **Have Claude do it:** make the FIRST line of your prompt exactly
+  `UNLOCK-VERIFICATION`, then describe the change. The main session's guard is
+  off for that one turn: Claude edits, commits, and moves the baseline with
+  `git update-ref refs/verify/baseline HEAD` so the tamper check accepts it.
+  Subagents stay locked. The lock returns when the turn ends (green, or let
+  through after 3 blocks), and never lasts past 2 hours. Every unlock, relock
+  and baseline move made under one is logged to `unlock.log` in the state dir.
+  **Type the line by hand.** A prompt that arrives as pasted text does not
+  unlock, even when `UNLOCK-VERIFICATION` is its first visible line (observed
+  2026-10-29: the prompt hook ran, no unlock marker was written). Suspected
+  cause, **unconfirmed**: the app hands pasted text to the hook inside a
+  wrapper, so the hook's first line is the wrapper, not the word. The hook
+  does not record the prompt it receives, so this has not been checked. If an
+  unlock seems ignored, look for `unlock-<session>` in the state dir and an
+  `UNLOCKED` line in `unlock.log` before assuming it took.
+- **Do it yourself:** edit in your editor, commit, then run
+  `.claude/hooks/rebaseline.sh` in your own terminal. It shows what it accepts
+  and needs an interactive terminal to confirm (type only `y`; arrow keys
+  pressed at the prompt become part of the answer and it says "Unchanged.").
+
+The baseline is a ref, not a tag, so `git push --tags` never publishes it.
+Until it is moved, the tamper check blocks and names the changed files.
+
+**Where this differs from ai-section-builder-modern, on purpose:**
+- **Tamper check against a baseline ref** (theirs has none; the guard is all).
+  Here hooks are tracked files, so a committed change to a test or config is
+  caught at turn end whatever wrote it. Consequence: an unlock must also move
+  the baseline, so the unlock lasts until the turn really ends — not only until
+  the first Stop attempt as there — or the tamper block that follows an
+  unlocked change could never be cleared.
+- **Unlock line must be exactly `UNLOCK-VERIFICATION`** (theirs: the first line
+  *starts with* it). `UNLOCK-VERIFICATION: do X` does not unlock here.
+- **Fingerprint includes the baseline ref**, so a cached green is not reused
+  after the baseline moves.
+- **Unlocks are logged** (`unlock.log`), including any baseline move.
+- **No `git clean` / `rm .` blanket refusals**: the tamper check covers deleted
+  tracked files; new untracked tests are the only thing `git clean` could take.
+- **Guard in PHP**, matching this repo; exits 2 rather than printing a JSON
+  `deny` — same effect.
+
+**Verified live (2026-10-29, this repo, main session):** the per-edit check
+catching a parse error; the guard refusing Edit and `sed -i` on an existing
+test; a `cd`-then-relative-path write getting past the guard and the tamper
+check catching it, uncommitted and committed; a new uncommitted test staying
+editable; the Stop gate blocking a turn ("block 1 of 3") on broken product
+code; a typed `UNLOCK-VERIFICATION` letting a `verify.sh` edit and a baseline
+move through, then `unlock.log` recording the move and the relock, and the
+guard refusing both again the next turn.
+
+**NOT verified live — treat as unconfirmed:**
+- **Subagents stay locked during an unlocked turn.** The guard refuses the
+  unlock when a tool call carries `agent_id`; that assumes Claude Code sends
+  `agent_id` on a subagent's tool calls. Tested only with synthetic input
+  (also unconfirmed in ai-section-builder-modern). Until confirmed, make
+  protected changes in the main session, never through a subagent.
+- **`onFailure: "block"` is honoured.** Copied from ai-section-builder-modern's
+  settings; not confirmed to be a setting Claude Code reads. If it is not, a
+  crash in `guard.php` (a PHP fatal, exit 255) lets the tool call through
+  instead of blocking it.
+- **Blocks 2 and 3 and the `RED. NOT VERIFIED` release.** Only block 1 has
+  been seen live. The counting, the release on the 4th stop and the fresh
+  count on a new turn passed with synthetic hook input in a scratch clone; the
+  live path depends on Claude Code setting `stop_hook_active` on re-stops.
+- **Pasted unlocks** — see the unlock bullet above: they do not unlock, cause
+  suspected, not confirmed.
+
+**What the guard is not:** a security boundary. Bash is pattern-matched, so a
+determined command can get past it. The authority is the turn-end tamper check,
+which diffs every tracked protected path against `refs/verify/baseline`
+however it was written, commits included. Not covered by that diff: gitignored
+paths (`vendor/`, `~/.wp-tests/`, `settings.local.json`) — guard only — and a
+test committed after the baseline and then rewritten in a later commit.
+Hook edits take effect in RUNNING sessions (observed 2026-10-29: the desktop
+app armed the guard mid-session within seconds of `settings.json` being
+written), which is why every `.claude/settings*.json` is locked — editing
+one is enough to disarm the gates.
+
+**Integration prerequisites** (fails closed if missing):
+- WordPress test library 7.1.4 + core in `~/.wp-tests/` (not `/tmp`, which
+  macOS clears on reboot). Reinstall:
+  `WP_TESTS_DIR=$HOME/.wp-tests/wordpress-tests-lib WP_CORE_DIR=$HOME/.wp-tests/wordpress bash bin/install-wp-tests.sh wordpress_test root root "localhost:$HOME/Library/Application Support/Local/run/jkm3tqhoPn/mysql/mysqld.sock" 7.1.4 --force`
+- The **AI Section Builder** site running in Local: its MySQL socket only
+  exists while it runs. Database `wordpress_test` on that server.
+- Integration runs are serialized by a lock (`~/.wp-tests/.gate.lock`): every
+  run rebuilds the `wptests_` tables, so parallel subagents would collide.
+- `composer test:integration` still points at `/tmp/wordpress-tests-lib`; the
+  gate calls phpunit directly with the `~/.wp-tests` path.
+
+### Known gaps — recorded, not solved
+
+- **PHP versions.** Local runs 8.5; CI covers 7.4 and 8.2 (lint + Unit only).
+  Nothing local checks 7.4/8.2. Local ships usable binaries
+  (`~/Library/Application Support/Local/lightning-services/php-8.2.29+0/bin/darwin-arm64/bin/php`,
+  `php-7.4.1+18/bin/darwin/bin/php`, x86_64 under Rosetta) — enough for a
+  multi-version `php -l` if wanted.
+- **The rest of the Promptless stack.** FlowMint depends on this plugin's
+  entry classes and `pforms_submission_complete`
+  (`flowmint-workflows/includes/Core/class-fmw-submission-listener.php`,
+  `class-fmw-workflow-job.php`, `class-fmw-workflow-context.php`). Nothing
+  verifies the two together.
+- **Damaged GIFs pass the upload inspector.** `getimagesize()` reads only a
+  GIF's 13-byte header, so a GIF header followed by junk is accepted although
+  `imagecreatefromgif()` cannot decode it. JPEG and PNG are refused. Product
+  gap, not fixed.
+- **`test_hidden_conditional_field_skips_validation` cannot fail** for the
+  reason it names: `browser` is not required in the `conditional-logic`
+  fixture, so it passes whether or not hidden fields are skipped.
+- **`bin/install-wp-tests.sh` cannot create the database** with Local: its
+  socket glob is unquoted and Local's path contains a space. `wordpress_test`
+  already exists, so it does not matter until that database is dropped.
+- **Worktrees** have no `vendor/` (gitignored); the gate fails there until
+  `composer install` is run in the worktree.
 
 ## Gotchas
 

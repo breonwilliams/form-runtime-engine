@@ -558,6 +558,16 @@
     color: #721c24;
 }
 
+/* A form that is not accepting submissions (availability): its closed or
+   before-open message, shown in place of the form — at render, or by
+   frontend.js on the server's `form_closed` refusal. Neutral, not red: the
+   visitor did nothing wrong. Uses only existing --fre-* properties. */
+.fre-form__message--closed {
+    background-color: var(--fre-surface-color);
+    border: 1px solid var(--fre-border-color);
+    color: var(--fre-text-color);
+}
+
 /* Confirmation (settings.after_submit "confirmation", the default since
    1.12.3): after a successful submit everything in the form but its title
    and the messages container is hidden, so the success message REPLACES the
