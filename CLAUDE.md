@@ -1292,4 +1292,4 @@ add_action( 'wp_footer', function() {
 
 For deeper background (CHANGELOG format, GitHub Personal Access Token setup for the auto-updater, etc.), see the long-form notes in **`docs/CLAUDE.md`**.
 
-**One-line summary:** update version stamps → commit → `git tag v1.7.0` → `git push --tags` → `./bin/build-release.sh` → `gh release create v1.7.0 build/form-runtime-engine.zip --notes-file CHANGELOG.md`.
+**One-line summary:** update version stamps → commit → `git tag v1.7.0` → `git push origin main --tags` → `./bin/build-release.sh` → Plugin Check → SVN deploy → **GitHub release** (`gh release create v1.7.0 build/promptless-forms.zip --verify-tag`, notes = that version's readme changelog lines; RELEASE.md Step 5). The GitHub release is required: GitHub and WordPress.org must carry identical code.

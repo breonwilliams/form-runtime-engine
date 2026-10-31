@@ -50,6 +50,7 @@ Every release must update the version number in **all** locations below. Mismatc
 | `readme.txt` | `Stable tag:` header | `Stable tag: 1.8.1` |
 | `CHANGELOG.md` | Move `[Unreleased]` content under new heading | `## [1.8.1] — 2026-06-16` |
 | Git tag | After commit | `v1.8.1` (with `v` prefix) |
+| GitHub release | After the SVN deploy (Step 5) | Title `Promptless Forms v1.8.1`, asset `promptless-forms.zip` |
 
 > **Critical:** The `Stable tag` in `readme.txt` tells WordPress.org which tag to serve to users. It must match an existing tag in `tags/`.
 
@@ -64,6 +65,7 @@ Every release must update the version number in **all** locations below. Mismatc
 - [ ] Plugin Check returns **zero errors** (run on the staged build)
 - [ ] No PHP errors in `debug.log` on a smoke-test install
 - [ ] If schema-affecting changes: bump `PForms_DB_VERSION` in the main plugin file too
+- [ ] After the SVN deploy, the GitHub release exists for the same tag with the same zip (Step 5) — **required**: GitHub and WordPress.org must carry identical code
 
 ---
 
@@ -142,6 +144,35 @@ svn status
 svn commit -m "Release 1.8.1 — WordPress multisite support" --username promptlesswp
 ```
 
+### Step 5: Publish the matching GitHub release (required)
+
+Every WordPress.org release also gets a GitHub release on the same tag,
+carrying the same `promptless-forms.zip`, so the two channels never drift.
+A pushed tag alone is **not** a GitHub release. The release notes are the
+version's `readme.txt` changelog lines (not its Upgrade Notice).
+
+```bash
+# Notes: the version's changelog section from the tagged readme.txt.
+git show v1.8.1:readme.txt \
+  | awk '/^= 1.8.1 =/ && !done {f=1; next} /^= / && f {f=0; done=1} f' \
+  | sed '/^$/d' > /tmp/release-notes.md
+
+# Create the release on the existing tag, with the built zip attached.
+gh release create v1.8.1 build/promptless-forms.zip --verify-tag \
+  --title "Promptless Forms v1.8.1" --notes-file /tmp/release-notes.md
+```
+
+Then confirm the two channels match (once WordPress.org serves the new
+version — usually a few minutes after the SVN commit):
+
+```bash
+mkdir -p /tmp/rel-check && cd /tmp/rel-check
+gh release download v1.8.1 -R breonwilliams/form-runtime-engine -p promptless-forms.zip -D gh
+curl -sLo wporg.zip https://downloads.wordpress.org/plugin/promptless-forms.1.8.1.zip
+unzip -q gh/promptless-forms.zip -d gh && unzip -q wporg.zip -d wporg
+diff -rq gh/promptless-forms wporg/promptless-forms && echo "GitHub == WordPress.org"
+```
+
 ---
 
 ## Post-release verification
@@ -150,6 +181,7 @@ svn commit -m "Release 1.8.1 — WordPress multisite support" --username promptl
 2. **Check WordPress.org:** Visit https://wordpress.org/plugins/promptless-forms/ — version should update within a few minutes.
 3. **Test update:** On a WordPress site with the old version installed, go to **Dashboard → Updates**. The new version should appear (or trigger manually: `wp transient delete update_plugins`).
 4. **Smoke test:** Apply the update and verify the plugin activates without PHP errors. Submit a test form.
+5. **Check GitHub:** `gh release list --limit 2` shows `Promptless Forms v1.8.1` as **Latest**, and the Step 5 diff reports the GitHub asset and the WordPress.org download identical.
 
 ---
 
@@ -262,7 +294,7 @@ svn commit -m "Update plugin icon" --username promptlesswp
 
 ---
 
-**Last updated:** 2026-06-16
+**Last updated:** 2026-10-31 (Step 5: the GitHub release is required)
 
 
 ## Test-install policy (duplicate-plugin prevention)
