@@ -1,9 +1,9 @@
 # Orchestrator state
 
 Run status: DONE   <!-- RUNNING | PAUSED | HALTED: QUESTION | HALTED: BLOCKED | DONE -->
-Updated: 2026-10-31T14:15:06Z
+Updated: 2026-10-31T14:19:37Z
 Last green commit: 4682894
-Next action: None — the run is finished and **released as Promptless Forms 1.13.0** (2026-10-31): PR #28 merged as 29878eb, release commit 261bf70, tag `v1.13.0`, WordPress.org SVN r3776937, GitHub release "Promptless Forms v1.13.0"; the WordPress.org download and the GitHub asset were diffed identical. Still open outside this repo: the relay update (blocked until 725printlab.com runs 1.13.0 — every Promptless relay targets it), confirming `hc-relay` was deleted from 725printlab.com, docs PR breonwilliams/promptlesswp-documentation#26 and roadmap PR breonwilliams/ai-section-builder-modern#93 (awaiting review). The tables below are the run's history as of 2026-10-29.
+Next action: None — the run is finished and **released as Promptless Forms 1.13.0** (2026-10-31): PR #28 merged as 29878eb, release commit 261bf70, tag `v1.13.0`, WordPress.org SVN r3776937, GitHub release "Promptless Forms v1.13.0"; the WordPress.org download and the GitHub asset were diffed identical. Docs PR breonwilliams/promptlesswp-documentation#26 merged 2026-10-31 (`/forms/availability/` live); `hc-relay` deleted from 725printlab.com by the human (reported 2026-10-31). Still open outside this repo: the relay update (blocked until 725printlab.com runs 1.13.0 — every Promptless relay targets it) and roadmap PR breonwilliams/ai-section-builder-modern#93 (awaiting review). The tables below are the run's history as of 2026-10-29.
 
 | Phase | Status | Attempts | Base commit | Gate | Review | Commit |
 |---|---|---|---|---|---|---|
@@ -91,7 +91,8 @@ the human's decision. — The human approved deleting it; the delete call failed
 form-engine-wordpress unavailable": no relay process was running), so `hc-relay` is **still on
 725printlab.com** until the relay is restarted and the delete re-run, or it is deleted in that
 site's wp-admin (Form Entries → Forms). The human said (2026-10-29) they will delete it in
-that site's wp-admin themselves; not confirmed here. No other MCP tool was used against that site; all other checks used the
+that site's wp-admin themselves. **Resolved 2026-10-31T14:19:37Z: the human reported `hc-relay`
+deleted from 725printlab.com** (not independently verified here — no connector to that site). No other MCP tool was used against that site; all other checks used the
 Local site only.
 
 All Local test data (hc-* forms, entries, counts, FlowMint workflow and runs, test page,
@@ -102,7 +103,7 @@ probe mu-plugin) removed by 2026-10-29T20:32:38Z; verified empty.
 2. ~~A person clicks "Reset to 0" → OK once (5c)~~ — **done** by the human 2026-10-29, verified by Claude (see 5c).
 3. Push the post-run evidence commits.
 4. Before release (not merge): Plugin Check; update the relay only when 725printlab.com runs this
-   version; mark §3.11 built in Promptless WP; confirm `hc-relay` was deleted from 725printlab.com.
+   version; mark §3.11 built in Promptless WP; ~~confirm `hc-relay` was deleted from 725printlab.com~~ (deleted by the human, 2026-10-31).
 
 **Limits of what these checks show:** Local's PHP-FPM pool is `pm = static`, 2 workers, so
 real concurrency is two requests at a time (proven to overlap), not ten; one browser engine;
